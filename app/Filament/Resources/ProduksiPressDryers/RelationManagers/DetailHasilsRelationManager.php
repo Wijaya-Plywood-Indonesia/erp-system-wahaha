@@ -2,6 +2,9 @@
 
 namespace App\Filament\Resources\ProduksiPressDryers\RelationManagers;
 
+use App\Models\DetailHasil;
+use App\Services\SerahHasilDryerService;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
@@ -9,18 +12,19 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Select;
+use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 class DetailHasilsRelationManager extends RelationManager
 {
     protected static ?string $title = 'Hasil';
     protected static string $relationship = 'detailHasils';
 
-    // FUNGSI BARU UNTUK MEMUNCULKAN TOMBOL DI HALAMAN VIEW
     public function isReadOnly(): bool
     {
         return false;
@@ -35,12 +39,10 @@ class DetailHasilsRelationManager extends RelationManager
                     ->numeric()
                     ->required(),
 
-                // Relasi ke Ukuran (id_ukuran)
                 Select::make('id_ukuran')
                     ->label('Ukuran Kayu')
                     ->options(function () {
                         $produksi = $this->getOwnerRecord();
-
                         return \App\Models\DetailMasuk::where('id_produksi_dryer', $produksi->id)
                             ->with('ukuran')
                             ->get()
@@ -54,12 +56,10 @@ class DetailHasilsRelationManager extends RelationManager
                     ->default(fn() => session('last_ukuran'))
                     ->required(),
 
-                // Relasi ke Jenis Kayu (id_jenis_kayu)
                 Select::make('id_jenis_kayu')
                     ->label('Jenis Kayu')
                     ->options(function () {
                         $produksi = $this->getOwnerRecord();
-
                         return \App\Models\DetailMasuk::where('id_produksi_dryer', $produksi->id)
                             ->select('id_jenis_kayu')
                             ->distinct()
@@ -76,7 +76,6 @@ class DetailHasilsRelationManager extends RelationManager
 
                 TextInput::make('kw')
                     ->label('Kualitas (KW)')
-
                     ->required()
                     ->placeholder('Cth: 1, 2, 3 dll.'),
 
@@ -91,10 +90,14 @@ class DetailHasilsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn($query) => $query->with(['stokMasuk', 'ukuran', 'jenisKayu', 'produksiDryer']))
             ->columns([
                 TextColumn::make('no_palet')
                     ->label('No. Palet')
-                    ->searchable(),
+                    ->searchable()
+                    ->badge()
+                    ->color(fn($record) => $record->stokMasuk ? 'success' : 'gray')
+                    ->description(fn($record) => $record->stokMasuk ? 'Sudah Serah' : 'Belum Serah'),
 
                 TextColumn::make('jenisKayu.nama_kayu')
                     ->label('Jenis Kayu')
@@ -107,7 +110,6 @@ class DetailHasilsRelationManager extends RelationManager
                             $q->where('panjang', 'like', "%{$search}%")
                                 ->orWhere('lebar', 'like', "%{$search}%")
                                 ->orWhere('tebal', 'like', "%{$search}%")
-                                // Mendukung pencarian format "12 x 12"
                                 ->orWhereRaw("CONCAT(panjang, ' x ', lebar, ' x ', tebal) LIKE ?", ["%{$search}%"]);
                         });
                     })
@@ -126,11 +128,8 @@ class DetailHasilsRelationManager extends RelationManager
                     ->dateTime()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
-            ->filters([
-                // Tempat filter jika Anda membutuhkannya
-            ])
+            ->filters([])
             ->headerActions([
-                // Create Action — HILANG jika status sudah divalidasi
                 CreateAction::make()
                     ->hidden(
                         fn($livewire) =>
@@ -138,14 +137,51 @@ class DetailHasilsRelationManager extends RelationManager
                     ),
             ])
             ->recordActions([
-                // Edit Action — HILANG jika status sudah divalidasi
+                Action::make('serahKeGudang')
+                    ->label('Serahkan Hasil')
+                    ->icon('heroicon-o-paper-airplane')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    /**
+                     * SOLUSI PALING AMAN: Direct DB Check.
+                     * Kita cek langsung ke tabel 'stok_veneer_kerings' menggunakan kueri SQL mentah.
+                     * Ini 100% akurat karena tidak bergantung pada cache model Eloquent.
+                     */
+                    ->visible(function (DetailHasil $record) {
+                        return ! DB::table('stok_veneer_kerings')
+                            ->where('id_detail_hasil_dryer', $record->id)
+                            ->exists();
+                    })
+                    ->action(function (DetailHasil $record) {
+                        try {
+                            app(SerahHasilDryerService::class)->serahkan($record);
+
+                            /**
+                             * Bersihkan memori objek setelah aksi
+                             */
+                            $record->unsetRelation('stokMasuk');
+                            $record->refresh();
+
+                            Notification::make()
+                                ->title('Penyerahan Berhasil')
+                                ->success()
+                                ->send();
+                        } catch (\Throwable $e) {
+                            Notification::make()
+                                ->title('Gagal')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
+
+
                 EditAction::make()
                     ->hidden(
                         fn($livewire) =>
                         $livewire->ownerRecord?->validasiTerakhir?->status === 'divalidasi'
                     ),
 
-                // Delete Action — HILANG jika status sudah divalidasi
                 DeleteAction::make()
                     ->hidden(
                         fn($livewire) =>

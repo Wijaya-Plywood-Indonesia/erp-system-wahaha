@@ -5,32 +5,31 @@ namespace App\Filament\Resources\ProduksiRotaries\RelationManagers;
 use App\Models\DetailHasilPaletRotary;
 use App\Models\ProduksiPressDryer;
 use App\Models\ProduksiRotary;
-use App\Models\ProduksiStik; // <-- tambah import
+use App\Models\ProduksiStik;
+use App\Services\Akuntansi\RotaryJurnalService;
 use Filament\Actions\Action;
+use Filament\Schemas\Schema;
 use Filament\Actions\CreateAction;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Filament\Notifications\Notification;
-use Laravel\Reverb\Loggers\Log;
+use Illuminate\Database\Eloquent\Builder;
 
 class SerahTerimaRelationManager extends RelationManager
 {
     protected static string $relationship = 'serahTerima';
-
-    protected static ?string $relatedResource = null;
 
     protected function getTipePenerima(): string
     {
         return match (get_class($this->getOwnerRecord())) {
             ProduksiRotary::class     => 'rotary',
             ProduksiPressDryer::class => 'dryer',
-            ProduksiStik::class       => 'stik', // <-- ganti kedi ke stik
+            ProduksiStik::class       => 'stik',
             default                   => 'unknown',
         };
     }
@@ -52,13 +51,14 @@ class SerahTerimaRelationManager extends RelationManager
     }
 
     public function form(Schema $schema): Schema
+
     {
         return $schema
-            ->components([
+            ->schema([
                 Select::make('id_detail_hasil_palet_rotary')
                     ->label('Nomor Palet')
                     ->options(function () {
-                        $tipe       = $this->getTipePenerima();
+                        $tipe = $this->getTipePenerima();
                         $idProduksi = $this->getOwnerRecord()->id;
 
                         $sudahSerah = DB::table('detail_hasil_palet_rotary_serah_terima_pivot')
@@ -71,22 +71,27 @@ class SerahTerimaRelationManager extends RelationManager
                                 ->whereNotIn('id', $sudahSerah)
                                 ->get()
                                 ->mapWithKeys(fn($d) => [
-                                    $d->id => "{$d->palet} - {$d->total_lembar} lembar"
+                                    $d->id => "{$d->kode_palet} - {$d->total_lembar} lembar"
                                 ]);
                         }
-
                         return [];
                     })
                     ->searchable()
                     ->required()
-                    ->noSearchResultsMessage('Belum ada palet yang tersedia.')
                     ->columnSpanFull(),
 
                 TextInput::make('diserahkan_oleh')
                     ->label(fn() => $this->getLabelByTipe($this->getTipePenerima()))
+                    ->default(fn() => Auth::user()->name)
                     ->readOnly()
-                    ->content(fn() => Auth::user()->name)
                     ->columnSpanFull(),
+
+                // Hidden field untuk menyimpan tipe default saat create
+                \Filament\Forms\Components\Hidden::make('tipe')
+                    ->default(fn() => $this->getTipePenerima()),
+
+                \Filament\Forms\Components\Hidden::make('status')
+                    ->default(fn() => $this->getStatusByTipe($this->getTipePenerima())),
             ]);
     }
 
@@ -95,146 +100,185 @@ class SerahTerimaRelationManager extends RelationManager
         $tipe = $this->getTipePenerima();
 
         return $table
-            ->recordTitleAttribute('id')
             ->modifyQueryUsing(function ($query) use ($tipe) {
+                $query->with([
+                    'detailHasilPalet.ukuran',
+                    'detailHasilPalet.penggunaanLahan.jenisKayu',
+                    'detailHasilPalet.produksi.detailLahanRotary.jenisKayu',
+                ]);
+
                 if ($tipe === 'rotary') {
                     return $query->where('tipe', 'rotary');
                 }
 
-                // Reset semua kondisi dari relasi dummy
-                $query->getQuery()->wheres   = [];
-                $query->getQuery()->bindings = [
-                    'select'     => [],
-                    'from'       => [],
-                    'join'       => [],
-                    'where'      => [],
-                    'groupBy'    => [],
-                    'having'     => [],
-                    'order'      => [],
-                    'union'      => [],
-                    'unionOrder' => [],
-                ];
+                $ownerId = $this->getOwnerRecord()->id;
 
-                $query
-                    ->from('detail_hasil_palet_rotary_serah_terima_pivot')
-                    ->select('detail_hasil_palet_rotary_serah_terima_pivot.*')
-                    ->where(function ($q) {
-                        // Palet masuk dari rotary, belum diterima siapapun
-                        $q->where('tipe', 'rotary')
-                            ->where('diterima_oleh', '-');
+                // Reset wheres untuk view Penerima agar bisa melihat barang 'Ready' dari Rotary
+                $query->getQuery()->wheres = [];
+                $query->getQuery()->bindings['where'] = [];
+
+                return $query->where(function ($mainQuery) use ($tipe, $ownerId) {
+                    $mainQuery->where(function ($q) {
+                        $q->where('tipe', 'rotary')->where('diterima_oleh', '-');
                     })
-                    ->orWhere(function ($q) use ($tipe) {
-                        // Palet yang sudah diterima tipe ini (histori)
-                        $q->where('tipe', $tipe);
-                    });
-
-                return $query;
+                        ->orWhere(function ($q) use ($tipe, $ownerId) {
+                            $q->where('tipe', $tipe)->where('id_produksi', $ownerId);
+                        });
+                })
+                    // REVISI: Urutkan agar yang belum diterima ('-') berada di paling atas
+                    ->orderBy('diterima_oleh', 'asc')
+                    ->orderBy('created_at', 'desc');
             })
             ->columns([
-
                 TextColumn::make('detailHasilPalet.palet')
                     ->label('Nomor Palet')
                     ->getStateUsing(fn($record) => $record->detailHasilPalet?->kode_palet ?? '-')
-                    ->searchable(),
+                    ->searchable(query: function ($query, string $search) {
+
+                        $kodeMapping = [
+                            'SP' => 'SPINDLESS',
+                            'MR' => 'MERANTI',
+                            'SJ' => 'SANJI',
+                            'YQ' => 'YUEQUN',
+                        ];
+
+                        $parts      = explode('-', strtoupper(trim($search)));
+                        $kodeInput  = $parts[0] ?? null;
+                        $nomorPalet = isset($parts[1]) && is_numeric($parts[1]) ? (int) $parts[1] : null;
+                        $namaMesin  = $kodeMapping[$kodeInput] ?? null;
+
+                        $query->whereHas('detailHasilPalet', function ($q) use ($search, $namaMesin, $nomorPalet) {
+                            // Join ke produksi dan mesin untuk bisa filter nama mesin
+                            $q->join('produksi_rotaries', 'detail_hasil_palet_rotaries.id_produksi', '=', 'produksi_rotaries.id')
+                                ->join('mesins', 'produksi_rotaries.id_mesin', '=', 'mesins.id');
+
+                            if ($namaMesin && $nomorPalet !== null) {
+                                // Input: "SP-1"
+                                $q->where('mesins.nama_mesin', 'like', "%{$namaMesin}%")
+                                    ->where('detail_hasil_palet_rotaries.palet', $nomorPalet);
+                            } elseif ($namaMesin) {
+                                // Input: "SP"
+                                $q->where('mesins.nama_mesin', 'like', "%{$namaMesin}%");
+                            } elseif (is_numeric($search)) {
+                                // Input: "25" (nomor palet saja)
+                                $q->where('detail_hasil_palet_rotaries.palet', (int) $search);
+                            } else {
+                                // Input: "SPINDLESS" (nama mesin langsung)
+                                $q->where('mesins.nama_mesin', 'like', "%{$search}%");
+                            }
+                        });
+                    }),
 
                 TextColumn::make('detailHasilPalet.total_lembar')
-                    ->label('Jumlah (Lembar)')
-                    ->numeric()
+                    ->label('Lembar')
+                    ->numeric(),
+
+                TextColumn::make('ukuran')
+                    ->label('Ukuran')
+                    ->getStateUsing(
+                        fn($record) =>
+                        $record->detailHasilPalet?->ukuran
+                            ? "{$record->detailHasilPalet->ukuran->panjang} x {$record->detailHasilPalet->ukuran->lebar} x {$record->detailHasilPalet->ukuran->tebal}"
+                            : '-'
+                    ),
+
+                TextColumn::make('detailHasilPalet.kw')
+                    ->label('KW')
                     ->alignCenter(),
 
+                TextColumn::make('jenis_kayu')
+                    ->label('Jenis Kayu')
+                    ->getStateUsing(function ($record) {
+                        $palet = $record->detailHasilPalet;
+                        if (!$palet) return '-';
+
+                        $jenisKayu = $palet->penggunaanLahan?->jenisKayu?->nama_kayu;
+
+                        if (!$jenisKayu) {
+                            $jenisKayu = $palet->produksi?->detailLahanRotary?->first()?->jenisKayu?->nama_kayu;
+                        }
+
+                        return $jenisKayu ?? '-';
+                    })
+                    ->badge(),
+
                 TextColumn::make('diserahkan_oleh')
-                    ->badge()
-                    ->label('Diserahkan Oleh'),
+                    ->label('Oleh')
+                    ->badge(),
 
                 TextColumn::make('diterima_oleh')
-                    ->label('Diterima Oleh')
                     ->badge()
                     ->color(fn($state) => $state === '-' ? 'gray' : 'success')
-                    ->formatStateUsing(fn($state) => $state === '-' ? 'Belum Diterima' : $state),
+                    ->formatStateUsing(fn($state) => $state === '-' ? 'Menunggu' : $state),
 
                 TextColumn::make('status')
-                    ->label('Status')
                     ->badge()
                     ->color(fn($state) => match ($state) {
-                        'Serah Barang'  => 'warning',
                         'Terima Barang' => 'success',
-                        default         => 'gray',
+                        'Serah Barang' => 'warning',
+                        default => 'gray'
                     }),
 
                 TextColumn::make('created_at')
                     ->label('Waktu')
                     ->dateTime('d/m/Y H:i')
-                    ->description(fn($record) => $record?->tipe === 'rotary' ? 'Waktu Serah' : 'Waktu Terima')
                     ->sortable(),
-
             ])
             ->headerActions([
                 CreateAction::make()
                     ->label('Serahkan Palet')
-                    ->visible(fn() => $this->getTipePenerima() === 'rotary'),
+                    ->visible(fn() => $this->getTipePenerima() === 'rotary')
+                    // Logic stok TIDAK ADA di sini agar tidak otomatis masuk saat serah
+                    ->after(fn() => Notification::make()->title('Palet Berhasil Diserahkan')->info()->send()),
             ])
             ->actions([
                 Action::make('terima')
                     ->label('Terima')
-                    ->icon('heroicon-o-check-circle')
                     ->color('success')
-                    ->tooltip('Terima palet ini')
+                    ->icon('heroicon-o-check-circle')
                     ->requiresConfirmation()
-                    ->modalHeading('Konfirmasi Penerimaan Palet')
-                    ->modalDescription(
-                        fn($record) =>
-                        "Palet {$record->detailHasilPalet?->palet} ({$record->detailHasilPalet?->total_lembar} lembar) " .
-                            "akan diterima atas nama " . Auth::user()->name . "."
-                    )
-                    ->modalSubmitActionLabel('Ya, Terima')
                     ->visible(fn($record) => $tipe !== 'rotary' && $record?->diterima_oleh === '-')
                     ->action(function ($record) use ($tipe) {
                         DB::transaction(function () use ($record, $tipe) {
-                            $owner = $this->getOwnerRecord();
-
-                            $labelProduksi = match ($tipe) {
-                                'dryer' => 'Produksi Dryer',
-                                'stik'  => 'Produksi Stik', // <-- ganti kedi ke stik
-                                default => 'Produksi',
+                            $unitAsal = 'ROTARY';
+                            $unitTujuan = match ($tipe) {
+                                'dryer' => 'DRYER',
+                                'stik'  => 'STIK',
+                                default => 'GUDANG',
                             };
 
-                            $diterimaOleh = Auth::user()->name . ' - ' . $labelProduksi;
+                            $userSerah = $record->diserahkan_oleh;
+                            $userTerima = Auth::user()->name;
+                            $diterimaOleh = "{$userTerima} - Produksi {$unitTujuan}";
 
-                            // Update record rotary — tandai sudah diterima
+                            // Update Sisi Rotary
                             DB::table('detail_hasil_palet_rotary_serah_terima_pivot')
                                 ->where('id', $record->id)
-                                ->update([
-                                    'diterima_oleh' => $diterimaOleh,
-                                    'status'        => 'Terima Barang',
-                                    'updated_at'    => now(),
-                                ]);
+                                ->update(['diterima_oleh' => $diterimaOleh, 'status' => 'Terima Barang', 'updated_at' => now()]);
 
-                            // Insert record baru tipe dryer/stik sebagai histori penerimaan
-                            DB::table('detail_hasil_palet_rotary_serah_terima_pivot')
-                                ->insert([
-                                    'id_detail_hasil_palet_rotary' => $record->id_detail_hasil_palet_rotary,
-                                    'diserahkan_oleh'              => $record->diserahkan_oleh,
-                                    'diterima_oleh'                => $diterimaOleh,
-                                    'tipe'                         => $tipe,
-                                    'status'                       => 'Terima Barang',
-                                    'created_at'                   => now(),
-                                    'updated_at'                   => now(),
-                                ]);
+                            // Insert Sisi Penerima
+                            DB::table('detail_hasil_palet_rotary_serah_terima_pivot')->insert([
+                                'id_detail_hasil_palet_rotary' => $record->id_detail_hasil_palet_rotary,
+                                'diserahkan_oleh'              => $userSerah,
+                                'diterima_oleh'                => $diterimaOleh,
+                                'tipe'                         => $tipe,
+                                'id_produksi'                  => $this->getOwnerRecord()->id,
+                                'status'                       => 'Terima Barang',
+                                'created_at'                   => now(),
+                                'updated_at' => now(),
+                            ]);
 
-                            \Illuminate\Support\Facades\Log::info('Palet Diterima: ' . json_encode([
-                                'tipe'          => $tipe,
-                                'owner_id'      => $owner->id,
-                                'pivot_id'      => $record->id,
-                                'diterima_oleh' => $diterimaOleh,
-                            ]));
+                            // Eksekusi Stok
+                            $palet = $record->detailHasilPalet;
+                            if ($palet) {
+                                $service = app(RotaryJurnalService::class);
+                                // FORMAT KETERANGAN BERSIH
+                                $keteranganFinal = "SERAH-TERIMA: {$palet->kode_palet} | {$unitAsal} -> {$unitTujuan} | Oleh: {$userSerah} -> {$userTerima}";
+                                $service->serahPalet($palet, $keteranganFinal);
+                            }
                         });
-
-                        Notification::make()
-                            ->title('Palet berhasil diterima')
-                            ->success()
-                            ->send();
+                        Notification::make()->title('Palet Berhasil Diterima')->success()->send();
                     }),
-            ])
-            ->bulkActions([]);
+            ]);
     }
 }

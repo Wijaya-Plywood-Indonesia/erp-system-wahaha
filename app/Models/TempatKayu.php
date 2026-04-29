@@ -21,6 +21,9 @@ class TempatKayu extends Model
         'poin',
         'id_kayu_masuk',
         'id_lahan',
+        'diserahkan_oleh',
+        'diterima_oleh',
+        'status'
     ];
 
     public function kayuMasuk(): BelongsTo

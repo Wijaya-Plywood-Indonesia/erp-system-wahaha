@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Pages\DashboardHppDryer;
+use App\Filament\Pages\OpnameStokKayu;
 use App\Http\Middleware\RunDailyScheduler;
 use App\Livewire\GradingWizard;
 use Filament\Http\Middleware\Authenticate;
@@ -60,6 +61,7 @@ class AdminPanelProvider extends PanelProvider
             ->pages([
                 Dashboard::class,
                 DashboardHppDryer::class,
+                OpnameStokKayu::class,
             ])
             ->brandName('Wijaya')
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
@@ -98,6 +100,17 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make('Kontrak')
                     ->icon('heroicon-o-clipboard-document-check')->collapsed(),
 
+                NavigationGroup::make('Opname')
+                    ->icon('heroicon-o-clipboard-document-check')->collapsed(),
+
+                NavigationGroup::make('Stok')
+                    ->icon('heroicon-o-cube')
+                    ->collapsed(),
+
+                NavigationGroup::make('Log')
+                    ->icon('heroicon-o-cog')
+                    ->collapsed(),
+
                 NavigationGroup::make('Grade')
                     ->icon('heroicon-o-check-badge')->collapsed(),
 
@@ -134,9 +147,7 @@ class AdminPanelProvider extends PanelProvider
                     ->icon('heroicon-o-calculator')
                     ->collapsed(),
 
-                NavigationGroup::make('Stok')
-                    ->icon('heroicon-o-cube')
-                    ->collapsed(),
+
 
                 NavigationGroup::make('HPP')
                     ->icon('heroicon-o-banknotes')
