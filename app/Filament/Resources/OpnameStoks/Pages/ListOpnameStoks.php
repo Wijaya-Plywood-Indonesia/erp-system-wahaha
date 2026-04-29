@@ -36,78 +36,83 @@ class ListOpnameStoks extends CreateRecord
     protected function handleRecordCreation(array $data): BarangSetengahJadiHp
     {
         return DB::transaction(function () use ($data) {
-            $ukuran = \App\Models\Ukuran::findOrFail($data['id_ukuran']);
-            
-            // 1. Ambil Summary dengan Lock
+            $ukuran = Ukuran::findOrFail($data['id_ukuran']);
+
+            // 1. Ambil Summary, jika belum ada buat baru
             $summary = HppVeneerBasahSummary::where([
                 'id_jenis_kayu' => $data['id_jenis_kayu'],
-                'panjang' => (float)$ukuran->panjang,
-                'lebar'   => (float)$ukuran->lebar,
-                'tebal'   => (float)$ukuran->tebal,
-                'kw'      => $data['kw'],
+                'panjang'       => (float) $ukuran->panjang,
+                'lebar'         => (float) $ukuran->lebar,
+                'tebal'         => (float) $ukuran->tebal,
+                'kw'            => $data['kw'],
             ])->lockForUpdate()->first();
 
             if (!$summary) {
-                Notification::make()->title('Data summary tidak ditemukan')->danger()->send();
-                $this->halt();
+                $summary = HppVeneerBasahSummary::create([
+                    'id_jenis_kayu' => $data['id_jenis_kayu'],
+                    'panjang'       => (float) $ukuran->panjang,
+                    'lebar'         => (float) $ukuran->lebar,
+                    'tebal'         => (float) $ukuran->tebal,
+                    'kw'            => $data['kw'],
+                    'stok_lembar'   => 0,
+                    'stok_kubikasi' => 0,
+                    'nilai_stok'    => 0,
+                    'hpp_average'   => 0,
+                ]);
             }
 
-            $stokSistem = (int) $summary->stok_lembar;
-            $stokFisik  = (int) $data['stok_fisik'];
-            $selisih    = $stokFisik - $stokSistem; 
+            // 2. Ambil nilai dari input user
+            $stokSistem    = (int) $summary->stok_lembar;
+            $stokFisik     = (int) $data['stok_fisik'];
+            $kubikasiFisik = (float) $data['kubikasi_fisik'];
+            $selisih       = $stokFisik - $stokSistem;
 
             if ($selisih === 0) {
-                 Notification::make()->title('Tidak ada perubahan stok')->warning()->send();
-                 return new BarangSetengahJadiHp();
+                Notification::make()->title('Tidak ada perubahan stok')->warning()->send();
+                return new BarangSetengahJadiHp();
             }
 
             $tipe = $selisih > 0 ? 'masuk' : 'keluar';
 
-            // REVISI: Format Keterangan menggunakan Tanggal
+            // 3. Format Keterangan
             $tgl = now()->format('d/m/Y');
             $ket = "OPNAME VENEER BASAH TANGGAL {$tgl}";
             if (!empty($data['catatan'])) {
                 $ket .= ". CATATAN: " . strtoupper($data['catatan']);
             }
 
-            // 2. Kalkulasi Kubikasi & Nilai
-            $volPerLembar   = ($summary->panjang * $summary->lebar * $summary->tebal) / 10000000;
-            $kubikasiBaru   = round($stokFisik * $volPerLembar, 6);
-            $kubikasiSelisih = round(abs($selisih) * $volPerLembar, 6);
-            $nilaiStokBaru  = round($kubikasiBaru * $summary->hpp_average, 2);
+            // 4. Kalkulasi Kubikasi & Nilai
+            $kubikasiSistem  = (float) $summary->stok_kubikasi;
+            $kubikasiSelisih = round(abs($kubikasiFisik - $kubikasiSistem), 6);
+            $nilaiStokBaru   = round($kubikasiFisik * $summary->hpp_average, 2);
+            $nilaiStokBefore = $summary->nilai_stok;
 
-            $stokKubikasiBefore = $summary->stok_kubikasi;
-            $nilaiStokBefore    = $summary->nilai_stok;
-
-            // 3. Update Summary
+            // 5. Update Summary
             $summary->update([
                 'stok_lembar'   => $stokFisik,
-                'stok_kubikasi' => $kubikasiBaru,
+                'stok_kubikasi' => $kubikasiFisik,
                 'nilai_stok'    => $nilaiStokBaru,
             ]);
 
-            // 4. Simpan Log
+            // 6. Simpan Log
             HppVeneerBasahLog::create([
-                'id_jenis_kayu'      => $summary->id_jenis_kayu,
-                'panjang'            => $summary->panjang,
-                'lebar'              => $summary->lebar,
-                'tebal'              => $summary->tebal,
-                'kw'                 => $summary->kw,
-                'tanggal'            => now(),
-                'tipe_transaksi'     => $tipe,
-                'keterangan'         => $ket, // Menggunakan variabel keterangan hasil revisi
-                
-                // REVISI NAMA KOLOM: total_lembar
-                'total_lembar'       => abs($selisih), 
-                'total_kubikasi'     => $kubikasiSelisih,
-                
-                'stok_lembar_before' => $stokSistem,
-                'stok_lembar_after'  => $stokFisik,
-                'stok_kubikasi_before' => $stokKubikasiBefore,
-                'stok_kubikasi_after'  => $kubikasiBaru,
-                'hpp_average'        => $summary->hpp_average,
-                'nilai_stok_before'  => $nilaiStokBefore,
-                'nilai_stok_after'   => $nilaiStokBaru,
+                'id_jenis_kayu'        => $summary->id_jenis_kayu,
+                'panjang'              => $summary->panjang,
+                'lebar'                => $summary->lebar,
+                'tebal'                => $summary->tebal,
+                'kw'                   => $summary->kw,
+                'tanggal'              => now(),
+                'tipe_transaksi'       => $tipe,
+                'keterangan'           => $ket,
+                'total_lembar'         => abs($selisih),
+                'total_kubikasi'       => $kubikasiSelisih,
+                'stok_lembar_before'   => $stokSistem,
+                'stok_lembar_after'    => $stokFisik,
+                'stok_kubikasi_before' => $kubikasiSistem,
+                'stok_kubikasi_after'  => $kubikasiFisik,
+                'hpp_average'          => $summary->hpp_average,
+                'nilai_stok_before'    => $nilaiStokBefore,
+                'nilai_stok_after'     => $nilaiStokBaru,
             ]);
 
             Notification::make()
