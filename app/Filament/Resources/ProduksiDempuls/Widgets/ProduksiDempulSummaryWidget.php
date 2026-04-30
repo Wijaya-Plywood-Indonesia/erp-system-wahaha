@@ -68,7 +68,7 @@ class ProduksiDempulSummaryWidget extends Widget
                 CONCAT(
                     TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
                     TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
-                    TRIM(TRAILING "0" FROM TRIM(TRAILING "." FROM CAST(ukurans.tebal AS CHAR)))
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
                 ) AS ukuran,
                 grades.nama_grade as kw,  
                 SUM(CAST(detail_dempuls.hasil AS UNSIGNED)) AS total
@@ -83,7 +83,7 @@ class ProduksiDempulSummaryWidget extends Widget
                 CONCAT(
                     TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
                     TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
-                    TRIM(TRAILING "0" FROM TRIM(TRAILING "." FROM CAST(ukurans.tebal AS CHAR)))
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
                 ) AS ukuran,
                 SUM(CAST(detail_dempuls.hasil AS UNSIGNED)) AS total
             ')

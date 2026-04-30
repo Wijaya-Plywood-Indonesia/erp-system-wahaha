@@ -58,7 +58,7 @@ class ProduksiKediSummaryWidget extends Widget
             CONCAT(
                 TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
                 TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
-                TRIM(TRAILING "0" FROM TRIM(TRAILING "." FROM CAST(ukurans.tebal AS CHAR)))
+                TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
             ) AS ukuran
         ';
 
@@ -91,6 +91,36 @@ class ProduksiKediSummaryWidget extends Widget
             ->groupBy('ukuran', 'detail_masuk_kedi.kw')
             ->get();
 
+        // 6. GLOBAL JENIS KAYU & UKURAN MASUK
+        $globalJenisKayuUkuranMasuk = DetailMasukKedi::query()
+            ->where('id_produksi_kedi', $produksiId)
+            ->join('ukurans', 'ukurans.id', '=', 'detail_masuk_kedi.id_ukuran')
+            ->join('jenis_kayus', 'jenis_kayus.id', '=', 'detail_masuk_kedi.id_jenis_kayu')
+            ->selectRaw('
+                jenis_kayus.nama_kayu as jenis_kayu,
+                ' . $selectUkuranRaw . ',
+                SUM(CAST(detail_masuk_kedi.jumlah AS UNSIGNED)) AS total
+            ')
+            ->groupBy('jenis_kayus.nama_kayu', 'ukuran')
+            ->orderBy('jenis_kayus.nama_kayu')
+            ->orderBy('ukuran')
+            ->get();
+
+        // 7. GLOBAL JENIS KAYU & UKURAN BONGKAR
+        $globalJenisKayuUkuranBongkar = DetailBongkarKedi::query()
+            ->where('id_produksi_kedi', $produksiId)
+            ->join('ukurans', 'ukurans.id', '=', 'detail_bongkar_kedi.id_ukuran')
+            ->join('jenis_kayus', 'jenis_kayus.id', '=', 'detail_bongkar_kedi.id_jenis_kayu')
+            ->selectRaw('
+                jenis_kayus.nama_kayu as jenis_kayu,
+                ' . $selectUkuranRaw . ',
+                SUM(CAST(detail_bongkar_kedi.jumlah AS UNSIGNED)) AS total
+            ')
+            ->groupBy('jenis_kayus.nama_kayu', 'ukuran')
+            ->orderBy('jenis_kayus.nama_kayu')
+            ->orderBy('ukuran')
+            ->get();
+
         $this->summary = [
             'totalMasuk'     => $totalMasuk,
             'totalBongkar'   => $totalBongkar,
@@ -98,6 +128,8 @@ class ProduksiKediSummaryWidget extends Widget
             'summaryMasuk'   => $summaryMasuk,
             'summaryBongkar' => $summaryBongkar,
             'masukByKw'      => $masukByKw,
+            'globalJenisKayuUkuranMasuk' => $globalJenisKayuUkuranMasuk,
+            'globalJenisKayuUkuranBongkar' => $globalJenisKayuUkuranBongkar,
             'selisih'        => $totalMasuk - $totalBongkar, // Kayu yang masih di dalam kedi/proses
         ];
     }
