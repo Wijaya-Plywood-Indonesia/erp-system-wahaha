@@ -62,24 +62,17 @@ class ListOpnameStoks extends CreateRecord
             }
 
             // 2. Ambil nilai dari input user
-            $stokSistem     = (int) $summary->stok_lembar;
-            $stokFisik      = (int) $data['stok_fisik'];
-            $kubikasiFisik  = (float) $data['kubikasi_fisik'];
-            $kubikasiSistem = (float) $summary->stok_kubikasi;
+            $stokSistem    = (int) $summary->stok_lembar;
+            $stokFisik     = (int) $data['stok_fisik'];
+            $kubikasiFisik = (float) $data['kubikasi_fisik'];
+            $selisih       = $stokFisik - $stokSistem;
 
-            $selisihLembar   = $stokFisik - $stokSistem;
-            $selisihKubikasi = $kubikasiFisik - $kubikasiSistem;
-
-            // Stop hanya jika KEDUANYA tidak ada perubahan
-            if ($selisihLembar === 0 && round($selisihKubikasi, 6) === 0.0) {
+            if ($selisih === 0) {
                 Notification::make()->title('Tidak ada perubahan stok')->warning()->send();
                 return new BarangSetengahJadiHp();
             }
 
-            // Tipe berdasarkan lembar dulu, jika sama pakai kubikasi
-            $tipe = $selisihLembar !== 0
-                ? ($selisihLembar > 0 ? 'masuk' : 'keluar')
-                : ($selisihKubikasi > 0 ? 'masuk' : 'keluar');
+            $tipe = $selisih > 0 ? 'masuk' : 'keluar';
 
             // 3. Format Keterangan
             $tgl = now()->format('d/m/Y');
@@ -89,6 +82,7 @@ class ListOpnameStoks extends CreateRecord
             }
 
             // 4. Kalkulasi Kubikasi & Nilai
+            $kubikasiSistem  = (float) $summary->stok_kubikasi;
             $kubikasiSelisih = round(abs($kubikasiFisik - $kubikasiSistem), 6);
             $nilaiStokBaru   = round($kubikasiFisik * $summary->hpp_average, 2);
             $nilaiStokBefore = $summary->nilai_stok;
@@ -110,7 +104,7 @@ class ListOpnameStoks extends CreateRecord
                 'tanggal'              => now(),
                 'tipe_transaksi'       => $tipe,
                 'keterangan'           => $ket,
-                'total_lembar'         => abs($selisihLembar),
+                'total_lembar'         => abs($selisih),
                 'total_kubikasi'       => $kubikasiSelisih,
                 'stok_lembar_before'   => $stokSistem,
                 'stok_lembar_after'    => $stokFisik,
