@@ -38,48 +38,52 @@
 
         {{-- ================= GLOBAL UKURAN + KW ================= --}}
         <div class="space-y-4">
-            <div class="font-semibold text-lg text-gray-900 dark:text-gray-100">
-                Global Ukuran + KW
-            </div>
+    <div class="font-semibold text-lg text-gray-900 dark:text-gray-100">
+        Global Ukuran + KW
+    </div>
 
-            <div class="grid grid-cols-1 gap-3">
-                @foreach ($summary['globalUkuranKw'] as $row)
-                <div
-                    class="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:bg-gray-800 dark:border-gray-700">
-                    <div class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        {{ $row->ukuran }}
-                        <span class="text-xs text-gray-500 dark:text-gray-400">
-                            • KW {{ $row->kw }}
-                        </span>
-                    </div>
-                    <div class="text-lg font-bold text-gray-900 dark:text-white">
-                        {{ number_format($row->total) }}
-                    </div>
-                </div>
-                @endforeach
+    <div class="grid grid-cols-1 gap-3">
+        @foreach ($summary['globalUkuranKw'] as $row)
+        <div class="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:bg-gray-800 dark:border-gray-700">
+            <div class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ $row->ukuran }}
+                <span class="text-xs text-gray-500 dark:text-gray-400">• KW {{ $row->kw }}</span>
+                {{-- TAMBAHAN: Jenis Kayu --}}
+                <span class="ml-1 text-xs font-semibold text-blue-500 dark:text-blue-400">
+                    • {{ $row->jenis_kayu }}
+                </span>
+            </div>
+            <div class="text-lg font-bold text-gray-900 dark:text-white">
+                {{ number_format($row->total) }}
             </div>
         </div>
+        @endforeach
+    </div>
+</div>
 
         {{-- ================= GLOBAL UKURAN ================= --}}
         <div class="space-y-4">
-            <div class="font-semibold text-lg text-gray-900 dark:text-gray-100">
-                Global Ukuran (Semua KW)
-            </div>
+    <div class="font-semibold text-lg text-gray-900 dark:text-gray-100">
+        Global Ukuran (Semua KW)
+    </div>
 
-            <div class="grid grid-cols-1 gap-3">
-                @foreach ($summary['globalUkuran'] as $row)
-                <div
-                    class="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:bg-gray-800 dark:border-gray-700">
-                    <div class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        {{ $row->ukuran }}
-                    </div>
-                    <div class="text-lg font-bold text-primary-600 dark:text-primary-400">
-                        {{ number_format($row->total) }}
-                    </div>
-                </div>
-                @endforeach
+    <div class="grid grid-cols-1 gap-3">
+        @foreach ($summary['globalUkuran'] as $row)
+        <div class="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:bg-gray-800 dark:border-gray-700">
+            <div class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ $row->ukuran }}
+                {{-- TAMBAHAN: Jenis Kayu --}}
+                <span class="ml-1 text-xs font-semibold text-blue-500 dark:text-blue-400">
+                    • {{ $row->jenis_kayu }}
+                </span>
+            </div>
+            <div class="text-lg font-bold text-primary-600 dark:text-primary-400">
+                {{ number_format($row->total) }}
             </div>
         </div>
+        @endforeach
+    </div>
+</div>
 
         {{-- ================= RINGKASAN JENIS KAYU & UKURAN ================= --}}
         @if (!empty($summary['globalJenisKayuUkuran']) && count($summary['globalJenisKayuUkuran']) > 0)
