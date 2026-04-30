@@ -62,7 +62,7 @@ class ProduksiHotPressSummaryWidget extends Widget
                 CONCAT(
                     TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
                     TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
-                    TRIM(TRAILING "0" FROM TRIM(TRAILING "." FROM CAST(ukurans.tebal AS CHAR)))
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
                 ) AS ukuran,
                 grades.nama_grade as kw,
                 SUM(platform_hasil_hp.isi) as total
@@ -83,7 +83,7 @@ class ProduksiHotPressSummaryWidget extends Widget
                 CONCAT(
                     TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
                     TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
-                    TRIM(TRAILING "0" FROM TRIM(TRAILING "." FROM CAST(ukurans.tebal AS CHAR)))
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
                 ) AS ukuran,
                 grades.nama_grade as kw,
                 SUM(triplek_hasil_hp.isi) as total
@@ -92,12 +92,82 @@ class ProduksiHotPressSummaryWidget extends Widget
             ->orderBy('ukuran')
             ->get();
 
+        // 4. GLOBAL JENIS KAYU & UKURAN (Gabungan Platform & Triplek)
+        $platformJenisKayuUkuran = PlatformHasilHp::query()
+            ->where('platform_hasil_hp.id_produksi_hp', $produksiId)
+            ->join('barang_setengah_jadi_hp', 'barang_setengah_jadi_hp.id', '=', 'platform_hasil_hp.id_barang_setengah_jadi')
+            ->join('ukurans', 'ukurans.id', '=', 'barang_setengah_jadi_hp.id_ukuran')
+            ->join('jenis_barang', 'jenis_barang.id', '=', 'barang_setengah_jadi_hp.id_jenis_barang')
+            ->selectRaw('
+                jenis_barang.nama_jenis_barang as jenis_kayu,
+                CONCAT(
+                    TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
+                    TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
+                ) AS ukuran,
+                SUM(platform_hasil_hp.isi) as total
+            ')
+            ->groupBy('jenis_barang.nama_jenis_barang', 'ukuran')
+            ->get();
+
+        $triplekJenisKayuUkuran = TriplekHasilHp::query()
+            ->where('triplek_hasil_hp.id_produksi_hp', $produksiId)
+            ->join('barang_setengah_jadi_hp', 'barang_setengah_jadi_hp.id', '=', 'triplek_hasil_hp.id_barang_setengah_jadi')
+            ->join('ukurans', 'ukurans.id', '=', 'barang_setengah_jadi_hp.id_ukuran')
+            ->join('jenis_barang', 'jenis_barang.id', '=', 'barang_setengah_jadi_hp.id_jenis_barang')
+            ->selectRaw('
+                jenis_barang.nama_jenis_barang as jenis_kayu,
+                CONCAT(
+                    TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
+                    TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
+                ) AS ukuran,
+                SUM(triplek_hasil_hp.isi) as total
+            ')
+            ->groupBy('jenis_barang.nama_jenis_barang', 'ukuran')
+            ->get();
+
+        // Merge array
+        $mergedJenisKayuUkuran = [];
+        foreach ($platformJenisKayuUkuran as $item) {
+            $key = $item->jenis_kayu . '|' . $item->ukuran;
+            if (!isset($mergedJenisKayuUkuran[$key])) {
+                $mergedJenisKayuUkuran[$key] = (object) [
+                    'jenis_kayu' => $item->jenis_kayu,
+                    'ukuran' => $item->ukuran,
+                    'total' => 0
+                ];
+            }
+            $mergedJenisKayuUkuran[$key]->total += $item->total;
+        }
+
+        foreach ($triplekJenisKayuUkuran as $item) {
+            $key = $item->jenis_kayu . '|' . $item->ukuran;
+            if (!isset($mergedJenisKayuUkuran[$key])) {
+                $mergedJenisKayuUkuran[$key] = (object) [
+                    'jenis_kayu' => $item->jenis_kayu,
+                    'ukuran' => $item->ukuran,
+                    'total' => 0
+                ];
+            }
+            $mergedJenisKayuUkuran[$key]->total += $item->total;
+        }
+        
+        $globalJenisKayuUkuran = array_values($mergedJenisKayuUkuran);
+        usort($globalJenisKayuUkuran, function($a, $b) {
+            if ($a->jenis_kayu === $b->jenis_kayu) {
+                return strcmp($a->ukuran, $b->ukuran);
+            }
+            return strcmp($a->jenis_kayu, $b->jenis_kayu);
+        });
+
         $this->summary = [
             'totalPegawai'  => $totalPegawai,
             'totalPlatform' => $totalPlatform,
             'listPlatform'  => $listPlatform,
             'totalTriplek'  => $totalTriplek,
             'listTriplek'   => $listTriplek,
+            'globalJenisKayuUkuran' => $globalJenisKayuUkuran,
         ];
     }
 }

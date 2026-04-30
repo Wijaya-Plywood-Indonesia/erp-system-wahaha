@@ -61,7 +61,7 @@ class ProduksiRepairSummaryWidget extends Widget
                 CONCAT(
                     TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
                     TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
-                    TRIM(TRAILING "0" FROM TRIM(TRAILING "." FROM CAST(ukurans.tebal AS CHAR)))
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
                 ) AS ukuran,
                 rencana_repairs.kw,
                 SUM(CAST(hasil_repairs.jumlah AS UNSIGNED)) AS total,

@@ -69,6 +69,44 @@
       </div>
     </div>
 
+    {{-- Section 3: Jenis Kayu dan Ukuran --}}
+    @if (!empty($summary['globalJenisKayuUkuran']) && count($summary['globalJenisKayuUkuran']) > 0)
+    <div class="space-y-4 mt-6">
+      <h3 class="text-lg font-bold flex items-center gap-2 text-gray-800 dark:text-gray-200">
+        Ringkasan Penggunaan Kayu & Ukuran Hasil
+      </h3>
+
+      <div class="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
+        <table class="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+          <thead class="bg-gray-50 dark:bg-gray-900/50 text-gray-900 dark:text-white">
+            <tr>
+              <th class="px-4 py-3 font-semibold">Jenis Kayu</th>
+              <th class="px-4 py-3 font-semibold">Ukuran Veneer</th>
+              <th class="px-4 py-3 font-semibold text-right">Hasil</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+            @php $grandTotal = 0; @endphp
+            @foreach ($summary['globalJenisKayuUkuran'] as $row)
+              @php $grandTotal += $row->total; @endphp
+              <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                <td class="px-4 py-3">{{ $row->jenis_kayu }}</td>
+                <td class="px-4 py-3">{{ $row->ukuran }}</td>
+                <td class="px-4 py-3 text-right font-medium">{{ number_format($row->total) }}</td>
+              </tr>
+            @endforeach
+          </tbody>
+          <tfoot class="bg-gray-50 dark:bg-gray-900/50 text-gray-900 dark:text-white font-bold">
+            <tr>
+              <td colspan="2" class="px-4 py-3 text-right border-t dark:border-gray-700">Total Keseluruhan</td>
+              <td class="px-4 py-3 text-right border-t dark:border-gray-700">{{ number_format($grandTotal) }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+    @endif
+
     @forelse ($summary['globalTarget'] ?? [] as $item)
     <div class="mt-6 space-y-4">
     <div class="font-semibold text-lg text-gray-900 dark:text-gray-100">

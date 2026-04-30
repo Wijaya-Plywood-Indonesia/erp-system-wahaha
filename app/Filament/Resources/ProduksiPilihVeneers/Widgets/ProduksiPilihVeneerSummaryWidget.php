@@ -63,7 +63,7 @@ class ProduksiPilihVeneerSummaryWidget extends Widget
                 CONCAT(
                     TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
                     TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
-                    TRIM(TRAILING "0" FROM TRIM(TRAILING "." FROM CAST(ukurans.tebal AS CHAR)))
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
                 ) AS ukuran,
                 hasil_pilih_veneer.kw,
                 SUM(hasil_pilih_veneer.jumlah) AS total
@@ -81,7 +81,7 @@ class ProduksiPilihVeneerSummaryWidget extends Widget
                 CONCAT(
                     TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
                     TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
-                    TRIM(TRAILING "0" FROM TRIM(TRAILING "." FROM CAST(ukurans.tebal AS CHAR)))
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
                 ) AS ukuran,
                 SUM(hasil_pilih_veneer.jumlah) AS total
             ')
@@ -89,11 +89,32 @@ class ProduksiPilihVeneerSummaryWidget extends Widget
             ->orderBy('ukuran')
             ->get();
 
+        // 5. GLOBAL JENIS KAYU & UKURAN
+        $globalJenisKayuUkuran = HasilPilihVeneer::query()
+            ->where('hasil_pilih_veneer.id_produksi_pilih_veneer', $produksiId)
+            ->join('modal_pilih_veneer', 'modal_pilih_veneer.id', '=', 'hasil_pilih_veneer.id_modal_pilih_veneer')
+            ->join('ukurans', 'ukurans.id', '=', 'modal_pilih_veneer.id_ukuran')
+            ->join('jenis_kayus', 'jenis_kayus.id', '=', 'modal_pilih_veneer.id_jenis_kayu')
+            ->selectRaw('
+                jenis_kayus.nama_kayu as jenis_kayu,
+                CONCAT(
+                    TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
+                    TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
+                ) AS ukuran,
+                SUM(hasil_pilih_veneer.jumlah) AS total
+            ')
+            ->groupBy('jenis_kayus.nama_kayu', 'ukuran')
+            ->orderBy('jenis_kayus.nama_kayu')
+            ->orderBy('ukuran')
+            ->get();
+
         $this->summary = [
-            'totalAll'          => $totalAll,
-            'totalPegawai'      => $totalPegawai,
-            'globalUkuranKw'    => $globalUkuranKw,
-            'globalUkuranSemua' => $globalUkuranSemua,
+            'totalAll'              => $totalAll,
+            'totalPegawai'          => $totalPegawai,
+            'globalUkuranKw'        => $globalUkuranKw,
+            'globalUkuranSemua'     => $globalUkuranSemua,
+            'globalJenisKayuUkuran' => $globalJenisKayuUkuran,
         ];
     }
 }
