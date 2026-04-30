@@ -60,7 +60,7 @@ class ProduksiSandingSummaryWidget extends Widget
                 CONCAT(
                     TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
                     TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
-                    TRIM(TRAILING "0" FROM TRIM(TRAILING "." FROM CAST(ukurans.tebal AS CHAR)))
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
                 ) AS ukuran
             ');
 
@@ -83,11 +83,32 @@ class ProduksiSandingSummaryWidget extends Widget
             ->orderBy('ukuran')
             ->get();
 
+        // 5. GLOBAL JENIS KAYU & UKURAN
+        $globalJenisKayuUkuran = HasilSanding::query()
+            ->where('hasil_sandings.id_produksi_sanding', $produksiId)
+            ->join('barang_setengah_jadi_hp', 'barang_setengah_jadi_hp.id', '=', 'hasil_sandings.id_barang_setengah_jadi')
+            ->join('ukurans', 'ukurans.id', '=', 'barang_setengah_jadi_hp.id_ukuran')
+            ->join('jenis_barang', 'jenis_barang.id', '=', 'barang_setengah_jadi_hp.id_jenis_barang')
+            ->selectRaw('
+                jenis_barang.nama_jenis_barang as jenis_kayu,
+                CONCAT(
+                    TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
+                    TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
+                ) AS ukuran,
+                SUM(hasil_sandings.kuantitas) AS total
+            ')
+            ->groupBy('jenis_barang.nama_jenis_barang', 'ukuran')
+            ->orderBy('jenis_barang.nama_jenis_barang')
+            ->orderBy('ukuran')
+            ->get();
+
         $this->summary = [
-            'totalAll'       => $totalAll,
-            'totalPegawai'   => $totalPegawai,
-            'globalUkuranKw' => $globalUkuranKw,
-            'globalUkuran'   => $globalUkuran,
+            'totalAll'              => $totalAll,
+            'totalPegawai'          => $totalPegawai,
+            'globalUkuranKw'        => $globalUkuranKw,
+            'globalUkuran'          => $globalUkuran,
+            'globalJenisKayuUkuran' => $globalJenisKayuUkuran,
         ];
     }
 }

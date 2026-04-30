@@ -95,13 +95,12 @@ class ProduksiPressDryerSummaryWidget extends Widget
                 ->join('ukurans', 'ukurans.id', '=', 'detail_hasils.id_ukuran')
                 ->leftJoin('jenis_kayus', 'jenis_kayus.id', '=', 'detail_hasils.id_jenis_kayu') // ← nama tabel: jenis_kayus
                 ->selectRaw('
-        CONCAT(
-            TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
-            TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
-            TRIM(TRAILING "0" FROM TRIM(TRAILING "." FROM CAST(ukurans.tebal AS CHAR)))
-        ) AS ukuran,
-        COALESCE(jenis_kayus.nama_kayu, "-") AS jenis_kayu
-    ');
+                    CONCAT(
+                        TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
+                        TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
+                        TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
+                    ) AS ukuran
+                ');
 
             $globalUkuranKw = (clone $baseQuery)
                 ->selectRaw('
@@ -118,12 +117,32 @@ class ProduksiPressDryerSummaryWidget extends Widget
                 ->orderBy('ukuran')
                 ->get();
 
+            // 5. GLOBAL JENIS KAYU & UKURAN
+            $globalJenisKayuUkuran = DetailHasil::query()
+                ->where('id_produksi_dryer', $produksiId)
+                ->join('ukurans', 'ukurans.id', '=', 'detail_hasils.id_ukuran')
+                ->join('jenis_kayus', 'jenis_kayus.id', '=', 'detail_hasils.id_jenis_kayu')
+                ->selectRaw('
+                    jenis_kayus.nama_kayu as jenis_kayu,
+                    CONCAT(
+                        TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
+                        TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
+                        TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
+                    ) AS ukuran,
+                    SUM(CAST(detail_hasils.isi AS UNSIGNED)) AS total
+                ')
+                ->groupBy('jenis_kayus.nama_kayu', 'ukuran')
+                ->orderBy('jenis_kayus.nama_kayu')
+                ->orderBy('ukuran')
+                ->get();
+
             $this->summary = [
                 'totalAll' => $totalAll,
                 'totalPegawai' => $totalPegawai,
                 'totalKubikasi' => $totalKubikasi, // Data Baru
                 'globalUkuranKw' => $globalUkuranKw,
                 'globalUkuran' => $globalUkuran,
+                'globalJenisKayuUkuran' => $globalJenisKayuUkuran,
             ];
         } catch (\Exception $e) {
             Log::error("Error pada Summary Widget Dryer: " . $e->getMessage());
