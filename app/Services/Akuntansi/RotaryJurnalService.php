@@ -564,6 +564,12 @@ class RotaryJurnalService
                 ]
             );
 
+            $kubikasi = round(
+                ((float)$ukuran->panjang * (float)$ukuran->lebar * (float)$ukuran->tebal * (int)$palet->total_lembar) / 10_000_000,
+                6
+            );
+
+
             $log = HppVeneerBasahLog::create([
                 'id_jenis_kayu'        => $lahan->id_jenis_kayu,
                 'panjang'              => $ukuran->panjang,
@@ -576,7 +582,7 @@ class RotaryJurnalService
                 'referensi_type'       => get_class($palet),
                 'referensi_id'         => $palet->id,
                 'total_lembar'         => $palet->total_lembar,
-                'total_kubikasi'       => $palet->total_kubikasi,
+                'total_kubikasi'       => $kubikasi,  // ← dihitung manual
                 'hpp_kayu'             => 0,
                 'hpp_pekerja'          => 0,
                 'hpp_mesin'            => 0,
@@ -587,7 +593,7 @@ class RotaryJurnalService
                 'stok_kubikasi_before' => $summary->stok_kubikasi,
                 'nilai_stok_before'    => $summary->nilai_stok,
                 'stok_lembar_after'    => $summary->stok_lembar + $palet->total_lembar,
-                'stok_kubikasi_after'  => $summary->stok_kubikasi + $palet->total_kubikasi,
+                'stok_kubikasi_after'  => $summary->stok_kubikasi + $kubikasi,  // ← pakai $kubikasi
                 'nilai_stok_after'     => $summary->nilai_stok,
             ]);
 
