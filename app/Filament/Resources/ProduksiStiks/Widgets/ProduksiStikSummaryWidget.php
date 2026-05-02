@@ -96,9 +96,10 @@ class ProduksiStikSummaryWidget extends Widget
                     TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
                     TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
                 ) AS ukuran,
+                detail_hasil_stik.kw as kw,
                 SUM(CAST(detail_hasil_stik.total_lembar AS UNSIGNED)) AS total
             ')
-            ->groupBy('jenis_kayus.nama_kayu', 'ukuran')
+            ->groupBy('jenis_kayus.nama_kayu', 'ukuran', 'detail_hasil_stik.kw')
             ->orderBy('jenis_kayus.nama_kayu')
             ->orderBy('ukuran')
             ->get();

@@ -141,9 +141,10 @@ class ProduksiPotSikuSummaryWidget extends Widget
                     TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
                     TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
                 ) AS ukuran,
+                detail_barang_dikerjakan_pot_siku.kw as kw,
                 SUM(CAST(detail_barang_dikerjakan_pot_siku.tinggi AS UNSIGNED)) AS total
             ')
-            ->groupBy('jenis_kayus.nama_kayu', 'ukuran')
+            ->groupBy('jenis_kayus.nama_kayu', 'ukuran', 'detail_barang_dikerjakan_pot_siku.kw')
             ->orderBy('jenis_kayus.nama_kayu')
             ->orderBy('ukuran')
             ->get();

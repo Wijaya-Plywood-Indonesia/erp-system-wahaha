@@ -94,7 +94,7 @@ class ProduksiSummaryWidget extends Widget
 
         // 4.5 REKAP JENIS KAYU & UKURAN
         $globalJenisKayuUkuran = (clone $baseQuery)
-            ->groupBy('jenis_kayu', 'ukuran')
+            ->groupBy('jenis_kayu', 'ukuran', 'kw')
             ->orderBy('jenis_kayu')
             ->orderBy('ukuran')
             ->get();

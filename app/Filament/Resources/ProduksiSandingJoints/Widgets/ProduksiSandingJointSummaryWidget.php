@@ -96,9 +96,10 @@ class ProduksiSandingJointSummaryWidget extends Widget
                     TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.lebar AS CHAR))), " x ",
                     TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
                 ) AS ukuran,
+                hasil_sanding_joint.kw as kw,
                 SUM(CAST(hasil_sanding_joint.jumlah AS UNSIGNED)) AS total
             ')
-            ->groupBy('jenis_kayus.nama_kayu', 'ukuran')
+            ->groupBy('jenis_kayus.nama_kayu', 'ukuran', 'hasil_sanding_joint.kw')
             ->orderBy('jenis_kayus.nama_kayu')
             ->orderBy('ukuran')
             ->get();
