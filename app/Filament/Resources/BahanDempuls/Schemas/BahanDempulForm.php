@@ -9,23 +9,22 @@ use Filament\Forms\Components\TextInput;
 class BahanDempulForm
 {
 
-    public static function getBahanOptions(): array
-    {
-        return [
-            'kalsium' => 'Kalsium (gram)',
-            'semen' => 'Semen (kg)',
-            'lem_pvac' => 'Lem PVAC (gr)',
-            'tepung_anggrek' => 'Tepung Anggrek (kg)',
-        ];
-    }
     public static function configure(Schema $schema): Schema
     {
         return $schema
             ->components([
                 Select::make('nama_bahan')
                     ->label('Nama Bahan')
-                    // Menggunakan method static untuk options
-                    ->options(self::getBahanOptions())
+                    ->options(
+                        fn() =>
+                        \App\Models\BahanPenolongProduksi::where('kategori_produksi', 'dempul')
+                            ->get()
+                            ->mapWithKeys(fn($item) => [
+                                $item->nama_bahan_penolong =>
+                                $item->nama_bahan_penolong . ' (' . $item->satuan . ')'
+                            ])
+                            ->toArray()
+                    )
                     ->required()
                     ->native(false)
                     ->searchable(),
