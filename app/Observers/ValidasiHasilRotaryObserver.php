@@ -67,9 +67,11 @@ class ValidasiHasilRotaryObserver
                 'detailKayuPecah.penggunaanLahan',
             ])->whereDate('tgl_produksi', $tanggal)->get();
 
+            // ── Hitung HPP veneer basah langsung (tidak bergantung jurnal) ──────
+            $service->hitungHppVeneerBasah($produksiList, $tanggal);
+
             // ── Kirim ke web akuntansi ────────────────────────────────────────
             $this->sendToAkuntansi($payload, $tanggal, $produksiList, $service);
-
         } catch (\Throwable $e) {
             Log::error("ValidasiObserver: Error saat trigger jurnal check: " . $e->getMessage());
             Log::error($e->getTraceAsString());
@@ -78,8 +80,8 @@ class ValidasiHasilRotaryObserver
 
     private function sendToAkuntansi(array $payload, string $tanggal, $produksiList, $service): void
     {
-        $url    = rtrim(config('services.akuntansi.url', 'http://192.168.1.2:5000'), '/')
-                  . '/api/jurnal/rotary/create';
+        $url    = rtrim(config('services.akuntansi.url', 'http://192.168.1.23:5000'), '/')
+            . '/api/jurnal/rotary/create';
         $apiKey = config('services.akuntansi.key', '');
 
         try {
@@ -93,26 +95,22 @@ class ValidasiHasilRotaryObserver
 
             if ($response->successful()) {
                 Log::info("ValidasiObserver: Jurnal berhasil dikirim ke akuntansi (tanggal={$tanggal}).", [
-                    'jurnal'        => $response->json('data.jurnal'),
-                    'jumlah_header' => $response->json('data.jumlah_header'),
-                    'jumlah_items'  => $response->json('data.jumlah_items'),
+                    // 'jurnal'        => $response->json('data.jurnal'),
+                    // 'jumlah_header' => $response->json('data.jumlah_header'),
+                    // 'jumlah_items'  => $response->json('data.jumlah_items'),
                 ]);
 
-                // ── Tambah stok veneer basah DULU (butuh stok kayu untuk hitung HPP)
-                // ── Baru kurangi stok HPP kayu setelahnya ────────────────────
-                $service->tambahStokVeneerBasah($produksiList, $tanggal);
+                // ── Kurangi stok HPP kayu setelah jurnal berhasil ────────────────
+                // NB: tambahStokVeneerBasah() dipanggil dari modul serah terima
                 $service->kurangiStokHpp($produksiList, $tanggal);
-
             } elseif ($response->status() === 409) {
                 Log::warning("ValidasiObserver: Jurnal {$tanggal} sudah ada di akuntansi (duplikasi). Dilewati.");
-
             } else {
                 Log::error("ValidasiObserver: Gagal kirim jurnal ke akuntansi (tanggal={$tanggal}).", [
                     'status'   => $response->status(),
                     'response' => $response->body(),
                 ]);
             }
-
         } catch (\Throwable $e) {
             Log::error("ValidasiObserver: HTTP error kirim ke akuntansi: " . $e->getMessage());
         }
