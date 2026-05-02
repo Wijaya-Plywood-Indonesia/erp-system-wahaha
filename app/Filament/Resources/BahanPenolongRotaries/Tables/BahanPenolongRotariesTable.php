@@ -24,8 +24,9 @@ class BahanPenolongRotariesTable
                     ->label('Nama Bahan')
                     ->formatStateUsing(
                         fn($state, $record) =>
-                        $record->bahanPenolong->nama_bahan_penolong .
-                            ' (' . $record->bahanPenolong->satuan . ')'
+                        $record->bahanPenolong ? 
+                        $record->bahanPenolong->nama_bahan_penolong . ' (' . $record->bahanPenolong->satuan . ')' : 
+                        $state
                     ),
 
                 TextColumn::make('jumlah')

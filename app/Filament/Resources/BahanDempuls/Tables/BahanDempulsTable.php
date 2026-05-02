@@ -5,11 +5,11 @@ namespace App\Filament\Resources\BahanDempuls\Tables;
 use App\Filament\Resources\BahanDempuls\Schemas\BahanDempulForm;
 use App\Models\BahanDempul;
 use Filament\Actions\BulkActionGroup;
+use Filament\Actions\CreateAction;
+use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Table;
-use Filament\Actions\CreateAction;
-use Filament\Actions\DeleteAction;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Columns\TextColumn;
 
@@ -21,6 +21,10 @@ class BahanDempulsTable
             ->columns([
                 TextColumn::make('nama_bahan')
                     ->label('Nama Bahan')
+                    ->formatStateUsing(function ($state) {
+                        $bahan = \App\Models\BahanPenolongProduksi::where('nama_bahan_penolong', $state)->first();
+                        return $state . ($bahan ? " ({$bahan->satuan})" : "");
+                    })
                     ->searchable(),
 
                 TextColumn::make('jumlah')

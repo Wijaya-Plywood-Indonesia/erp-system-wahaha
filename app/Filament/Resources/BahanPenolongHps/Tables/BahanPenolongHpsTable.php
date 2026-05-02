@@ -20,6 +20,10 @@ class BahanPenolongHpsTable
             ->columns([
                 TextColumn::make('nama_bahan')
                     ->label('Nama Bahan')
+                    ->formatStateUsing(function ($state) {
+                        $bahan = \App\Models\BahanPenolongProduksi::where('nama_bahan_penolong', $state)->first();
+                        return $state . ($bahan ? " ({$bahan->satuan})" : "");
+                    })
                     ->searchable(),
 
                 TextColumn::make('jumlah')

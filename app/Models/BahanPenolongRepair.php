@@ -9,7 +9,7 @@ class BahanPenolongRepair extends Model
     protected $table = 'bahan_penolong_repair';
 
     protected $fillable = [
-        'id_produksi',
+        'id_produksi_repair',
         'bahan_penolong_id',
         'jumlah',
     ];
