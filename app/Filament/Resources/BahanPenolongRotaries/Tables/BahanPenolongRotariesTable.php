@@ -24,8 +24,9 @@ class BahanPenolongRotariesTable
                     ->label('Nama Bahan')
                     ->formatStateUsing(
                         fn($state, $record) =>
-                        $record->bahanPenolong->nama_bahan_penolong .
-                            ' (' . $record->bahanPenolong->satuan . ')'
+                        $record->bahanPenolong ? 
+                        $record->bahanPenolong->nama_bahan_penolong . ' (' . $record->bahanPenolong->satuan . ')' : 
+                        $state
                     ),
 
                 TextColumn::make('jumlah')
@@ -42,7 +43,21 @@ class BahanPenolongRotariesTable
                     ->hidden(
                         fn($livewire) =>
                         $livewire->ownerRecord?->validasiTerakhir?->status === 'divalidasi'
-                    ),
+                    )
+                    ->using(function (array $data, string $model, $livewire): \Illuminate\Database\Eloquent\Model {
+                        $ownerRecord = $livewire->ownerRecord;
+
+                        $existing = $model::where('id_produksi', $ownerRecord->id)
+                            ->where('bahan_penolong_id', $data['bahan_penolong_id'])
+                            ->first();
+
+                        if ($existing) {
+                            $existing->increment('jumlah', $data['jumlah']);
+                            return $existing;
+                        }
+
+                        return $model::create(array_merge($data, ['id_produksi' => $ownerRecord->id]));
+                    }),
             ])
             ->recordActions([
                 EditAction::make()

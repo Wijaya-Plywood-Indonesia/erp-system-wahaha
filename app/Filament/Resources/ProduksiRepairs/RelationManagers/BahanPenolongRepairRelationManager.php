@@ -17,7 +17,7 @@ use Filament\Tables\Table;
 
 class BahanPenolongRepairRelationManager extends RelationManager
 {
-    protected static string $relationship = 'BahanPenolongRepair';
+    protected static string $relationship = 'bahanPenolongRepair';
     public function isReadOnly(): bool
     {
         return false;
@@ -58,8 +58,9 @@ class BahanPenolongRepairRelationManager extends RelationManager
                     ->label('Nama Bahan')
                     ->formatStateUsing(
                         fn($state, $record) =>
-                        $record->bahanPenolong->nama_bahan_penolong .
-                            ' (' . $record->bahanPenolong->satuan . ')'
+                        $record->bahanPenolong ? 
+                        $record->bahanPenolong->nama_bahan_penolong . ' (' . $record->bahanPenolong->satuan . ')' : 
+                        $state
                     ),
 
                 TextColumn::make('jumlah')
@@ -74,7 +75,21 @@ class BahanPenolongRepairRelationManager extends RelationManager
                     ->hidden(
                         fn($livewire) =>
                         $livewire->ownerRecord?->validasiTerakhir?->status === 'divalidasi'
-                    ),
+                    )
+                    ->using(function (array $data, string $model, $livewire): \Illuminate\Database\Eloquent\Model {
+                        $ownerRecord = $livewire->ownerRecord;
+
+                        $existing = $model::where('id_produksi_repair', $ownerRecord->id)
+                            ->where('bahan_penolong_id', $data['bahan_penolong_id'])
+                            ->first();
+
+                        if ($existing) {
+                            $existing->increment('jumlah', $data['jumlah']);
+                            return $existing;
+                        }
+
+                        return $model::create(array_merge($data, ['id_produksi_repair' => $ownerRecord->id]));
+                    }),
             ])
             ->recordActions([
                 EditAction::make()

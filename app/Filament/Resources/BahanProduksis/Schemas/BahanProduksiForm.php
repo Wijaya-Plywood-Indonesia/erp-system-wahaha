@@ -8,23 +8,22 @@ use Filament\Forms\Components\TextInput;
 
 class BahanProduksiForm
 {
-    public static function getBahanOptions(): array
-    {
-        return [
-            'lem_dover' => 'Lem Dover (kg)',
-            'tepung' => 'Tepung (kg)',
-            'lem_pai' => 'Lem Pai (kg)',
-            'aruki' => 'Aruki'
-        ];
-    }
     public static function configure(Schema $schema): Schema
     {
         return $schema
             ->components([
                 Select::make('nama_bahan')
                     ->label('Nama Bahan')
-                    // Menggunakan method static untuk options
-                    ->options(self::getBahanOptions())
+                    ->options(
+                        fn() =>
+                        \App\Models\BahanPenolongProduksi::where('kategori_produksi', 'joint')
+                            ->get()
+                            ->mapWithKeys(fn($item) => [
+                                $item->nama_bahan_penolong =>
+                                $item->nama_bahan_penolong . ' (' . $item->satuan . ')'
+                            ])
+                            ->toArray()
+                    )
                     ->required()
                     ->native(false)
                     ->searchable(),
