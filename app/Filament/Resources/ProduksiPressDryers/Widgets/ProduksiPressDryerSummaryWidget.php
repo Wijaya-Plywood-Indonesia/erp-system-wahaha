@@ -129,9 +129,10 @@ class ProduksiPressDryerSummaryWidget extends Widget
                         TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
                         TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
                     ) AS ukuran,
+                    detail_hasils.kw as kw,
                     SUM(CAST(detail_hasils.isi AS UNSIGNED)) AS total
                 ')
-                ->groupBy('jenis_kayus.nama_kayu', 'ukuran')
+                ->groupBy('jenis_kayus.nama_kayu', 'ukuran', 'detail_hasils.kw')
                 ->orderBy('jenis_kayus.nama_kayu')
                 ->orderBy('ukuran')
                 ->get();

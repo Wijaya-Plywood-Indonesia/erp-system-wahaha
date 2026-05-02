@@ -99,9 +99,10 @@ class ProduksiKediSummaryWidget extends Widget
             ->selectRaw('
                 jenis_kayus.nama_kayu as jenis_kayu,
                 ' . $selectUkuranRaw . ',
+                detail_masuk_kedi.kw as kw,
                 SUM(CAST(detail_masuk_kedi.jumlah AS UNSIGNED)) AS total
             ')
-            ->groupBy('jenis_kayus.nama_kayu', 'ukuran')
+            ->groupBy('jenis_kayus.nama_kayu', 'ukuran', 'detail_masuk_kedi.kw')
             ->orderBy('jenis_kayus.nama_kayu')
             ->orderBy('ukuran')
             ->get();
@@ -114,9 +115,10 @@ class ProduksiKediSummaryWidget extends Widget
             ->selectRaw('
                 jenis_kayus.nama_kayu as jenis_kayu,
                 ' . $selectUkuranRaw . ',
+                detail_bongkar_kedi.kw as kw,
                 SUM(CAST(detail_bongkar_kedi.jumlah AS UNSIGNED)) AS total
             ')
-            ->groupBy('jenis_kayus.nama_kayu', 'ukuran')
+            ->groupBy('jenis_kayus.nama_kayu', 'ukuran', 'detail_bongkar_kedi.kw')
             ->orderBy('jenis_kayus.nama_kayu')
             ->orderBy('ukuran')
             ->get();

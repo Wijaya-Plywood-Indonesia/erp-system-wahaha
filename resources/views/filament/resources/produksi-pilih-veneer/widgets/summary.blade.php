@@ -99,6 +99,7 @@
                                 <tr>
                                     <th class="px-4 py-3 font-semibold">Jenis Kayu</th>
                                     <th class="px-4 py-3 font-semibold">Ukuran Veneer</th>
+                                    <th class="px-4 py-3 font-semibold">kw</th>
                                     <th class="px-4 py-3 font-semibold text-right">Hasil (Lembar)</th>
                                 </tr>
                             </thead>
@@ -109,13 +110,14 @@
                                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                                         <td class="px-4 py-3">{{ $row->jenis_kayu }}</td>
                                         <td class="px-4 py-3">{{ $row->ukuran }}</td>
+                                        <td class="px-4 py-3">{{ $row->kw }}</td>
                                         <td class="px-4 py-3 text-right font-medium">{{ number_format($row->total) }}</td>
                                     </tr>
                                 @endforeach
                             </tbody>
                             <tfoot class="bg-gray-50 dark:bg-gray-900/50 text-gray-900 dark:text-white font-bold">
                                 <tr>
-                                    <td colspan="2" class="px-4 py-3 text-right border-t dark:border-gray-700">Total Keseluruhan</td>
+                                    <td colspan="3" class="px-4 py-3 text-right border-t dark:border-gray-700">Total Keseluruhan</td>
                                     <td class="px-4 py-3 text-right border-t dark:border-gray-700">{{ number_format($grandTotal) }}</td>
                                 </tr>
                             </tfoot>
