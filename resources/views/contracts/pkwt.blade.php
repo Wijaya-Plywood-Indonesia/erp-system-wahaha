@@ -296,7 +296,7 @@
       mengindahkan teguran atau peringatan tersebut, maka PIHAK KEDUA dapat
       dikenakan pemutusan hubungan kerja sebelum masa kontrak kerjanya
       berakhir, tanpa adanya kewajiban PIHAK PERTAMA memberikan pesangon, uang
-      jasa, ataupun ganti kerugian lainnya kepada PIHAK KEDUA.
+      jasa, ataupun ganti k erugian lainnya kepada PIHAK KEDUA.
     </li>
   </ol>
 
@@ -343,7 +343,13 @@
   <br />
   <br><br>
 
-  <table style="width: 100%; font-size: 9pt; line-height: 1.15; font-family: 'Times New Roman', Times, serif;">
+  <table style="
+    width: 100%;
+    font-size: 9pt;
+    line-height: 1.15;
+    font-family: 'Times New Roman', Times, serif;
+    margin-left: 2.5cm;
+">
     <tr>
       <!-- PIHAK PERTAMA -->
       <td style="width: 50%; text-align: left;">

@@ -38,7 +38,7 @@ class PegawaiForm
 
                         TextInput::make('nama_pegawai')
                             ->label('Nama Pegawai')
-                            ->required()
+                            // ->required()
                             ->live(onBlur: true),
 
                         TextInput::make('panggilan')
@@ -60,11 +60,13 @@ class PegawaiForm
                                 '1' => 'Laki-laki',
                             ])
                             ->default('0')
-                            ->required(),
+                        // ->required()
+                        ,
 
                         DatePicker::make('tanggal_masuk')
                             ->label('Tanggal Masuk')
-                            ->required(),
+                        //->required()
+                        ,
 
                     ]),
 
@@ -112,15 +114,18 @@ class PegawaiForm
 
                         TextInput::make('karyawan_di')
                             ->label('Nama Perusahaan')
-                            ->required(),
+                        //->required()
+                        ,
 
                         TextInput::make('alamat_perusahaan')
                             ->label('Alamat Perusahaan')
-                            ->required(),
+                        // ->required()
+                        ,
 
                         TextInput::make('jabatan')
                             ->label('Jabatan / Posisi')
-                            ->required(),
+                        // ->required()
+                        ,
                     ]),
 
                 // =====================================================
