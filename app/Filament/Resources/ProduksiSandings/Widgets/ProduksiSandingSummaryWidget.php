@@ -89,6 +89,8 @@ class ProduksiSandingSummaryWidget extends Widget
             ->join('barang_setengah_jadi_hp', 'barang_setengah_jadi_hp.id', '=', 'hasil_sandings.id_barang_setengah_jadi')
             ->join('ukurans', 'ukurans.id', '=', 'barang_setengah_jadi_hp.id_ukuran')
             ->join('jenis_barang', 'jenis_barang.id', '=', 'barang_setengah_jadi_hp.id_jenis_barang')
+            ->join('grades', 'grades.id', '=', 'barang_setengah_jadi_hp.id_grade')
+            ->join('kategori_barang', 'kategori_barang.id', '=', 'grades.id_kategori_barang')
             ->selectRaw('
                 jenis_barang.nama_jenis_barang as jenis_kayu,
                 CONCAT(
@@ -96,9 +98,10 @@ class ProduksiSandingSummaryWidget extends Widget
                     TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
                     TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
                 ) AS ukuran,
+                CONCAT(kategori_barang.nama_kategori, " ", grades.nama_grade) as kw,
                 SUM(hasil_sandings.kuantitas) AS total
             ')
-            ->groupBy('jenis_barang.nama_jenis_barang', 'ukuran')
+            ->groupBy('jenis_barang.nama_jenis_barang', 'ukuran', 'kategori_barang.nama_kategori', 'grades.nama_grade')
             ->orderBy('jenis_barang.nama_jenis_barang')
             ->orderBy('ukuran')
             ->get();

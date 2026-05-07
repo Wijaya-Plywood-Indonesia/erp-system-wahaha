@@ -11,6 +11,8 @@ class GrajiTriplekWorkerMap
         $results = [];
 
         foreach ($collection as $produksi) {
+            $shift = (strtoupper($produksi->shift ?? '') === 'MALAM') ? 'MALAM' : 'PAGI';
+
             // 1. Kumpulkan detail barang dari relasi hasilGrajiTriplek
             $detailProduksi = [];
             if ($produksi->hasilGrajiTriplek) {
@@ -33,7 +35,8 @@ class GrajiTriplekWorkerMap
                 }
             }
 
-            $labelHasil = "GRAJI TRIPLEK: " . (empty($detailProduksi) ? '-' : implode('; ', $detailProduksi));
+            $teksDetail = empty($detailProduksi) ? '-' : implode('; ', $detailProduksi);
+            $labelHasil = "GRAJI TRIPLEK {$shift}: " . $teksDetail;
 
             // 2. Looping Pegawai Graji Triplek
             if ($produksi->pegawaiGrajiTriplek) {

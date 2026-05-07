@@ -93,7 +93,7 @@ class KontrakKerjasTable
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
-            ->paginated(false)
+            ->paginated()
             ->filtersLayout(FiltersLayout::AboveContent)
             ->filtersFormColumns(2)
 

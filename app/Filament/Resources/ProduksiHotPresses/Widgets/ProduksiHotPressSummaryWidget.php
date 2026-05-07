@@ -98,6 +98,7 @@ class ProduksiHotPressSummaryWidget extends Widget
             ->join('barang_setengah_jadi_hp', 'barang_setengah_jadi_hp.id', '=', 'platform_hasil_hp.id_barang_setengah_jadi')
             ->join('ukurans', 'ukurans.id', '=', 'barang_setengah_jadi_hp.id_ukuran')
             ->join('jenis_barang', 'jenis_barang.id', '=', 'barang_setengah_jadi_hp.id_jenis_barang')
+            ->join('grades', 'grades.id', '=', 'barang_setengah_jadi_hp.id_grade')
             ->selectRaw('
                 jenis_barang.nama_jenis_barang as jenis_kayu,
                 CONCAT(
@@ -105,9 +106,10 @@ class ProduksiHotPressSummaryWidget extends Widget
                     TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
                     TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
                 ) AS ukuran,
+                grades.nama_grade as kw,
                 SUM(platform_hasil_hp.isi) as total
             ')
-            ->groupBy('jenis_barang.nama_jenis_barang', 'ukuran')
+            ->groupBy('jenis_barang.nama_jenis_barang', 'ukuran', 'grades.nama_grade')
             ->get();
 
         $triplekJenisKayuUkuran = TriplekHasilHp::query()
@@ -115,6 +117,7 @@ class ProduksiHotPressSummaryWidget extends Widget
             ->join('barang_setengah_jadi_hp', 'barang_setengah_jadi_hp.id', '=', 'triplek_hasil_hp.id_barang_setengah_jadi')
             ->join('ukurans', 'ukurans.id', '=', 'barang_setengah_jadi_hp.id_ukuran')
             ->join('jenis_barang', 'jenis_barang.id', '=', 'barang_setengah_jadi_hp.id_jenis_barang')
+            ->join('grades', 'grades.id', '=', 'barang_setengah_jadi_hp.id_grade')
             ->selectRaw('
                 jenis_barang.nama_jenis_barang as jenis_kayu,
                 CONCAT(
@@ -122,19 +125,21 @@ class ProduksiHotPressSummaryWidget extends Widget
                     TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
                     TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
                 ) AS ukuran,
+                grades.nama_grade as kw,
                 SUM(triplek_hasil_hp.isi) as total
             ')
-            ->groupBy('jenis_barang.nama_jenis_barang', 'ukuran')
+            ->groupBy('jenis_barang.nama_jenis_barang', 'ukuran', 'grades.nama_grade')
             ->get();
 
         // Merge array
         $mergedJenisKayuUkuran = [];
         foreach ($platformJenisKayuUkuran as $item) {
-            $key = $item->jenis_kayu . '|' . $item->ukuran;
+            $key = $item->jenis_kayu . '|' . $item->ukuran . '|' . $item->kw;
             if (!isset($mergedJenisKayuUkuran[$key])) {
                 $mergedJenisKayuUkuran[$key] = (object) [
                     'jenis_kayu' => $item->jenis_kayu,
                     'ukuran' => $item->ukuran,
+                    'kw' => $item->kw,
                     'total' => 0
                 ];
             }
@@ -142,11 +147,12 @@ class ProduksiHotPressSummaryWidget extends Widget
         }
 
         foreach ($triplekJenisKayuUkuran as $item) {
-            $key = $item->jenis_kayu . '|' . $item->ukuran;
+            $key = $item->jenis_kayu . '|' . $item->ukuran . '|' . $item->kw;
             if (!isset($mergedJenisKayuUkuran[$key])) {
                 $mergedJenisKayuUkuran[$key] = (object) [
                     'jenis_kayu' => $item->jenis_kayu,
                     'ukuran' => $item->ukuran,
+                    'kw' => $item->kw,
                     'total' => 0
                 ];
             }
@@ -156,6 +162,9 @@ class ProduksiHotPressSummaryWidget extends Widget
         $globalJenisKayuUkuran = array_values($mergedJenisKayuUkuran);
         usort($globalJenisKayuUkuran, function($a, $b) {
             if ($a->jenis_kayu === $b->jenis_kayu) {
+                if ($a->ukuran === $b->ukuran) {
+                    return strcmp($a->kw, $b->kw);
+                }
                 return strcmp($a->ukuran, $b->ukuran);
             }
             return strcmp($a->jenis_kayu, $b->jenis_kayu);

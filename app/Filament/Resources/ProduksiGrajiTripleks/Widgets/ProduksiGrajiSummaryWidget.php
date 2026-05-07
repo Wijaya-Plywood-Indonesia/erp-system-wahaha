@@ -96,9 +96,12 @@ class ProduksiGrajiSummaryWidget extends Widget
                     TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
                     TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
                 ) AS ukuran,
+                CONCAT(kategori_barang.nama_kategori, " ", grades.nama_grade) as kw,
                 SUM(hasil_graji_triplek.isi) AS total
             ')
-            ->groupBy('jenis_barang.nama_jenis_barang', 'ukuran')
+            ->join('grades', 'grades.id', '=', 'barang_setengah_jadi_hp.id_grade')
+            ->join('kategori_barang', 'kategori_barang.id', '=', 'grades.id_kategori_barang')
+            ->groupBy('jenis_barang.nama_jenis_barang', 'ukuran', 'kategori_barang.nama_kategori', 'grades.nama_grade')
             ->orderBy('jenis_barang.nama_jenis_barang')
             ->orderBy('ukuran')
             ->get();
