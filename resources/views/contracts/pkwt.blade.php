@@ -296,7 +296,7 @@
       mengindahkan teguran atau peringatan tersebut, maka PIHAK KEDUA dapat
       dikenakan pemutusan hubungan kerja sebelum masa kontrak kerjanya
       berakhir, tanpa adanya kewajiban PIHAK PERTAMA memberikan pesangon, uang
-      jasa, ataupun ganti k erugian lainnya kepada PIHAK KEDUA.
+      jasa, ataupun ganti kerugian lainnya kepada PIHAK KEDUA.
     </li>
   </ol>
 
