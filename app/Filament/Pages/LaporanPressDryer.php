@@ -39,7 +39,7 @@ class LaporanPressDryer extends Page implements HasForms
     // Navigation Group
     protected static UnitEnum|string|null $navigationGroup = 'Laporan';
     protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-document-chart-bar';
-    protected static ?string $title = 'Laporan Press Dryer';
+    protected static ?string $title = 'Laporan Produksi Dryer';
     protected static ?int $navigationSort = 3;
 
     // Form state container (statePath => 'data')
