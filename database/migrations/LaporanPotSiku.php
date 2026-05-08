@@ -81,18 +81,15 @@ class LaporanPotSiku extends Page
     {
         return [
             DatePicker::make('tanggal')
-                ->label('Pilih Tanggal Laporan')
-                ->native(false)
+                ->label('Pilih Tanggal')
+                ->reactive()
                 ->format('Y-m-d')
                 ->displayFormat('d/m/Y')
                 ->live()
-                ->closeOnDateSelection()
-                ->afterStateUpdated(fn($state) => $this->onTanggalUpdated($state))
-                ->required()
-                ->maxDate(now())
-                ->default(now())
-                ->suffixIcon('heroicon-o-calendar')
-                ->suffixIconColor('primary'),
+                ->afterStateUpdated(function ($state) {
+                    $this->tanggal = $state;
+                    $this->loadAllData();
+                }),
         ];
     }
 
