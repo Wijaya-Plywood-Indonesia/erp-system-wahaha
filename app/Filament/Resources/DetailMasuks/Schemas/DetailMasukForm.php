@@ -83,7 +83,7 @@ class DetailMasukForm
                         $isUsed = in_array($p->id, $usedPallets);
 
                         if ($isUsed) continue;
-
+    
                         $nomor  = $p->kode_palet;
                         $isi    = $p->total_lembar ?? 0;
                         $ukuran = $p->ukuran?->nama_ukuran ?? 'Ukuran N/A';

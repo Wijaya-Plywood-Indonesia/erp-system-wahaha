@@ -61,7 +61,7 @@ class ProduksiGrajiBalkenSummaryWidget extends Widget
                 CONCAT(
                     TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
                     TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
-                    TRIM(TRAILING "0" FROM TRIM(TRAILING "." FROM CAST(ukurans.tebal AS CHAR)))
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
                 ) AS ukuran
             ');
 
@@ -83,11 +83,24 @@ class ProduksiGrajiBalkenSummaryWidget extends Widget
             ->orderBy('ukuran')
             ->get();
 
+        // 5. GLOBAL JENIS KAYU & UKURAN
+        $globalJenisKayuUkuran = (clone $baseQuery)
+            ->join('jenis_kayus', 'jenis_kayus.id', '=', 'hasil_graji_balken.id_jenis_kayu')
+            ->selectRaw('
+                jenis_kayus.nama_kayu as jenis_kayu,
+                SUM(hasil_graji_balken.jumlah) AS total
+            ')
+            ->groupBy('jenis_kayu', 'ukuran')
+            ->orderBy('jenis_kayu')
+            ->orderBy('ukuran')
+            ->get();
+
         $this->summary = [
             'totalAll'          => $totalAll,
             'totalPegawai'      => $totalPegawai,
             'globalUkuranJenis' => $globalUkuranJenis,
             'globalUkuranSemua' => $globalUkuranSemua,
+            'globalJenisKayuUkuran' => $globalJenisKayuUkuran,
         ];
     }
 }

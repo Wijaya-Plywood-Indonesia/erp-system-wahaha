@@ -60,7 +60,7 @@ class ProduksiGrajiSummaryWidget extends Widget
                 CONCAT(
                     TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
                     TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
-                    TRIM(TRAILING "0" FROM TRIM(TRAILING "." FROM CAST(ukurans.tebal AS CHAR)))
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
                 ) AS ukuran
             ');
 
@@ -83,11 +83,35 @@ class ProduksiGrajiSummaryWidget extends Widget
             ->orderBy('ukuran')
             ->get();
 
+        // 5. GLOBAL JENIS KAYU & UKURAN
+        $globalJenisKayuUkuran = HasilGrajiTriplek::query()
+            ->where('hasil_graji_triplek.id_produksi_graji_triplek', $produksiId)
+            ->join('barang_setengah_jadi_hp', 'barang_setengah_jadi_hp.id', '=', 'hasil_graji_triplek.id_barang_setengah_jadi_hp')
+            ->join('ukurans', 'ukurans.id', '=', 'barang_setengah_jadi_hp.id_ukuran')
+            ->join('jenis_barang', 'jenis_barang.id', '=', 'barang_setengah_jadi_hp.id_jenis_barang')
+            ->selectRaw('
+                jenis_barang.nama_jenis_barang as jenis_kayu,
+                CONCAT(
+                    TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
+                    TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
+                ) AS ukuran,
+                CONCAT(kategori_barang.nama_kategori, " ", grades.nama_grade) as kw,
+                SUM(hasil_graji_triplek.isi) AS total
+            ')
+            ->join('grades', 'grades.id', '=', 'barang_setengah_jadi_hp.id_grade')
+            ->join('kategori_barang', 'kategori_barang.id', '=', 'grades.id_kategori_barang')
+            ->groupBy('jenis_barang.nama_jenis_barang', 'ukuran', 'kategori_barang.nama_kategori', 'grades.nama_grade')
+            ->orderBy('jenis_barang.nama_jenis_barang')
+            ->orderBy('ukuran')
+            ->get();
+
         $this->summary = [
-            'totalAll'       => $totalAll,
-            'totalPegawai'   => $totalPegawai,
-            'globalUkuranKw' => $globalUkuranKw,
-            'globalUkuran'   => $globalUkuran,
+            'totalAll'              => $totalAll,
+            'totalPegawai'          => $totalPegawai,
+            'globalUkuranKw'        => $globalUkuranKw,
+            'globalUkuran'          => $globalUkuran,
+            'globalJenisKayuUkuran' => $globalJenisKayuUkuran,
         ];
     }
 }

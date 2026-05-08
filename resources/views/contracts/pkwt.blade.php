@@ -72,8 +72,7 @@
 
   <p>Yang bertanda tangan di bawah ini :</p>
 
-  <table
-    style="
+  <table style="
         width: 100%;
         font-size: 9pt;
         line-height: 1.15;
@@ -102,8 +101,7 @@
     Dalam hal ini bertindak mewakili atas nama Perusahaan
     <strong>{{ $record->karyawan_di }}</strong>, selanjutnya disebut sebagai <strong>PIHAK PERTAMA</strong>.
   </p>
-  <table
-    style="
+  <table style="
         width: 100%;
         font-size: 9pt;
         line-height: 1.15;
@@ -142,7 +140,8 @@
   <p>Selanjutnya disebut sebagai <strong>PIHAK KEDUA</strong>.</p>
   <p>
     Pada hari ini, tanggal
-    <strong>{{ \Carbon\Carbon::parse($record->kontrak_mulai)->translatedFormat('d F Y') }}</strong>, kedua belah pihak secara sadar dan tanpa paksaan telah mengadakan
+    <strong>{{ \Carbon\Carbon::parse($record->kontrak_mulai)->translatedFormat('d F Y') }}</strong>, kedua belah pihak
+    secara sadar dan tanpa paksaan telah mengadakan
     perjanjian kontrak kerja, dengan isi pernyataan meliputi :
   </p>
 
@@ -150,8 +149,7 @@
     Pasal 1
   </div>
 
-  <div
-    style="
+  <div style="
         text-align: center;
         font-weight: bold;
         text-transform: uppercase;
@@ -160,8 +158,8 @@
     Ketentuan Umum
   </div>
 
-  <ol
-    style="margin: 0; padding-left: 18px; font-size: 9pt; line-height: 1.15">
+
+  <ol style="margin: 0; padding-left: 18px; font-size: 9pt; line-height: 1.15">
     <li>
       Dengan ditanda tanganinya Kontrak Kerja ini berarti PIHAK KEDUA telah
       mengetahui dan harus patuh terhadap Peraturan Perusahaan atau
@@ -177,8 +175,8 @@
     Pasal 2
   </div>
 
-  <div
-    style="
+
+  <div style="
         text-align: center;
         font-weight: bold;
         text-transform: uppercase;
@@ -187,8 +185,8 @@
     Penunjukan Sebagai Karyawan
   </div>
 
-  <ol
-    style="margin: 0; padding-left: 18px; font-size: 9pt; line-height: 1.15">
+
+  <ol style="margin: 0; padding-left: 18px; font-size: 9pt; line-height: 1.15">
     <li>
       PIHAK PERTAMA memberi pekerjaan kepada PIHAK KEDUA, dan PIHAK KEDUA
       telah mengakui menerima pekerjaan dari PIHAK PERTAMA.
@@ -230,8 +228,8 @@
     Pasal 3
   </div>
 
-  <div
-    style="
+
+  <div style="
         text-align: center;
         font-weight: bold;
         text-transform: uppercase;
@@ -240,8 +238,8 @@
     Hak dan Kewajiban
   </div>
 
-  <ol
-    style="margin: 0; padding-left: 18px; font-size: 9pt; line-height: 1.15">
+
+  <ol style="margin: 0; padding-left: 18px; font-size: 9pt; line-height: 1.15">
     <li>
       PIHAK PERTAMA dan PIHAK KEDUA secara bersama-sama berkewajiban membina
       hubungan kerja yang harmonis agar tercipta ketenangan kerja dan
@@ -283,8 +281,8 @@
     Pasal 4
   </div>
 
-  <div
-    style="
+
+  <div style="
         text-align: center;
         font-weight: bold;
         text-transform: uppercase;
@@ -293,8 +291,7 @@
     Sanksi
   </div>
 
-  <ol
-    style="margin: 0; padding-left: 18px; font-size: 9pt; line-height: 1.15">
+  <ol style="margin: 0; padding-left: 18px; font-size: 9pt; line-height: 1.15">
     <li>
       Bilamana PIHAK KEDUA ternyata tidak memenuhi kewajiban-kewajiban
       tersebut di atas, PIHAK PERTAMA berwenang memberikan teguran atau
@@ -312,8 +309,8 @@
   <div style="text-align: center; font-weight: bold; margin-top: 20px">
     Pasal 5
   </div>
-  <div
-    style="
+
+  <div style="
         text-align: center;
         font-weight: bold;
         text-transform: uppercase;
@@ -322,8 +319,8 @@
     Sanksi
   </div>
 
-  <ol
-    style="margin: 0; padding-left: 18px; font-size: 9pt; line-height: 1.15">
+
+  <ol style="margin: 0; padding-left: 18px; font-size: 9pt; line-height: 1.15">
     WAKTU DAN TEMPAT KERJA PIHAK KEDUA wajib mentaati waktu kerja sebagai
     berikut : Senin-Sabtu : Jam 06.00-14.00 WIB. Isirahat : Jam 12.00 – 13.00
     WIB atau 11.00-12.00. *Ketidak hadiran diperhitungkan waktu.
@@ -332,8 +329,8 @@
   <div style="text-align: center; font-weight: bold; margin-top: 20px">
     Pasal 6
   </div>
-  <div
-    style="
+
+  <div style="
         text-align: center;
         font-weight: bold;
         text-transform: uppercase;
@@ -341,8 +338,8 @@
       ">
     Sanksi
   </div>
-  <ol
-    style="margin: 0; padding-left: 18px; font-size: 9pt; line-height: 1.15">
+
+  <ol style="margin: 0; padding-left: 18px; font-size: 9pt; line-height: 1.15">
     <li>
       Bila terjadi perselisihan antara kedua belah pihak dalam melaksanakan
       Kontrak Kerja ini, maka kedua belah pihak akan menyelesaikannya secara
@@ -372,19 +369,24 @@
 
     <!-- Space untuk tanda tangan -->
     <tr>
+
+      <!-- TTD PIHAK PERTAMA -->
       <td style="height: 80px; vertical-align: bottom; text-align: left;">
-        <img src="{{ asset('storage/app/public/ttd/anis.png') }}" style="height:70px;">
+        <img src="{{ asset('storage/ttd/anis.png') }}" style="height:70px;">
       </td>
 
-      <td style="height: 80px; vertical-align: bottom; text-align: left;">
+      <!-- TTD PIHAK KEDUA -->
+      <td style="vertical-align: bottom; text-align: left;">
         @if($record->bukti_ttd)
-        <img src="{{ asset('storage/'.$record->bukti_ttd) }}" style="height:75px;">
+        <img src="{{ public_path('storage/'.$record->bukti_ttd) }}" style="height:75px;">
         @endif
       </td>
     </tr>
 
     <tr>
       <td style="text-align: left;">
+
+
         <strong>(Anis Rusnaa’ifah)</strong>
       </td>
       <td style="text-align: left;">

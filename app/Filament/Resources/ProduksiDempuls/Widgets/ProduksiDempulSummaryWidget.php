@@ -68,7 +68,7 @@ class ProduksiDempulSummaryWidget extends Widget
                 CONCAT(
                     TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
                     TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
-                    TRIM(TRAILING "0" FROM TRIM(TRAILING "." FROM CAST(ukurans.tebal AS CHAR)))
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
                 ) AS ukuran,
                 grades.nama_grade as kw,  
                 SUM(CAST(detail_dempuls.hasil AS UNSIGNED)) AS total
@@ -83,11 +83,30 @@ class ProduksiDempulSummaryWidget extends Widget
                 CONCAT(
                     TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
                     TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
-                    TRIM(TRAILING "0" FROM TRIM(TRAILING "." FROM CAST(ukurans.tebal AS CHAR)))
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
                 ) AS ukuran,
                 SUM(CAST(detail_dempuls.hasil AS UNSIGNED)) AS total
             ')
             ->groupBy('ukuran')
+            ->orderBy('ukuran')
+            ->get();
+
+        // 5. GLOBAL JENIS KAYU & UKURAN
+        $globalJenisKayuUkuran = (clone $baseQuery)
+            ->join('jenis_barang', 'jenis_barang.id', '=', 'barang_setengah_jadi_hp.id_jenis_barang')
+            ->join('grades', 'grades.id', '=', 'barang_setengah_jadi_hp.id_grade')
+            ->selectRaw('
+                jenis_barang.nama_jenis_barang as jenis_kayu,
+                CONCAT(
+                    TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
+                    TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
+                ) AS ukuran,
+                grades.nama_grade as kw,
+                SUM(CAST(detail_dempuls.hasil AS UNSIGNED)) AS total
+            ')
+            ->groupBy('jenis_barang.nama_jenis_barang', 'ukuran', 'grades.nama_grade')
+            ->orderBy('jenis_barang.nama_jenis_barang')
             ->orderBy('ukuran')
             ->get();
 
@@ -96,6 +115,7 @@ class ProduksiDempulSummaryWidget extends Widget
             'totalPegawai'   => $totalPegawai,
             'globalUkuranKw' => $globalUkuranKw,
             'globalUkuran'   => $globalUkuran,
+            'globalJenisKayuUkuran' => $globalJenisKayuUkuran,
         ];
     }
 }

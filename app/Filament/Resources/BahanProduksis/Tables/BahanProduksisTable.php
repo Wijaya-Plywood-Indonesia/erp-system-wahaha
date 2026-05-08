@@ -5,11 +5,11 @@ namespace App\Filament\Resources\BahanProduksis\Tables;
 use App\Filament\Resources\BahanProduksis\Schemas\BahanProduksiForm;
 use App\Models\BahanProduksi;
 use Filament\Actions\BulkActionGroup;
+use Filament\Actions\CreateAction;
+use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Table;
-use Filament\Actions\CreateAction;
-use Filament\Actions\DeleteAction;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Columns\TextColumn;
 
@@ -17,25 +17,21 @@ class BahanProduksisTable
 {
     public static function configure(Table $table): Table
     {
-        $bahanOptions = BahanProduksiForm::getBahanOptions();
         return $table
             ->columns([
                 TextColumn::make('nama_bahan')
-                    ->searchable()
-                    ->label('Nama bahan')
-                    // Gunakan formatStateUsing untuk menampilkan label panjang
-                    ->formatStateUsing(
-                        fn(string $state): string =>
-                        $bahanOptions[$state] ?? $state
-                    ),
+                    ->label('Nama Bahan')
+                    ->formatStateUsing(function ($state) {
+                        $bahan = \App\Models\BahanPenolongProduksi::where('nama_bahan_penolong', $state)->first();
+                        return $state . ($bahan ? " ({$bahan->satuan})" : "");
+                    })
+                    ->searchable(),
 
                 TextColumn::make('jumlah')
                     ->label('Banyaknya'),
             ])
             ->filters([
-                SelectFilter::make('nama_bahan')
-                    ->options($bahanOptions)
-                    ->multiple(),
+                //
             ])
             ->headerActions([
                 CreateAction::make()
@@ -43,7 +39,21 @@ class BahanProduksisTable
                     ->hidden(
                         fn($livewire) =>
                         $livewire->ownerRecord?->validasiTerakhir?->status === 'divalidasi'
-                    ),
+                    )
+                    ->using(function (array $data, string $model, $livewire): \Illuminate\Database\Eloquent\Model {
+                        $ownerRecord = $livewire->ownerRecord;
+
+                        $existing = $model::where('id_produksi_joint', $ownerRecord->id)
+                            ->where('nama_bahan', $data['nama_bahan'])
+                            ->first();
+
+                        if ($existing) {
+                            $existing->increment('jumlah', $data['jumlah']);
+                            return $existing;
+                        }
+
+                        return $model::create(array_merge($data, ['id_produksi_joint' => $ownerRecord->id]));
+                    }),
             ])
             ->recordActions([
                 EditAction::make()

@@ -14,7 +14,13 @@ class ProduksiPressDryerSummaryWidget extends Widget
     protected string $view = 'filament.resources.produksi-press-dryers.widgets.summary';
     protected int|string|array $columnSpan = 'full';
     public ?ProduksiPressDryer $record = null;
-    public array $summary = [];
+    public array $summary = [
+        'totalAll' => 0,
+        'totalPegawai' => 0,
+        'totalKubikasi' => 0,
+        'globalUkuranKw' => [],
+        'globalUkuran' => [],
+    ];
 
     public function getListeners(): array
     {
@@ -83,29 +89,51 @@ class ProduksiPressDryerSummaryWidget extends Widget
             Log::info("TOTAL KUBIKASI AKHIR: $totalKubikasi");
 
             // Query Dasar Ukuran (Untuk tampilan List)
+            // Query Dasar Ukuran (Untuk tampilan List)
             $baseQuery = DetailHasil::query()
                 ->where('detail_hasils.id_produksi_dryer', $produksiId)
                 ->join('ukurans', 'ukurans.id', '=', 'detail_hasils.id_ukuran')
+                ->leftJoin('jenis_kayus', 'jenis_kayus.id', '=', 'detail_hasils.id_jenis_kayu') // ← nama tabel: jenis_kayus
                 ->selectRaw('
                     CONCAT(
                         TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
                         TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
-                        TRIM(TRAILING "0" FROM TRIM(TRAILING "." FROM CAST(ukurans.tebal AS CHAR)))
+                        TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
                     ) AS ukuran
                 ');
 
             $globalUkuranKw = (clone $baseQuery)
                 ->selectRaw('
-                    detail_hasils.kw,
-                    SUM(CAST(detail_hasils.isi AS UNSIGNED)) AS total
-                ')
-                ->groupBy('ukuran', 'detail_hasils.kw')
+        detail_hasils.kw,
+        SUM(CAST(detail_hasils.isi AS UNSIGNED)) AS total
+    ')
+                ->groupBy('ukuran', 'jenis_kayu', 'detail_hasils.kw')
                 ->orderBy('ukuran')
                 ->get();
 
             $globalUkuran = (clone $baseQuery)
                 ->selectRaw('SUM(CAST(detail_hasils.isi AS UNSIGNED)) AS total')
-                ->groupBy('ukuran')
+                ->groupBy('ukuran', 'jenis_kayu')
+                ->orderBy('ukuran')
+                ->get();
+
+            // 5. GLOBAL JENIS KAYU & UKURAN
+            $globalJenisKayuUkuran = DetailHasil::query()
+                ->where('id_produksi_dryer', $produksiId)
+                ->join('ukurans', 'ukurans.id', '=', 'detail_hasils.id_ukuran')
+                ->join('jenis_kayus', 'jenis_kayus.id', '=', 'detail_hasils.id_jenis_kayu')
+                ->selectRaw('
+                    jenis_kayus.nama_kayu as jenis_kayu,
+                    CONCAT(
+                        TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
+                        TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
+                        TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
+                    ) AS ukuran,
+                    detail_hasils.kw as kw,
+                    SUM(CAST(detail_hasils.isi AS UNSIGNED)) AS total
+                ')
+                ->groupBy('jenis_kayus.nama_kayu', 'ukuran', 'detail_hasils.kw')
+                ->orderBy('jenis_kayus.nama_kayu')
                 ->orderBy('ukuran')
                 ->get();
 
@@ -115,6 +143,7 @@ class ProduksiPressDryerSummaryWidget extends Widget
                 'totalKubikasi' => $totalKubikasi, // Data Baru
                 'globalUkuranKw' => $globalUkuranKw,
                 'globalUkuran' => $globalUkuran,
+                'globalJenisKayuUkuran' => $globalJenisKayuUkuran,
             ];
         } catch (\Exception $e) {
             Log::error("Error pada Summary Widget Dryer: " . $e->getMessage());

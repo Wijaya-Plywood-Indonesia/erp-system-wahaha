@@ -95,11 +95,29 @@ class ProduksiGuellotineWidget extends Widget
             ->orderByRaw('ukurans.panjang, ukurans.lebar, ukurans.tebal')
             ->get();
 
+        // 5. GLOBAL JENIS KAYU & UKURAN
+        $globalJenisKayuUkuran = (clone $baseQuery)
+            ->join('jenis_kayus', 'jenis_kayus.id', '=', 'hasil_guellotine.id_jenis_kayu')
+            ->selectRaw('
+                jenis_kayus.nama_kayu as jenis_kayu,
+                CONCAT(
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.panjang AS CHAR))), " x ",
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.lebar AS CHAR))), " x ",
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
+                ) AS ukuran,
+                SUM(hasil_guellotine.jumlah) AS total
+            ')
+            ->groupBy('jenis_kayu', 'ukuran')
+            ->orderBy('jenis_kayu')
+            ->orderBy('ukuran')
+            ->get();
+
         $this->summary = [
             'totalAll'         => $totalAll,
             'totalPegawai'     => $totalPegawai,
             'globalUkuranKayu' => $globalUkuranKayu,
             'globalUkuran'     => $globalUkuran,
+            'globalJenisKayuUkuran' => $globalJenisKayuUkuran,
         ];
     }
 }

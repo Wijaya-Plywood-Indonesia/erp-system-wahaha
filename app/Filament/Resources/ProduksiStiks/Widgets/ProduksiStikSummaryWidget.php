@@ -63,7 +63,7 @@ class ProduksiStikSummaryWidget extends Widget
                 CONCAT(
                     TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
                     TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
-                    TRIM(TRAILING "0" FROM TRIM(TRAILING "." FROM CAST(ukurans.tebal AS CHAR)))
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
                 ) AS ukuran
             ');
 
@@ -84,11 +84,32 @@ class ProduksiStikSummaryWidget extends Widget
             ->orderBy('ukuran')
             ->get();
 
+        // 5. GLOBAL JENIS KAYU & UKURAN
+        $globalJenisKayuUkuran = DetailHasilStik::query()
+            ->where('id_produksi_stik', $produksiId)
+            ->join('ukurans', 'ukurans.id', '=', 'detail_hasil_stik.id_ukuran')
+            ->join('jenis_kayus', 'jenis_kayus.id', '=', 'detail_hasil_stik.id_jenis_kayu')
+            ->selectRaw('
+                jenis_kayus.nama_kayu as jenis_kayu,
+                CONCAT(
+                    TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
+                    TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
+                ) AS ukuran,
+                detail_hasil_stik.kw as kw,
+                SUM(CAST(detail_hasil_stik.total_lembar AS UNSIGNED)) AS total
+            ')
+            ->groupBy('jenis_kayus.nama_kayu', 'ukuran', 'detail_hasil_stik.kw')
+            ->orderBy('jenis_kayus.nama_kayu')
+            ->orderBy('ukuran')
+            ->get();
+
         $this->summary = [
             'totalAll'       => $totalAll,
             'totalPegawai'   => $totalPegawai,
             'globalUkuranKw' => $globalUkuranKw,
             'globalUkuran'   => $globalUkuran,
+            'globalJenisKayuUkuran' => $globalJenisKayuUkuran,
         ];
     }
 }

@@ -220,6 +220,22 @@ class SerahTerimaRelationManager extends RelationManager
                     })
                     ->badge(),
 
+                TextColumn::make('jenis_kayu')
+                    ->label('Jenis Kayu')
+                    ->getStateUsing(function ($record) {
+                        $palet = $record->detailHasilPalet;
+                        if (!$palet) return '-';
+
+                        $jenisKayu = $palet->penggunaanLahan?->jenisKayu?->nama_kayu;
+
+                        if (!$jenisKayu) {
+                            $jenisKayu = $palet->produksi?->detailLahanRotary?->first()?->jenisKayu?->nama_kayu;
+                        }
+
+                        return $jenisKayu ?? '-';
+                    })
+                    ->badge(),
+
                 TextColumn::make('diserahkan_oleh')
                     ->label('Oleh')
                     ->badge(),

@@ -85,11 +85,32 @@ class ProduksiJointSummaryWidget extends Widget
             ->orderBy('ukuran')
             ->get();
 
+        // 5. GLOBAL JENIS KAYU & UKURAN
+        $globalJenisKayuUkuran = HasilJoint::query()
+            ->where('id_produksi_joint', $produksiId)
+            ->join('ukurans', 'ukurans.id', '=', 'hasil_joint.id_ukuran')
+            ->join('jenis_kayus', 'jenis_kayus.id', '=', 'hasil_joint.id_jenis_kayu')
+            ->selectRaw('
+                jenis_kayus.nama_kayu as jenis_kayu,
+                CONCAT(
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.panjang AS CHAR))), " x ",
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.lebar AS CHAR))), " x ",
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
+                ) AS ukuran,
+                hasil_joint.kw as kw,
+                SUM(CAST(hasil_joint.jumlah AS UNSIGNED)) AS total
+            ')
+            ->groupBy('jenis_kayus.nama_kayu', 'ukuran', 'hasil_joint.kw')
+            ->orderBy('jenis_kayus.nama_kayu')
+            ->orderBy('ukuran')
+            ->get();
+
         $this->summary = [
             'totalAll'       => $totalAll,
             'totalPegawai'   => $totalPegawai,
             'globalUkuranKw' => $globalUkuranKw,
             'globalUkuran'   => $globalUkuran,
+            'globalJenisKayuUkuran' => $globalJenisKayuUkuran,
         ];
     }
 }

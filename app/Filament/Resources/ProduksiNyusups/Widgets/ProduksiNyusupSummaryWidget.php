@@ -85,11 +85,26 @@ class ProduksiNyusupSummaryWidget extends Widget
             ->orderBy('ukuran')
             ->get();
 
+        // 5. GLOBAL JENIS KAYU & UKURAN
+        $globalJenisKayuUkuran = (clone $baseQuery)
+            ->join('jenis_barang', 'jenis_barang.id', '=', 'bsj.id_jenis_barang')
+            ->join('grades', 'grades.id', '=', 'bsj.id_grade')
+            ->selectRaw('
+                jenis_barang.nama_jenis_barang as jenis_kayu,
+                grades.nama_grade as kw,
+                SUM(CAST(detail_barang_dikerjakan.hasil AS UNSIGNED)) AS total
+            ')
+            ->groupBy('jenis_barang.nama_jenis_barang', 'ukuran', 'grades.nama_grade')
+            ->orderBy('jenis_barang.nama_jenis_barang')
+            ->orderBy('ukuran')
+            ->get();
+
         $this->summary = [
             'totalAll'          => $totalAll,
             'totalPegawai'      => $totalPegawai,
             'globalUkuranGrade' => $globalUkuranGrade,
             'globalUkuran'      => $globalUkuran,
+            'globalJenisKayuUkuran' => $globalJenisKayuUkuran,
         ];
     }
 }

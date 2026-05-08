@@ -72,7 +72,7 @@ class ProduksiSummaryWidget extends Widget
                 CONCAT(
                     TRIM(TRAILING ".00" FROM CAST(ukurans.panjang AS CHAR)), " x ",
                     TRIM(TRAILING ".00" FROM CAST(ukurans.lebar AS CHAR)), " x ",
-                    TRIM(TRAILING "0" FROM TRIM(TRAILING "." FROM CAST(ukurans.tebal AS CHAR)))
+                    TRIM(TRAILING "." FROM TRIM(TRAILING "0" FROM CAST(ukurans.tebal AS CHAR)))
                 ) AS ukuran,
                 jenis_kayus.nama_kayu as jenis_kayu,
                 detail_hasil_palet_rotaries.kw,
@@ -92,6 +92,13 @@ class ProduksiSummaryWidget extends Widget
             ->orderBy('ukuran')
             ->get();
 
+        // 4.5 REKAP JENIS KAYU & UKURAN
+        $globalJenisKayuUkuran = (clone $baseQuery)
+            ->groupBy('jenis_kayu', 'ukuran', 'kw')
+            ->orderBy('jenis_kayu')
+            ->orderBy('ukuran')
+            ->get();
+
         // 5. Ambil Target
         $dbName = "produksi_rotaries";
         $dbHasil = "detail_hasil_palet_rotaries";
@@ -106,6 +113,7 @@ class ProduksiSummaryWidget extends Widget
             'totalPegawai' => $totalPegawai,
             'globalUkuranKwJenis' => $globalUkuranKwJenis,
             'globalUkuran' => $globalUkuran,
+            'globalJenisKayuUkuran' => $globalJenisKayuUkuran,
             'globalTarget' => $globalTarget
         ];
     }
