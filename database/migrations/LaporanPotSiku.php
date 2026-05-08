@@ -24,7 +24,7 @@ class LaporanPotSiku extends Page
     protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-document-chart-bar';
     protected string $view = 'filament.pages.laporan-pot-siku';
     protected static UnitEnum|string|null $navigationGroup = 'Laporan';
-    protected static ?string $title = 'Laporan Produksi Pot Siku';
+    protected static ?string $title = 'Laporan Pot Siku';
     protected static ?int $navigationSort = 6;
 
     public $dataSiku = [];
@@ -58,7 +58,7 @@ class LaporanPotSiku extends Page
             $tglFile = Carbon::parse($this->tanggal)->format('d-m-Y');
 
             return Excel::download(
-                new LaporanPotSikuExport($this->dataSiku, $this->tanggal),
+                new LaporanPotSikuExport($this->dataSiku),
                 "laporan-pot-siku-{$tglFile}.xlsx"
             );
         } catch (\Exception $e) {
@@ -81,18 +81,15 @@ class LaporanPotSiku extends Page
     {
         return [
             DatePicker::make('tanggal')
-                ->label('Pilih Tanggal Laporan')
-                ->native(false)
+                ->label('Pilih Tanggal')
+                ->reactive()
                 ->format('Y-m-d')
                 ->displayFormat('d/m/Y')
                 ->live()
-                ->closeOnDateSelection()
-                ->afterStateUpdated(fn($state) => $this->onTanggalUpdated($state))
-                ->required()
-                ->maxDate(now())
-                ->default(now())
-                ->suffixIcon('heroicon-o-calendar')
-                ->suffixIconColor('primary'),
+                ->afterStateUpdated(function ($state) {
+                    $this->tanggal = $state;
+                    $this->loadAllData();
+                }),
         ];
     }
 
