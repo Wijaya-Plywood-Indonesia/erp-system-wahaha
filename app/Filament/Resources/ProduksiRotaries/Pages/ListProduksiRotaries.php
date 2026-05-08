@@ -26,21 +26,6 @@ class ListProduksiRotaries extends ListRecords
     {
         return [
             CreateAction::make(),
-            Action::make('exportRekap')
-                ->label("Download Rekap Produksi (Excel Custom)")
-                ->icon('heroicon-o-table-cells')
-                ->color('warning')
-                ->form([
-                    DatePicker::make('tanggal')
-                        ->label('Pilih Tanggal')
-                        ->default(now())
-                        ->required(),
-                ])
-                ->action(function (array $data) {
-                    $tanggal = $data['tanggal'];
-                    $filename = 'Rekap-Produksi-Rotary-' . Carbon::parse($tanggal)->format('Y-m-d') . '.xlsx';
-                    return Excel::download(new LaporanProduksiRotaryCustomExport($tanggal), $filename);
-                }),
 
 
             // Action::make('test_kirim_jurnal')
