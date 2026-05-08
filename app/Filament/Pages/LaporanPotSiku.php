@@ -24,7 +24,7 @@ class LaporanPotSiku extends Page
     protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-document-chart-bar';
     protected string $view = 'filament.pages.laporan-pot-siku';
     protected static UnitEnum|string|null $navigationGroup = 'Laporan';
-    protected static ?string $title = 'Laporan Pot Siku';
+    protected static ?string $title = 'Laporan Produksi Pot Siku';
     protected static ?int $navigationSort = 6;
 
     public $dataSiku = [];

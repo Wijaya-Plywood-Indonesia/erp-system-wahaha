@@ -30,7 +30,7 @@ class LaporanPotAfalanJoin extends Page
     protected static UnitEnum|string|null $navigationGroup = 'Laporan';
     protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-document-chart-bar';
     protected static ?string $title = 'Laporan Produksi Potong Afalan Join';
-    protected static ?string $navigationLabel = 'Laporan Potong Afalan Join';
+    protected static ?string $navigationLabel = 'Laporan Produksi Pot Af Join';
     protected string $view = 'filament.pages.laporan-pot-afalan';
     protected static ?int $navigationSort = 9;
 

@@ -9,9 +9,9 @@ use Illuminate\Support\Facades\Log;
 
 class VeneerBasahInventoryService
 {
-    public function kurangiStokDariProduksi($details, $tipeProduksi, $tanggalProduksi, $shift = null)
+    public function kurangiStokDariProduksi($details, $tipeProduksi, $tanggalProduksi)
     {
-        DB::transaction(function () use ($details, $tipeProduksi, $tanggalProduksi, $shift) {
+        DB::transaction(function () use ($details, $tipeProduksi, $tanggalProduksi) {
             foreach ($details as $detail) {
                 $ukuran = $detail->ukuran;
 
@@ -39,8 +39,7 @@ class VeneerBasahInventoryService
                 // Cek apakah stok cukup
                 $stokTidakCukup = $summary->stok_lembar <= 0 || $summary->stok_lembar < $detail->isi;
 
-                $shiftLabel = $shift ? " Shift $shift" : "";
-                $keterangan = "Produksi $tipeProduksi{$shiftLabel} Tgl " . \Carbon\Carbon::parse($tanggalProduksi)->format('d/m/Y') . ": Palet " . ($detail->no_palet ?? 'AF');
+                $keterangan = "Produksi $tipeProduksi Tgl " . \Carbon\Carbon::parse($tanggalProduksi)->format('d/m/Y') . ": Palet " . ($detail->no_palet ?? 'AF');
                 if ($stokTidakCukup) {
                     $keterangan .= " [SKIP: stok tidak cukup, kemungkinan sudah tercatat via opname]";
                 }

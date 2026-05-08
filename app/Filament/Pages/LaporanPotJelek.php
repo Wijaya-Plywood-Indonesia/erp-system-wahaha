@@ -30,7 +30,7 @@ class LaporanPotJelek extends Page
     protected static UnitEnum|string|null $navigationGroup = 'Laporan';
     protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-document-chart-bar';
     protected static ?string $title = 'Laporan Produksi Potong Jelek';
-    protected static ?string $navigationLabel = 'Laporan Potong Jelek';
+    protected static ?string $navigationLabel = 'Laporan Produksi Pot Jelek';
     protected string $view = 'filament.pages.laporan-pot-jelek'; // Sesuaikan dengan nama blade Anda
     protected static ?int $navigationSort = 10;
 

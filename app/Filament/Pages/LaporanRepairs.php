@@ -28,7 +28,7 @@ class LaporanRepairs extends Page
 
     protected static UnitEnum|string|null $navigationGroup = 'Laporan';
     protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-document-chart-bar';
-    protected static ?string $title = 'Laporan Repairs';
+    protected static ?string $title = 'Laporan Produksi Repairs';
     protected string $view = 'filament.pages.laporan-repairs';
     protected static ?int $navigationSort = 6;
 
