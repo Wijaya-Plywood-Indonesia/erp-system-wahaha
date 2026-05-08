@@ -58,7 +58,7 @@ class LaporanPotSiku extends Page
             $tglFile = Carbon::parse($this->tanggal)->format('d-m-Y');
 
             return Excel::download(
-                new LaporanPotSikuExport($this->dataSiku),
+                new LaporanPotSikuExport($this->dataSiku, $this->tanggal),
                 "laporan-pot-siku-{$tglFile}.xlsx"
             );
         } catch (\Exception $e) {
