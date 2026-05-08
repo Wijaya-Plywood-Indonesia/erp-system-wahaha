@@ -171,7 +171,7 @@ class LaporanPotJelek extends Page
             // Ganti ke class export Pot Jelek jika sudah Anda buat
             if (class_exists('App\Exports\LaporanPotJelekExport')) {
                 return Excel::download(
-                    new LaporanPotJelekExport($this->laporan, $this->data['tanggal']),
+                    new LaporanPotJelekExport($this->laporan),
                     "laporan-pot-jelek-{$tanggal}.xlsx"
                 );
             }
