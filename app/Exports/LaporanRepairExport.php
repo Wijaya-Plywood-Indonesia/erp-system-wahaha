@@ -14,6 +14,7 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use App\Filament\Pages\LaporanRepairs\Queries\LoadLaporanRepairs;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
 // ============================================================
 // MAIN EXPORT CLASS
@@ -125,119 +126,113 @@ class LaporanRepairDetailSheet implements FromCollection, WithHeadings, WithTitl
 // ============================================================
 class LaporanRepairSummarySheet implements FromCollection, WithHeadings, WithTitle, WithEvents
 {
-    // Terima raw Eloquent collection, BUKAN array hasil transformer
-    public function __construct(protected $rawCollection) {}
+    private array $summary = [];
 
-    public function collection()
+    /**
+     * MASTER MAPPING: 
+     * Urutan kolom KW di Excel.
+     */
+    private const MASTER_KW = ['1', '2', '3', '4', 'af'];
+
+    public function __construct(protected $rawCollection)
     {
-        $summary = [];
+        $this->buildSummary();
+    }
 
-        // =======================================================
-        // STEP 1: Loop langsung ke model, ambil dimensi dari relasi
-        // Tidak ada risiko field hilang karena kita baca langsung!
-        // =======================================================
+    private function buildSummary(): void
+    {
         foreach ($this->rawCollection as $produksi) {
-
-            $tanggal = Carbon::parse($produksi->tanggal)->format('d/m/Y');
+            $tanggal = Carbon::parse($produksi->tanggal)->format('d M');
 
             foreach ($produksi->modalRepairs as $modal) {
+                $p = (float) ($modal->ukuran->panjang ?? 0);
+                $l = (float) ($modal->ukuran->lebar   ?? 0);
+                $t = (float) ($modal->ukuran->tebal   ?? 0);
+                $jenis = strtoupper($modal->jenisKayu->kode_kayu ?? substr($modal->jenisKayu->nama_kayu ?? '-', 0, 1));
+                $kwData = strtolower(trim($modal->kw ?? ''));
 
-                $ukuran    = $modal->ukuran;    // → relasi langsung ke model Ukuran
-                $jenisKayu = $modal->jenisKayu; // → relasi langsung ke model JenisKayu
+                // ✅ PERUBAHAN LOGIKA: Key sekarang menyertakan KW
+                // Dengan begini, jika Ukuran & Jenis sama tapi KW beda, akan jadi baris baru
+                $key = "{$jenis}|{$tanggal}|{$p}|{$l}|{$t}|{$kwData}";
 
-                // ✅ Ambil dimensi langsung dari model, pasti akurat
-                $p     = (float) ($ukuran->panjang ?? 0);
-                $l     = (float) ($ukuran->lebar   ?? 0);
-                $t     = (float) ($ukuran->tebal   ?? 0);
-                $jenis = $jenisKayu->nama_kayu ?? '-';
-                $kw    = $modal->kw ?? $modal->kualitas ?? 1;
-
-                // Key grouping unik per kombinasi dimensi
-                $key = "{$p}|{$l}|{$t}|{$jenis}|{$kw}";
-
-                if (!isset($summary[$key])) {
-                    $summary[$key] = [
+                if (!isset($this->summary[$key])) {
+                    $this->summary[$key] = [
                         'tanggal'     => $tanggal,
-                        'p'           => $p,   // ✅ Panjang → Kolom B
-                        'l'           => $l,   // ✅ Lebar   → Kolom C
-                        't'           => $t,   // ✅ Tebal   → Kolom D (float! bukan string)
+                        'p'           => $p,
+                        'l'           => $l,
+                        't'           => $t,
                         'jenis'       => $jenis,
-                        'kw'          => $kw,
-                        'byk'         => 0,
+                        'current_kw'  => $kwData, // Menyimpan info KW untuk baris ini
                         'pekerja_ids' => [],
                     ];
+
+                    // Tetap inisialisasi kolom MASTER_KW agar struktur kolom Excel tidak geser
+                    foreach (self::MASTER_KW as $mKw) {
+                        $this->summary[$key]['kw_' . $mKw] = 0;
+                    }
                 }
 
-                // Hitung hasil & kumpulkan ID pekerja
+                // Hitung hasil produksi spesifik untuk modal repair ini
+                $hasilModal = 0;
                 foreach ($produksi->rencanaPegawais as $rp) {
-                    if (! $rp->pegawai) continue;
+                    if (!$rp->pegawai) continue;
 
                     $hasilIndividu = (int) $rp->rencanaRepairs
                         ->where('id_modal_repair', $modal->id)
                         ->flatMap->hasilRepairs
                         ->sum('jumlah');
 
-                    if ($hasilIndividu <= 0) continue;
+                    if ($hasilIndividu > 0) {
+                        $hasilModal += $hasilIndividu;
+                        $this->summary[$key]['pekerja_ids'][] = $rp->pegawai->id;
+                    }
+                }
 
-                    $summary[$key]['byk']           += $hasilIndividu;
-                    $summary[$key]['pekerja_ids'][]  = $rp->pegawai->id;
+                // Masukkan hasil ke kolom yang sesuai
+                if ($kwData !== '' && $hasilModal > 0) {
+                    if (in_array($kwData, self::MASTER_KW)) {
+                        $this->summary[$key]['kw_' . $kwData] += $hasilModal;
+                    }
                 }
             }
         }
 
-        // =======================================================
-        // STEP 2: Build rows dengan Formula Excel untuk M3
-        //
-        // Layout:
-        // A=Tanggal | B=P | C=L | D=T | E=Jenis | F=KW | G=Byk | H=M3 | I=TTL PKJ
-        //
-        // Row 1 = Heading (dari headings())
-        // Row 2 = TOTAL
-        // Row 3+ = Data
-        // =======================================================
+        // Urutkan berdasarkan Jenis Kayu agar data yang sama mengelompok berurutan
+        ksort($this->summary);
+    }
 
-        $rows        = collect();
-        $dataStart   = 3;
-        $lastDataRow = $dataStart + count($summary) - 1;
+    public function collection()
+    {
+        $rows = collect();
+        $dataStart = 3;
+        $totalMasterKw = count(self::MASTER_KW);
+        $lastRow = $dataStart + count($this->summary) - 1;
 
-        // Baris TOTAL (Row 2) - SUM formula agar auto update
-        $rows->push([
-            'TOTAL',
-            '',
-            '',
-            '',
-            '',
-            '',
-            "=SUM(G{$dataStart}:G{$lastDataRow})", // Total Byk
-            "=SUM(H{$dataStart}:H{$lastDataRow})", // Total M3
-            "=SUM(I{$dataStart}:I{$lastDataRow})", // Total Pekerja
-        ]);
+        // Row 2: Grand Total
+        $grandRow = ['', '', '', '', ''];
+        for ($i = 0; $i < $totalMasterKw; $i++) {
+            $colLetter = Coordinate::stringFromColumnIndex(6 + $i);
+            $grandRow[] = "=SUM({$colLetter}{$dataStart}:{$colLetter}{$lastRow})";
+        }
 
-        // Baris data mulai row 3
-        $rowNum = $dataStart;
-        foreach ($summary as $s) {
+        $ttlPkjCol = Coordinate::stringFromColumnIndex(6 + $totalMasterKw);
+        $grandRow[] = "=SUM({$ttlPkjCol}{$dataStart}:{$ttlPkjCol}{$lastRow})";
+
+        $rows->push($grandRow);
+
+        // Row 3+: Data Rows (Satu baris hanya akan terisi satu kolom KW)
+        foreach ($this->summary as $s) {
+            $row = [$s['tanggal'], $s['p'], $s['l'], $s['t'], $s['jenis']];
+
+            foreach (self::MASTER_KW as $mKw) {
+                // Karena grouping sudah pecah per KW, maka di baris ini hanya kw yang sesuai yang ada nilainya
+                $val = $s['kw_' . $mKw] ?? 0;
+                $row[] = $val > 0 ? $val : '';
+            }
+
             $uniquePekerja = count(array_unique($s['pekerja_ids']));
-
-            $rows->push([
-                $s['tanggal'],  // A
-                $s['p'],        // B - Panjang (angka)
-                $s['l'],        // C - Lebar   (angka)
-                $s['t'],        // D - Tebal   (angka float, misal 0.5)
-                $s['jenis'],    // E - Jenis Kayu
-                $s['kw'],       // F - KW
-
-                // G - Byk: jumlah lembar hasil produksi
-                $s['byk'],
-
-                // H - M3: Formula Excel langsung!
-                // Rumus: (P * L * T) / 1.000.000.000 * Byk
-                "=B{$rowNum}*C{$rowNum}*D{$rowNum}/1000000000*G{$rowNum}",
-
-                // I - Total Pekerja unik
-                $uniquePekerja,
-            ]);
-
-            $rowNum++;
+            $row[] = $uniquePekerja > 0 ? $uniquePekerja : '';
+            $rows->push($row);
         }
 
         return $rows;
@@ -245,12 +240,12 @@ class LaporanRepairSummarySheet implements FromCollection, WithHeadings, WithTit
 
     public function headings(): array
     {
-        return ['Tanggal', 'P (mm)', 'L (mm)', 'T (mm)', 'Jenis', 'KW', 'Byk (Lbr)', 'M3', 'TTL PKJ'];
-    }
-
-    public function title(): string
-    {
-        return 'Summary Produksi';
+        $heads = ['Tanggal', 'p', 'l', 't', 'jenis'];
+        foreach (self::MASTER_KW as $mKw) {
+            $heads[] = 'KW ' . strtoupper($mKw);
+        }
+        $heads[] = 'TTL PKJ';
+        return $heads;
     }
 
     public function registerEvents(): array
@@ -258,42 +253,36 @@ class LaporanRepairSummarySheet implements FromCollection, WithHeadings, WithTit
         return [
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
-
-                // Row 1: Header biru
-                $sheet->getStyle('A1:I1')->applyFromArray([
-                    'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['ARGB' => 'BDD7EE']],
-                    'font'      => ['bold' => true],
-                    'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-                ]);
-
-                // Row 2: Total kuning
-                $sheet->getStyle('A2:I2')->applyFromArray([
-                    'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['ARGB' => 'FFFF00']],
-                    'font'      => ['bold' => true],
-                    'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-                ]);
-
-                // Row 3+: Data
+                $lastCol = $sheet->getHighestColumn();
                 $lastRow = $sheet->getHighestRow();
-                if ($lastRow >= 3) {
-                    $sheet->getStyle("A3:I{$lastRow}")->applyFromArray([
-                        'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+
+                // Style Header & Grand Total
+                foreach (['1', '2'] as $rowNum) {
+                    $color = ($rowNum == '1') ? 'BDD7EE' : 'FFFF00';
+                    $sheet->getStyle("A{$rowNum}:{$lastCol}{$rowNum}")->applyFromArray([
+                        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['ARGB' => $color]],
+                        'font' => ['bold' => true],
+                        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                         'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                     ]);
-
-                    // Format kolom H (M3) & H2 (total M3) → 4 desimal
-                    $sheet->getStyle("H2:H{$lastRow}")
-                        ->getNumberFormat()
-                        ->setFormatCode('0.0000');
                 }
 
-                // Auto-size semua kolom
-                foreach (range('A', 'I') as $col) {
+                if ($lastRow >= 3) {
+                    $sheet->getStyle("A3:{$lastCol}{$lastRow}")->applyFromArray([
+                        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+                        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+                    ]);
+                }
+
+                foreach (range('A', $lastCol) as $col) {
                     $sheet->getColumnDimension($col)->setAutoSize(true);
                 }
             },
         ];
+    }
+
+    public function title(): string
+    {
+        return 'Summary Produksi';
     }
 }
