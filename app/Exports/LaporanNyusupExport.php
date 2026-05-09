@@ -12,7 +12,7 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 
-class LaporanGrajiTriplekExport implements FromCollection, WithHeadings, WithStyles, WithEvents
+class LaporanNyusupExport implements FromCollection, WithHeadings, WithStyles, WithEvents
 {
     protected $data;
     protected $tanggal;
@@ -42,11 +42,10 @@ class LaporanGrajiTriplekExport implements FromCollection, WithHeadings, WithSty
                 $row['d_l'] = $d['l'];
                 $row['d_t'] = $d['t'];
                 $row['d_jenis'] = $d['jenis'];
-                $row['d_grade'] = $d['grade'];
                 $row['d_byk'] = $d['byk'];
                 $row['d_m3'] = ''; 
             } else {
-                $row['d_tgl'] = $row['d_p'] = $row['d_l'] = $row['d_t'] = $row['d_jenis'] = $row['d_grade'] = $row['d_byk'] = $row['d_m3'] = '';
+                $row['d_tgl'] = $row['d_p'] = $row['d_l'] = $row['d_t'] = $row['d_jenis'] = $row['d_byk'] = $row['d_m3'] = '';
             }
 
             $row['spacer'] = ''; 
@@ -57,11 +56,11 @@ class LaporanGrajiTriplekExport implements FromCollection, WithHeadings, WithSty
                 $row['s_tgl'] = $s['tanggal'];
                 $row['s_ttl_pkj'] = $s['ttl_pkj'];
                 $row['s_harga'] = ''; 
-                $row['s_total_m3'] = ''; 
+                $row['s_total_produksi'] = ''; 
                 $row['s_ongkos_m3'] = ''; 
                 $row['s_ongkos_lb'] = ''; 
             } else {
-                $row['s_tgl'] = $row['s_ttl_pkj'] = $row['s_harga'] = $row['s_total_m3'] = $row['s_ongkos_m3'] = $row['s_ongkos_lb'] = '';
+                $row['s_tgl'] = $row['s_ttl_pkj'] = $row['s_harga'] = $row['s_total_produksi'] = $row['s_ongkos_m3'] = $row['s_ongkos_lb'] = '';
             }
 
             $rows->push($row);
@@ -73,9 +72,9 @@ class LaporanGrajiTriplekExport implements FromCollection, WithHeadings, WithSty
     public function headings(): array
     {
         return [
-            'Tanggal', 'p', 'l', 't', 'jenis', 'grade', 'byk', 'm3',
+            'Tanggal', 'p', 'l', 't', 'jenis', 'byk', 'm3',
             '', 
-            'Tanggal', 'TTL PKJ', 'HARGA', 'Total m3', 'ONGKOS PER M3', 'ONGKOS PER LB'
+            'Tanggal', 'TTL PKJ', 'HARGA', 'TOTAL PRODUKSI (M3)', 'ONGKOS PER M3', 'ONGKOS PER LB'
         ];
     }
 
@@ -93,14 +92,14 @@ class LaporanGrajiTriplekExport implements FromCollection, WithHeadings, WithSty
                 $sheet = $event->sheet->getDelegate();
                 $lastRow = $sheet->getHighestRow();
 
-                $sheet->getStyle("A1:H" . $lastRow)->applyFromArray([
+                $sheet->getStyle("A1:G" . $lastRow)->applyFromArray([
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                 ]);
-                $sheet->getStyle("J1:O" . $lastRow)->applyFromArray([
+                $sheet->getStyle("I1:O" . $lastRow)->applyFromArray([
                     'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                 ]);
 
-                $sheet->getStyle("I1:I" . $lastRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('000000');
+                $sheet->getStyle("H1:H" . $lastRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('000000');
                 $sheet->getStyle('N1:O1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFFF00');
 
                 $sheet->getColumnDimension('A')->setWidth(15);
@@ -108,14 +107,14 @@ class LaporanGrajiTriplekExport implements FromCollection, WithHeadings, WithSty
                 $sheet->getColumnDimension('C')->setWidth(8);
                 $sheet->getColumnDimension('D')->setWidth(8);
                 $sheet->getColumnDimension('E')->setWidth(15);
-                $sheet->getColumnDimension('F')->setWidth(10);
-                $sheet->getColumnDimension('G')->setWidth(8);
-                $sheet->getColumnDimension('H')->setWidth(10);
-                $sheet->getColumnDimension('I')->setWidth(3); 
-                $sheet->getColumnDimension('J')->setWidth(15);
-                $sheet->getColumnDimension('K')->setWidth(10);
-                $sheet->getColumnDimension('L')->setWidth(15);
-                $sheet->getColumnDimension('M')->setWidth(15);
+                $sheet->getColumnDimension('F')->setWidth(8);
+                $sheet->getColumnDimension('G')->setWidth(10);
+                $sheet->getColumnDimension('H')->setWidth(3); 
+                $sheet->getColumnDimension('I')->setWidth(15);
+                $sheet->getColumnDimension('J')->setWidth(10);
+                $sheet->getColumnDimension('K')->setWidth(15);
+                $sheet->getColumnDimension('L')->setWidth(20);
+                $sheet->getColumnDimension('M')->setWidth(18);
                 $sheet->getColumnDimension('N')->setWidth(18);
                 $sheet->getColumnDimension('O')->setWidth(18);
             },

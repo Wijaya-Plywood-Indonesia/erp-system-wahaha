@@ -8,23 +8,23 @@ use Filament\Notifications\Notification;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Components\DatePicker;
-use App\Exports\LaporanSandingExport;
+use App\Exports\LaporanNyusupExport;
 use Maatwebsite\Excel\Facades\Excel;
-use App\Models\ProduksiSanding;
+use App\Models\ProduksiNyusup;
 use Carbon\Carbon;
 use BackedEnum;
 use UnitEnum;
 
-class LaporanSanding extends Page implements HasForms
+class LaporanProduksiNyusup extends Page implements HasForms
 {
     use InteractsWithForms;
 
     protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-document-chart-bar';
-    protected string $view = 'filament.pages.laporan-sanding';
+    protected string $view = 'filament.pages.laporan-produksi-nyusup';
     protected static UnitEnum|string|null $navigationGroup = 'Laporan';
-    protected static ?string $title = 'Laporan Produksi Sanding';
-    protected static ?string $navigationLabel = 'Laporan Produksi Sanding';
-    protected static ?int $navigationSort = 18;
+    protected static ?string $title = 'Laporan Produksi Nyusup';
+    protected static ?string $navigationLabel = 'Laporan Produksi Nyusup';
+    protected static ?int $navigationSort = 16;
 
     public $reportData = [
         'detail' => [],
@@ -67,8 +67,8 @@ class LaporanSanding extends Page implements HasForms
             $tglFile = Carbon::parse($this->tanggal)->format('d-m-Y');
 
             return Excel::download(
-                new LaporanSandingExport($this->reportData, $this->tanggal),
-                "laporan-produksi-sanding-{$tglFile}.xlsx"
+                new LaporanNyusupExport($this->reportData, $this->tanggal),
+                "laporan-produksi-nyusup-{$tglFile}.xlsx"
             );
         } catch (\Exception $e) {
             Notification::make()
@@ -99,46 +99,41 @@ class LaporanSanding extends Page implements HasForms
     {
         $tanggal = $this->tanggal ?? now()->format('Y-m-d');
 
-        $produksiList = ProduksiSanding::with([
-            'hasilSandings.barangSetengahJadi.ukuran',
-            'hasilSandings.barangSetengahJadi.grade',
-            'hasilSandings.barangSetengahJadi.jenisBarang',
-            'pegawaiSandings',
-            'mesin'
+        $produksiList = ProduksiNyusup::with([
+            'detailBarangDikerjakan.barangSetengahJadiHp.ukuran',
+            'detailBarangDikerjakan.barangSetengahJadiHp.grade',
+            'detailBarangDikerjakan.barangSetengahJadiHp.jenisBarang',
+            'pegawaiNyusup'
         ])
-            ->whereDate('tanggal', $tanggal)
+            ->whereDate('tanggal_produksi', $tanggal)
             ->get();
 
         $detail = [];
         $summary = [];
 
         foreach ($produksiList as $prod) {
-            $mesinLabel = ($prod->mesin->nama_mesin ?? 'Mesin') . ' ' . ucfirst($prod->shift ?? '');
-
-            foreach ($prod->hasilSandings as $item) {
-                $b = $item->barangSetengahJadi;
+            foreach ($prod->detailBarangDikerjakan as $item) {
+                $b = $item->barangSetengahJadiHp;
                 $u = $b->ukuran ?? null;
                 $p = $u->panjang ?? 0;
                 $l = $u->lebar ?? 0;
                 $t = $u->tebal ?? 0;
-                $byk = $item->kuantitas ?? 0;
+                $byk = $item->hasil ?? 0;
 
                 $detail[] = [
-                    'tanggal' => Carbon::parse($prod->tanggal)->format('d-M-y'),
-                    'mesin' => $mesinLabel,
+                    'tanggal' => Carbon::parse($prod->tanggal_produksi)->format('d-M-y'),
                     'p' => $p,
                     'l' => $l,
                     't' => $t,
                     'jenis' => $b->grade->nama_grade ?? '-',
-                    'banyak' => $byk,
+                    'byk' => $byk,
                     'm3' => '',
                 ];
             }
 
             $summary[] = [
-                'tanggal' => Carbon::parse($prod->tanggal)->format('d-M-y'),
-                'mesin' => $mesinLabel,
-                'jml_pkj' => $prod->pegawaiSandings->count(),
+                'tanggal' => Carbon::parse($prod->tanggal_produksi)->format('d-M-y'),
+                'ttl_pkj' => $prod->pegawaiNyusup->count(),
             ];
         }
 
