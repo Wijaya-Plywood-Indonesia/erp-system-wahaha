@@ -88,10 +88,9 @@ class LaporanKedi extends Page
         $this->isLoading = true;
 
         $produksiList = ProduksiKedi::with([
-            'detailMasukKedi.mesin',
+            'mesin',
             'detailMasukKedi.ukuran',
             'detailMasukKedi.jenisKayu',
-            'detailBongkarKedi.mesin',
             'detailBongkarKedi.ukuran',
             'detailBongkarKedi.jenisKayu',
             'validasiTerakhir',
@@ -115,19 +114,19 @@ class LaporanKedi extends Page
 
             $detailMasuk = $produksi->detailMasukKedi->map(fn($d) => [
                 'no_palet' => $d->no_palet,
-                'mesin' => $d->mesin?->nama_mesin ?? '-',
+                'mesin' => $produksi->mesin?->nama_mesin ?? '-',
                 'ukuran' => $d->ukuran?->nama_ukuran ?? '-',
                 'jenis_kayu' => $d->jenisKayu?->nama_kayu ?? '-',
                 'kw' => $d->kw,
                 'jumlah' => $d->jumlah,
-                'rencana_bongkar' => $d->rencana_bongkar
-                    ? Carbon::parse($d->rencana_bongkar)->format('d/m/Y')
+                'rencana_bongkar' => $produksi->rencana_bongkar
+                    ? Carbon::parse($produksi->rencana_bongkar)->format('d/m/Y')
                     : '-',
             ])->toArray();
 
             $detailBongkar = $produksi->detailBongkarKedi->map(fn($d) => [
                 'no_palet' => $d->no_palet,
-                'mesin' => $d->mesin?->nama_mesin ?? '-',
+                'mesin' => $produksi->mesin?->nama_mesin ?? '-',
                 'ukuran' => $d->ukuran?->nama_ukuran ?? '-',
                 'jenis_kayu' => $d->jenisKayu?->nama_kayu ?? '-',
                 'kw' => $d->kw,
@@ -136,10 +135,11 @@ class LaporanKedi extends Page
 
             $this->dataKedi[] = [
                 'id' => $produksi->id,
-                'tanggal' => Carbon::parse($produksi->tanggal)->format('d/m/Y'),
-                'status' => ucfirst($status),
-                'detail_masuk' => $status === 'masuk' ? $detailMasuk : [],
-                'detail_bongkar' => $status === 'bongkar' ? $detailBongkar : [],
+                'tanggal_produksi' => Carbon::parse($produksi->tanggal)->format('d/m/Y'),
+                'tanggal_bongkar' => $produksi->tanggal_bongkar ? Carbon::parse($produksi->tanggal_bongkar)->format('d/m/Y') : '-',
+                'status' => $produksi->status,
+                'detail_masuk' => $detailMasuk,
+                'detail_bongkar' => $detailBongkar,
                 'validasi_terakhir' => $produksi->validasiTerakhir?->status ?? '-',
                 'validasi_oleh' => $produksi->validasiTerakhir?->role ?? '-',
             ];
