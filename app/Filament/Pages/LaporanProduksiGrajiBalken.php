@@ -31,8 +31,8 @@ class LaporanProduksiGrajiBalken extends Page implements HasForms
 
     public function mount(): void
     {
-        $this->tanggal = now()->format('Y-m-d');
         $this->form->fill(['tanggal' => $this->tanggal]);
+        $this->tanggal = now()->format('Y-m-d');
         $this->loadAllData();
     }
 
@@ -97,7 +97,7 @@ class LaporanProduksiGrajiBalken extends Page implements HasForms
         $tanggal = $this->tanggal ?? now()->format('Y-m-d');
 
         $data = HasilGrajiBalken::with(['produksiGrajiBalken', 'ukuran', 'jenisKayu'])
-            ->whereHas('produksiGrajiBalken', function($q) use ($tanggal) {
+            ->whereHas('produksiGrajiBalken', function ($q) use ($tanggal) {
                 $q->whereDate('tanggal_produksi', $tanggal);
             })
             ->get();

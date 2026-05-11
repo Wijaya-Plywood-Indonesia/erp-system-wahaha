@@ -33,8 +33,8 @@ class LaporanProduksiHotPress extends Page implements HasForms
 
     public function mount(): void
     {
-        $this->tanggal = now()->format('Y-m-d');
         $this->form->fill(['tanggal' => $this->tanggal]);
+        $this->tanggal = now()->format('Y-m-d');
         $this->loadAllData();
     }
 
@@ -120,7 +120,7 @@ class LaporanProduksiHotPress extends Page implements HasForms
         $this->dataHp = [];
 
         // Group by shift-based machine name
-        $grouped = $produksiList->groupBy(function($p) {
+        $grouped = $produksiList->groupBy(function ($p) {
             return 'HOTPRESS ' . strtoupper($p->shift) . ' BESAR';
         });
 
@@ -173,9 +173,9 @@ class LaporanProduksiHotPress extends Page implements HasForms
                 foreach ($records as $prod) {
                     $sum += $prod->bahanPenolongHp->where('nama_bahan', $bp->nama_bahan_penolong)->sum('jumlah');
                 }
-                
+
                 $category = 'Bahan';
-                foreach($dempulNames as $dn) {
+                foreach ($dempulNames as $dn) {
                     if (stripos($bp->nama_bahan_penolong, $dn) !== false) {
                         $category = 'Bahan Dempul';
                         break;

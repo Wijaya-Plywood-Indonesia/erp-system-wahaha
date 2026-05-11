@@ -37,8 +37,8 @@ class LaporanStik extends Page
 
     public function mount(): void
     {
-        $this->tanggal = now()->format('Y-m-d');
         $this->form->fill(['tanggal' => $this->tanggal]);
+        $this->tanggal = now()->format('Y-m-d');
         $this->loadAllData();
     }
 

@@ -31,8 +31,9 @@ class LaporanGrajiTriplek extends Page
 
     public function mount(): void
     {
-        $this->data['tanggal'] = now()->format('Y-m-d');
+
         $this->form->fill($this->data);
+        $this->data['tanggal'] = now()->format('Y-m-d');
         $this->loadData();
     }
 

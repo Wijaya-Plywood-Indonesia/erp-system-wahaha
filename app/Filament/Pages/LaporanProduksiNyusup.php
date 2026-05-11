@@ -34,8 +34,8 @@ class LaporanProduksiNyusup extends Page implements HasForms
 
     public function mount(): void
     {
-        $this->tanggal = now()->format('Y-m-d');
         $this->form->fill(['tanggal' => $this->tanggal]);
+        $this->tanggal = now()->format('Y-m-d');
         $this->loadAllData();
     }
 

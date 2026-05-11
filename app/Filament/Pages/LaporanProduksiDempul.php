@@ -34,8 +34,8 @@ class LaporanProduksiDempul extends Page implements HasForms
 
     public function mount(): void
     {
-        $this->tanggal = now()->format('Y-m-d');
         $this->form->fill(['tanggal' => $this->tanggal]);
+        $this->tanggal = now()->format('Y-m-d');
         $this->loadAllData();
     }
 
@@ -132,7 +132,7 @@ class LaporanProduksiDempul extends Page implements HasForms
                     'm3' => '',
                 ];
 
-                foreach($item->pegawais as $pegawai) {
+                foreach ($item->pegawais as $pegawai) {
                     $uniqueWorkers->push($pegawai->id);
                 }
             }
