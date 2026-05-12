@@ -40,7 +40,7 @@ class ProductionValidationObserver
 
                 if ($details && $details->count() > 0) {
                     // Kirim tanggal_produksi sebagai argumen ke-3
-                    $this->inventoryService->kurangiStokDariProduksi($details, 'Press Dryer', $produksi->tanggal_produksi);
+                    $this->inventoryService->kurangiStokDariProduksi($details, 'Press Dryer', $produksi->tanggal_produksi, $produksi->shift);
                 } else {
                     Log::warning("Gagal potong stok: Detail Masuk Dryer tidak ditemukan.");
                 }
