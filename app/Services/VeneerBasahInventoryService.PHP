@@ -36,7 +36,6 @@ class VeneerBasahInventoryService
                 $kubikasiKeluar = ($ukuran->panjang * $ukuran->lebar * $ukuran->tebal * $detail->isi) / 1000000000;
                 $nilaiKeluar    = $kubikasiKeluar * $summary->hpp_average;
 
-                // Cek apakah stok cukup
                 $stokTidakCukup = $summary->stok_lembar <= 0 || $summary->stok_lembar < $detail->isi;
 
                 $shiftLabel = $shift ? " Shift $shift" : "";
@@ -63,14 +62,12 @@ class VeneerBasahInventoryService
                     'stok_lembar_before'   => $summary->stok_lembar,
                     'stok_kubikasi_before' => $summary->stok_kubikasi,
                     'nilai_stok_before'    => $summary->nilai_stok,
-                    // Jika skip, after = before (stok tidak berubah)
                     'stok_lembar_after'    => $stokTidakCukup ? $summary->stok_lembar : $summary->stok_lembar - $detail->isi,
                     'stok_kubikasi_after'  => $stokTidakCukup ? $summary->stok_kubikasi : $summary->stok_kubikasi - $kubikasiKeluar,
                     'nilai_stok_after'     => $stokTidakCukup ? $summary->nilai_stok : $summary->nilai_stok - $nilaiKeluar,
                 ]);
 
                 if ($stokTidakCukup) {
-                    // Hanya update last log, stok tidak diubah
                     $summary->update(['id_last_log' => $log->id]);
                     Log::warning("SKIP decrement {$tipeProduksi}: stok tidak cukup (stok: {$summary->stok_lembar}, dibutuhkan: {$detail->isi}) - Palet " . ($detail->no_palet ?? 'AF'));
                     continue;
@@ -86,9 +83,9 @@ class VeneerBasahInventoryService
         });
     }
 
-    public function kurangiStokDariBongkarKedi($details, $tanggalProduksi)
+    public function kurangiStokDariBongkarKedi($details, $tanggalMasuk, $tanggalBongkar)
     {
-        DB::transaction(function () use ($details, $tanggalProduksi) {
+        DB::transaction(function () use ($details, $tanggalMasuk, $tanggalBongkar) {
             foreach ($details as $detail) {
                 $ukuran = $detail->ukuran;
                 if (!$ukuran) continue;
@@ -102,17 +99,18 @@ class VeneerBasahInventoryService
                 ])->lockForUpdate()->first();
 
                 if (!$summary) {
-                    Log::warning("STOK TIDAK DITEMUKAN untuk bongkar kedi: Detail ID {$detail->id}");
+                    Log::warning("STOK TIDAK DITEMUKAN untuk kedi: Detail ID {$detail->id}");
                     continue;
                 }
 
                 $kubikasiKeluar = ($ukuran->panjang * $ukuran->lebar * $ukuran->tebal * $detail->jumlah) / 1_000_000_000;
                 $nilaiKeluar    = $kubikasiKeluar * $summary->hpp_average;
 
-                // Cek apakah stok cukup
                 $stokTidakCukup = $summary->stok_lembar <= 0 || $summary->stok_lembar < $detail->jumlah;
 
-                $keterangan = "Bongkar Kedi Tgl " . \Carbon\Carbon::parse($tanggalProduksi)->format('d/m/Y') . " - Palet {$detail->no_palet}";
+                $keterangan = "Kedi Masuk " . \Carbon\Carbon::parse($tanggalMasuk)->format('d/m/Y') .
+                              " | Bongkar " . \Carbon\Carbon::parse($tanggalBongkar)->format('d/m/Y') .
+                              " - Palet {$detail->no_palet}";
                 if ($stokTidakCukup) {
                     $keterangan .= " [SKIP: stok tidak cukup, kemungkinan sudah tercatat via opname]";
                 }
@@ -123,7 +121,7 @@ class VeneerBasahInventoryService
                     'lebar'                => $ukuran->lebar,
                     'tebal'                => $ukuran->tebal,
                     'kw'                   => $detail->kw,
-                    'tanggal'              => $tanggalProduksi,
+                    'tanggal'              => $tanggalBongkar,
                     'tipe_transaksi'       => 'keluar',
                     'keterangan'           => $keterangan,
                     'referensi_type'       => get_class($detail),
@@ -135,16 +133,14 @@ class VeneerBasahInventoryService
                     'stok_lembar_before'   => $summary->stok_lembar,
                     'stok_kubikasi_before' => $summary->stok_kubikasi,
                     'nilai_stok_before'    => $summary->nilai_stok,
-                    // Jika skip, after = before (stok tidak berubah)
                     'stok_lembar_after'    => $stokTidakCukup ? $summary->stok_lembar : $summary->stok_lembar - $detail->jumlah,
                     'stok_kubikasi_after'  => $stokTidakCukup ? $summary->stok_kubikasi : $summary->stok_kubikasi - $kubikasiKeluar,
                     'nilai_stok_after'     => $stokTidakCukup ? $summary->nilai_stok : $summary->nilai_stok - $nilaiKeluar,
                 ]);
 
                 if ($stokTidakCukup) {
-                    // Hanya update last log, stok tidak diubah
                     $summary->update(['id_last_log' => $log->id]);
-                    Log::warning("SKIP decrement bongkar kedi: stok tidak cukup (stok: {$summary->stok_lembar}, dibutuhkan: {$detail->jumlah}) - Detail ID {$detail->id}");
+                    Log::warning("SKIP decrement kedi: stok tidak cukup (stok: {$summary->stok_lembar}, dibutuhkan: {$detail->jumlah}) - Detail ID {$detail->id}");
                     continue;
                 }
 
@@ -153,7 +149,7 @@ class VeneerBasahInventoryService
                 $summary->decrement('nilai_stok', $nilaiKeluar);
                 $summary->update(['id_last_log' => $log->id]);
 
-                Log::info("Berhasil potong stok bongkar kedi - Palet {$detail->no_palet} sebanyak {$detail->jumlah} lembar.");
+                Log::info("Berhasil potong stok kedi - Palet {$detail->no_palet} sebanyak {$detail->jumlah} lembar.");
             }
         });
     }

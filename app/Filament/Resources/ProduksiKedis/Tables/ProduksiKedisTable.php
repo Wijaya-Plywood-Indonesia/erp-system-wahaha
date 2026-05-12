@@ -37,7 +37,7 @@ class ProduksiKedisTable
                     ->color('gray'),
 
                 TextColumn::make('tanggal_actual_bongkar')
-                    ->label('Tgl Aktual Bongkar')
+                    ->label('Realisasi Bongkar')
                     ->date('d/m/Y')
                     ->sortable()
                     ->placeholder('Belum Bongkar')
