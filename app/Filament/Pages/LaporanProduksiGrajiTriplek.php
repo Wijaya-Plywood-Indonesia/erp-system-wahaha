@@ -30,6 +30,7 @@ class LaporanProduksiGrajiTriplek extends Page implements HasForms
         'detail' => [],
         'summary' => []
     ];
+    public ?array $data = [];
     public $tanggal = null;
 
     public function mount(): void
