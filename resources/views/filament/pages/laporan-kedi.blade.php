@@ -26,14 +26,22 @@
             </div>
 
             {{-- VALIDASI --}}
-            <div class="p-4 bg-gray-800/50 text-sm border-b border-gray-700">
-                <span class="text-gray-400 font-semibold">Validasi:</span>
-                <span class="text-green-400 font-bold">
-                    {{ $data['validasi_terakhir'] }}
-                </span>
-                <span class="text-gray-400">
-                    ({{ $data['validasi_oleh'] }})
-                </span>
+            <div class="p-4 bg-gray-800/50 text-sm border-b border-gray-700 flex justify-between items-center">
+                <div>
+                    <span class="text-gray-400 font-semibold">Validasi:</span>
+                    <span class="text-green-400 font-bold">
+                        {{ $data['validasi_terakhir'] }}
+                    </span>
+                    <span class="text-gray-400">
+                        ({{ $data['validasi_oleh'] }})
+                    </span>
+                </div>
+                <div>
+                    <span class="text-gray-400 font-semibold">Total Pekerja:</span>
+                    <span class="text-yellow-400 font-bold text-lg">
+                        {{ $data['total_pekerja'] }}
+                    </span>
+                </div>
             </div>
 
             {{-- ================= DETAIL MASUK ================= --}}
