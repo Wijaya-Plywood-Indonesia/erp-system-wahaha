@@ -127,26 +127,32 @@ class LaporanKedi extends Page
         foreach ($produksiList as $produksi) {
             $status = strtolower($produksi->status);
 
-            $detailMasuk = $produksi->detailMasukKedi->map(fn($d) => [
-                'no_palet' => $d->no_palet,
-                'mesin' => $produksi->mesin?->nama_mesin ?? '-',
-                'ukuran' => $d->ukuran?->dimensi ?? '-',
-                'jenis_kayu' => $d->jenisKayu?->nama_kayu ?? '-',
-                'kw' => $d->kw,
-                'jumlah' => $d->jumlah,
-                'rencana_bongkar' => $produksi->rencana_bongkar
-                    ? Carbon::parse($produksi->rencana_bongkar)->format('d/m/Y')
-                    : '-',
-            ])->toArray();
+            // Group Detail Masuk
+            $detailMasuk = $produksi->detailMasukKedi
+                ->groupBy(fn($d) => $d->id_ukuran . '-' . $d->id_jenis_kayu . '-' . $d->kw)
+                ->map(fn($group) => [
+                    'no_palet' => $group->pluck('no_palet')->unique()->implode(', '),
+                    'mesin' => $produksi->mesin?->nama_mesin ?? '-',
+                    'ukuran' => $group->first()->ukuran?->dimensi ?? '-',
+                    'jenis_kayu' => $group->first()->jenisKayu?->nama_kayu ?? '-',
+                    'kw' => $group->first()->kw,
+                    'jumlah' => $group->sum('jumlah'),
+                    'rencana_bongkar' => $produksi->rencana_bongkar
+                        ? Carbon::parse($produksi->rencana_bongkar)->format('d/m/Y')
+                        : '-',
+                ])->values()->toArray();
 
-            $detailBongkar = $produksi->detailBongkarKedi->map(fn($d) => [
-                'no_palet' => $d->no_palet,
-                'mesin' => $produksi->mesin?->nama_mesin ?? '-',
-                'ukuran' => $d->ukuran?->dimensi ?? '-',
-                'jenis_kayu' => $d->jenisKayu?->nama_kayu ?? '-',
-                'kw' => $d->kw,
-                'jumlah' => $d->jumlah,
-            ])->toArray();
+            // Group Detail Bongkar
+            $detailBongkar = $produksi->detailBongkarKedi
+                ->groupBy(fn($d) => $d->id_ukuran . '-' . $d->id_jenis_kayu . '-' . $d->kw)
+                ->map(fn($group) => [
+                    'no_palet' => $group->pluck('no_palet')->unique()->implode(', '),
+                    'mesin' => $produksi->mesin?->nama_mesin ?? '-',
+                    'ukuran' => $group->first()->ukuran?->dimensi ?? '-',
+                    'jenis_kayu' => $group->first()->jenisKayu?->nama_kayu ?? '-',
+                    'kw' => $group->first()->kw,
+                    'jumlah' => $group->sum('jumlah'),
+                ])->values()->toArray();
 
             $this->dataKedi[] = [
                 'id' => $produksi->id,
