@@ -2,120 +2,70 @@
 
 namespace App\Exports;
 
-use Carbon\Carbon;
-use Illuminate\Support\Collection;
-use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithTitle;
+use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
-use App\Filament\Pages\LaporanSandingJoin\Queries\LoadLaporanSandingJoin;
 
-// ============================================================
-// MAIN EXPORT CLASS
-// ============================================================
-class LaporanSandingJoinExport implements WithMultipleSheets
+class LaporanSandingExport implements FromCollection, WithHeadings, WithStyles, WithEvents
 {
-    public function __construct(
-        protected array  $detailData,
-        protected string $tanggal
-    ) {}
+    protected $data;
+    protected $tanggal;
 
-    public function sheets(): array
+    public function __construct($data, $tanggal)
     {
-        $rawCollection = LoadLaporanSandingJoin::run($this->tanggal);
-
-        return [
-            new LaporanSandingJoinDetailSheet($this->detailData),
-            new LaporanSandingJoinSummarySheet($rawCollection),
-        ];
-    }
-}
-
-// ============================================================
-// SHEET 1: DETAIL PER MEJA (dari kode existing kamu)
-// ============================================================
-class LaporanSandingJoinDetailSheet implements FromCollection, WithHeadings, WithTitle
-{
-    protected Collection $data;
-
-    public function __construct(array $detailData)
-    {
-        $this->data = collect($detailData)
-            ->groupBy(fn($item) => $item['nomor_meja'] . '|' . $item['kode_ukuran']);
+        $this->data = $data;
+        $this->tanggal = $tanggal;
     }
 
     public function collection()
     {
         $rows = collect();
+        $detailProduksi = $this->data['detail'] ?? [];
+        $summaryProduksi = $this->data['summary'] ?? [];
 
-        foreach ($this->data as $groupKey => $items) {
-            $first       = $items->first();
-            $pekerja     = $first['pekerja'] ?? [];
-            $target      = (int) $first['target'];
-            $hasil       = (int) $first['hasil'];
-            $selisih     = (int) $first['selisih'];
-            $jenisBarang = $first['jenis_barang'] ?? $first['jenis_kayu'] ?? '-';
+        $max = max(count($detailProduksi), count($summaryProduksi));
 
-            $rows->push(['MEJA / AREA SANDING', $first['nomor_meja']]);
-            $rows->push(['UKURAN',               $first['ukuran']]);
-            $rows->push(['JENIS KAYU/BARANG',    $jenisBarang]);
-            $rows->push(['GRADE / KW',            $first['kw']]);
-            $rows->push(['TANGGAL PRODUKSI',      $first['tanggal']]);
-            $rows->push([]);
+        for ($i = 0; $i < $max; $i++) {
+            $row = [];
 
-            $rows->push([
-                'ID PEGAWAI',
-                'Nama Lengkap',
-                'Jam Masuk',
-                'Jam Pulang',
-                'Ijin',
-                'Potongan Target',
-                'Keterangan',
-                '',
-                'Target Harian',
-                'Hasil Produksi',
-                'Selisih',
-            ]);
-
-            foreach ($pekerja as $p) {
-                $potongan = (int) ($p['pot_target'] ?? 0);
-                $rows->push([
-                    $p['id']         ?? '-',
-                    $p['nama']       ?? '-',
-                    $p['jam_masuk']  ?? '-',
-                    $p['jam_pulang'] ?? '-',
-                    $p['ijin']       ?? '-',
-                    $potongan > 0 ? $potongan : '-',
-                    $p['keterangan'] ?? '-',
-                    '',
-                    $target,
-                    $hasil,
-                    $selisih >= 0 ? '+' . $selisih : $selisih,
-                ]);
+            // Left side (Detail)
+            if ($i < count($detailProduksi)) {
+                $d = $detailProduksi[$i];
+                $row['d_tgl'] = $d['tanggal'];
+                $row['d_mesin'] = $d['mesin'];
+                $row['d_p'] = $d['p'];
+                $row['d_l'] = $d['l'];
+                $row['d_t'] = $d['t'];
+                $row['d_jenis'] = $d['jenis'];
+                $row['d_banyak'] = $d['banyak'];
+                $row['d_m3'] = '';
+            } else {
+                $row['d_tgl'] = $row['d_mesin'] = $row['d_p'] = $row['d_l'] = $row['d_t'] = $row['d_jenis'] = $row['d_banyak'] = $row['d_m3'] = '';
             }
 
-            $totalPotongan = collect($pekerja)->sum('pot_target');
-            $rows->push([
-                'TOTAL',
-                count($pekerja) . ' Orang',
-                '',
-                '',
-                '',
-                $totalPotongan > 0 ? $totalPotongan : '-',
-                '',
-                '',
-                $target,
-                $hasil,
-                $selisih >= 0 ? '+' . $selisih : $selisih,
-            ]);
+            $row['spacer'] = '';
 
-            $rows->push([]);
-            $rows->push([]);
+            // Right side (Summary)
+            if ($i < count($summaryProduksi)) {
+                $s = $summaryProduksi[$i];
+                $row['s_tgl'] = $s['tanggal'];
+                $row['s_mesin'] = $s['mesin'];
+                $row['s_jml_pkj'] = $s['jml_pkj'];
+                $row['s_hasil_kubikasi'] = '';
+                $row['s_harga'] = '';
+                $row['s_ongkos_m3'] = '';
+                $row['s_ongkos_lbr'] = '';
+            } else {
+                $row['s_tgl'] = $row['s_mesin'] = $row['s_jml_pkj'] = $row['s_hasil_kubikasi'] = $row['s_harga'] = $row['s_ongkos_m3'] = $row['s_ongkos_lbr'] = '';
+            }
+
+            $rows->push($row);
         }
 
         return $rows;
@@ -123,173 +73,65 @@ class LaporanSandingJoinDetailSheet implements FromCollection, WithHeadings, Wit
 
     public function headings(): array
     {
+        return [
+            'Tanggal',
+            'Mesin',
+            'p',
+            'l',
+            't',
+            'jenis',
+            'banyak',
+            'm3',
+            '',
+            'tanggal',
+            'Mesin',
+            'Jumlah Pekerja',
+            'Hasil Kubikasi',
+            'Harga',
+            'Ongkos(m3)',
+            'Ongkos(lbr)'
+        ];
+    }
+
+    public function styles(Worksheet $sheet)
+    {
+        $sheet->getStyle('A1:P1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:P1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         return [];
-    }
-    public function title(): string
-    {
-        return 'Laporan Sanding Joint';
-    }
-}
-
-// ============================================================
-// SHEET 2: SUMMARY
-//
-// Kolom: A=Tanggal | B=p | C=l | D=t | E=jenis | F=kw2 | G=kw3 | H=byk | I=m3 | J=TTL PKJ
-//
-// Struktur:
-//   [Grand Total row] — kuning, di Row 2
-//   Per baris hasil:
-//   [Tgl] [p] [l] [t] [jenis] [kw2] [kw3] [byk] [m3] [ttl_pkj]
-// ============================================================
-class LaporanSandingJoinSummarySheet implements FromCollection, WithHeadings, WithTitle, WithEvents
-{
-    private array $grandTotalRow = [];
-
-    public function __construct(protected $rawCollection) {}
-
-    public function collection()
-    {
-        $rows    = collect();
-        $allRows = [];
-
-        foreach ($this->rawCollection as $produksi) {
-            $tanggal       = Carbon::parse($produksi->tanggal_produksi)->format('d/m/Y');
-            $jumlahPekerja = (int) $produksi->pegawaiSandingJoint->count();
-
-            // ✅ Group langsung dari hasilSandingJoint per id_ukuran + kw
-            $hasilGroups = $produksi->hasilSandingJoint
-                ->groupBy(fn($h) => $h->id_ukuran . '|' . $h->kw);
-
-            foreach ($hasilGroups as $hasilItems) {
-                $firstHasil  = $hasilItems->first();
-                $ukuranModel = $firstHasil->ukuran;
-                $jenisKayu   = $firstHasil->jenisKayu;
-
-                // Dimensi ukuran
-                $p = $ukuranModel->panjang ?? '';
-                $l = $ukuranModel->lebar   ?? '';
-                $t = $ukuranModel->tebal   ?? '';
-
-                // Jenis kayu
-                $jenis = strtolower($jenisKayu->kode_kayu ?? $jenisKayu->nama_kayu ?? '-');
-
-                // kw2 = kw input (grade masuk), kw3 = kw output (grade keluar)
-                // Sesuaikan field ini dengan model HasilSandingJoint kamu
-                $kw2 = $firstHasil->kw      ?? '-';  // grade masuk
-                $kw3 = $firstHasil->kw_out  ?? '-';  // grade keluar — sesuaikan field
-
-                // byk = total jumlah lembar
-                $byk = (int) $hasilItems->sum('jumlah');
-
-                // m3 = volume (panjang x lebar x tebal x jumlah / 1.000.000)
-                // Sesuaikan satuan jika p/l dalam mm dan t dalam mm
-                $m3 = 0;
-                if ($p && $l && $t && $byk) {
-                    $m3 = round(($p * $l * $t * $byk) / 1000000000, 3); // mm³ → m³
-                }
-
-                $allRows[] = [
-                    'tanggal'   => $tanggal,
-                    'p'         => $p,
-                    'l'         => $l,
-                    't'         => $t,
-                    'jenis'     => $jenis,
-                    'kw2'       => $kw2,
-                    'kw3'       => $kw3,
-                    'byk'       => $byk,
-                    'm3'        => $m3,
-                    'ttl_pkj'   => $jumlahPekerja,
-                ];
-            }
-        }
-
-        // Grand Total
-        $grandByk = collect($allRows)->sum('byk');
-        $grandM3  = round(collect($allRows)->sum('m3'), 3);
-        $grandPkj = collect($allRows)->sum('ttl_pkj');
-
-        // Row 2: Grand Total (kuning)
-        $rows->push([
-            '',           // A - Tanggal
-            '',           // B - p
-            '',           // C - l
-            '',           // D - t
-            '',           // E - jenis
-            '',           // F - kw2
-            '',           // G - kw3
-            $grandByk,    // H - byk
-            $grandM3,     // I - m3
-            $grandPkj,    // J - TTL PKJ
-        ]);
-
-        // Data rows mulai Row 3
-        foreach ($allRows as $row) {
-            $rows->push([
-                $row['tanggal'],  // A
-                $row['p'],        // B
-                $row['l'],        // C
-                $row['t'],        // D
-                $row['jenis'],    // E
-                $row['kw2'],      // F
-                $row['kw3'],      // G
-                $row['byk'],      // H
-                $row['m3'],       // I
-                $row['ttl_pkj'],  // J
-            ]);
-        }
-
-        return $rows;
-    }
-
-    public function headings(): array
-    {
-        return ['Tanggal', 'p', 'l', 't', 'jenis', 'kw2', 'kw3', 'byk', 'm3', 'TTL PKJ'];
-    }
-
-    public function title(): string
-    {
-        return 'Summary Sanding Joint';
     }
 
     public function registerEvents(): array
     {
         return [
             AfterSheet::class => function (AfterSheet $event) {
-                $sheet   = $event->sheet->getDelegate();
+                $sheet = $event->sheet->getDelegate();
                 $lastRow = $sheet->getHighestRow();
 
-                // Row 1: Header biru
-                $sheet->getStyle('A1:J1')->applyFromArray([
-                    'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['ARGB' => 'BDD7EE']],
-                    'font'      => ['bold' => true],
-                    'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+                $sheet->getStyle("A1:H" . $lastRow)->applyFromArray([
+                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+                ]);
+                $sheet->getStyle("J1:P" . $lastRow)->applyFromArray([
+                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                 ]);
 
-                // Row 2: Grand Total kuning terang
-                $sheet->getStyle('A2:J2')->applyFromArray([
-                    'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['ARGB' => 'FFFF00']],
-                    'font'      => ['bold' => true],
-                    'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-                ]);
+                $sheet->getStyle("I1:I" . $lastRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('000000');
 
-                // Row 3+: Data
-                if ($lastRow >= 3) {
-                    $sheet->getStyle("A3:J{$lastRow}")->applyFromArray([
-                        'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-                        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-                    ]);
-                }
-
-                // Kolom A (Tanggal) → rata kiri
-                $sheet->getStyle("A3:A{$lastRow}")
-                    ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-
-                // Auto-size semua kolom
-                foreach (range('A', 'J') as $col) {
-                    $sheet->getColumnDimension($col)->setAutoSize(true);
-                }
+                $sheet->getColumnDimension('A')->setWidth(15);
+                $sheet->getColumnDimension('B')->setWidth(20);
+                $sheet->getColumnDimension('C')->setWidth(8);
+                $sheet->getColumnDimension('D')->setWidth(8);
+                $sheet->getColumnDimension('E')->setWidth(8);
+                $sheet->getColumnDimension('F')->setWidth(15);
+                $sheet->getColumnDimension('G')->setWidth(10);
+                $sheet->getColumnDimension('H')->setWidth(10);
+                $sheet->getColumnDimension('I')->setWidth(3);
+                $sheet->getColumnDimension('J')->setWidth(15);
+                $sheet->getColumnDimension('K')->setWidth(20);
+                $sheet->getColumnDimension('L')->setWidth(15);
+                $sheet->getColumnDimension('M')->setWidth(15);
+                $sheet->getColumnDimension('N')->setWidth(15);
+                $sheet->getColumnDimension('O')->setWidth(18);
+                $sheet->getColumnDimension('P')->setWidth(18);
             },
         ];
     }

@@ -161,7 +161,7 @@ class Absen extends Page implements HasForms
             $listRepair = RepairWorkerMap::make(ProduksiRepair::with(['rencanaPegawais.pegawai'])->whereDate('tanggal', $tgl)->get());
             $listDryer = PressDryerWorkerMap::make(ProduksiPressDryer::with(['detailPegawais.pegawai'])->whereDate('tanggal_produksi', $tgl)->get());
             $listStik = StikWorkerMap::make(ProduksiStik::with(['detailPegawaiStik.pegawai'])->whereDate('tanggal_produksi', $tgl)->get());
-            $listKedi = KediWorkerMap::make(ProduksiKedi::with(['detailPegawaiKedi.pegawai'])->whereDate('tanggal', $tgl)->get());
+            $listKedi = KediWorkerMap::make(ProduksiKedi::with(['detailPegawaiKedi.pegawai'])->whereDate('tanggal_actual_bongkar', $tgl)->get());
             $listJoint = JoinWorkerMap::make(ProduksiJoint::with(['pegawaiJoint.pegawai'])->whereDate('tanggal_produksi', $tgl)->get());
             $listSandingJoin = SandingJoinWorkerMap::make(ProduksiSandingJoint::with(['pegawaiSandingJoint.pegawai'])->whereDate('tanggal_produksi', $tgl)->get());
             $listPotAfJoin = PotAfalanJoinWorkerMap::make(ProduksiPotAfJoint::with(['pegawaiPotAfJoint.pegawai'])->whereDate('tanggal_produksi', $tgl)->get());

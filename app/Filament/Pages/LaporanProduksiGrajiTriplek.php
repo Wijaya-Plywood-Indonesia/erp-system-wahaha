@@ -13,11 +13,13 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Models\ProduksiGrajitriplek;
 use Carbon\Carbon;
 use BackedEnum;
+use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use UnitEnum;
 
 class LaporanProduksiGrajiTriplek extends Page implements HasForms
 {
     use InteractsWithForms;
+    use HasPageShield;
 
     protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-document-chart-bar';
     protected string $view = 'filament.pages.laporan-produksi-graji-triplek';

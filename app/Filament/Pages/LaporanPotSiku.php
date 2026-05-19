@@ -20,6 +20,7 @@ use UnitEnum;
 class LaporanPotSiku extends Page implements HasForms
 {
     use InteractsWithForms;
+    use HasPageShield;
 
     protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-document-chart-bar';
     protected string $view = 'filament.pages.laporan-pot-siku';
