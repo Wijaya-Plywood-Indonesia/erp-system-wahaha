@@ -33,6 +33,7 @@ class LaporanProduksiExport implements WithMultipleSheets
         return [
             new LaporanProduksiDetailSheet($this->dataProduksi),
             new LaporanProduksiRekapSheet($this->tanggal),
+            new LaporanProduksiJurnalSheet($this->tanggal),
         ];
     }
 }
@@ -161,4 +162,373 @@ class LaporanProduksiRekapSheet implements FromCollection, WithHeadings, WithSty
         ];
     }
     public function title(): string { return 'Rekap Produksi Custom'; }
+}
+
+class LaporanProduksiJurnalSheet implements FromCollection, WithTitle, WithStyles, WithEvents
+{
+    protected $tanggal;
+    protected $titleRows = [];
+    protected $headerRows = [];
+    protected $dataRanges = [];
+
+    public function __construct($tanggal)
+    {
+        $this->tanggal = $tanggal;
+    }
+
+    public function collection()
+    {
+        $rows = collect();
+        $service = new \App\Services\Akuntansi\RotaryJurnalService();
+        $payload = $service->buildJurnalPayloadPreview($this->tanggal);
+
+        if (!$payload || empty($payload['jurnal_items'])) {
+            $rows->push(['Tidak ada data jurnal produksi untuk tanggal ini.']);
+            return $rows;
+        }
+
+        $rawRows = [];
+
+        // Preload ongkos_mesin dari tabel mesins (keyed by nama_mesin)
+        $mesinOngkos = \App\Models\Mesin::all()
+            ->keyBy(fn($m) => strtoupper(trim($m->nama_mesin)))
+            ->map(fn($m) => (float)($m->ongkos_mesin ?? 0));
+
+        foreach ($payload['jurnal_items'] as $item) {
+            $namaAkun = $item['nama_akun'];
+            $noAkun   = $item['no_akun'];
+            $mapDK    = $item['map'];
+
+            // Skip Upah Tenaga Kerja (510-01) — struktur baru tidak memunculkan sisi debit upah
+            if ($noAkun === '510-01') {
+                continue;
+            }
+
+            foreach ($item['items'] as $subItem) {
+                $bagian = '-';
+                $keteranganSpesifikasi = $subItem['keterangan'] ?? '-';
+
+                if (($subItem['jenis_pihak'] ?? '') === 'produksi') {
+                    $bagian = $subItem['nama_pihak'] ?? '-';
+                    if (($subItem['nama_barang'] ?? '') !== 'Mesin' && ($subItem['nama_barang'] ?? '') !== '-') {
+                        $keteranganSpesifikasi = $subItem['nama_barang'] ?? '-';
+                    } else {
+                        $keteranganSpesifikasi = ($subItem['keterangan'] ?? '') . ' (' . ($subItem['ukuran'] ?? '') . ')';
+                    }
+                } elseif (($subItem['jenis_pihak'] ?? '') === 'karyawan') {
+                    $parts = explode(' - ', $subItem['keterangan'] ?? '');
+                    $bagian = count($parts) > 1 ? trim($parts[1]) : '-';
+                    $keteranganSpesifikasi = ''; // Blank as requested to group workers under the same machine
+                } elseif (($subItem['jenis_pihak'] ?? '') === 'pemasok') {
+                    // Skip Persediaan Kayu — fokus hanya data produksi
+                    continue;
+                } else {
+                    $bagian = '-';
+                    $keteranganSpesifikasi = $subItem['keterangan'] ?? '-';
+                }
+
+                $tipe = 'b';
+                if (($subItem['jenis_pihak'] ?? '') === 'produksi') {
+                    $tipe = 'm';
+                }
+
+                $banyak = $subItem['banyak'];
+                if (($subItem['jenis_pihak'] ?? '') === 'karyawan') {
+                    $banyak = 1; // set to 1 so we can sum the total workers
+                }
+
+                $volume = $subItem['m3'];
+                $harga  = $subItem['harga'];
+                $jumlah = $subItem['jumlah'];
+
+                // Khusus export Excel: harga veneer ambil dari ongkos_mesin di tabel mesins
+                if (($subItem['jenis_pihak'] ?? '') === 'produksi') {
+                    $namaM   = strtoupper(trim($bagian));
+                    $ongkos  = $mesinOngkos[$namaM] ?? 0;
+                    $harga   = $ongkos;
+                    $jumlah  = $volume !== null ? round((float)$volume * $ongkos, 4) : null;
+                }
+
+                // Khusus export Excel: harga pekerja di-hardcode 150.000
+                // (tidak ambil dari database HargaPegawai)
+                if (($subItem['jenis_pihak'] ?? '') === 'karyawan') {
+                    $harga  = 150_000;
+                    $jumlah = 150_000; // 1 orang × 150.000
+                }
+
+                $rawRows[] = [
+                    'nama_akun'  => $namaAkun,
+                    'no_akun'    => $noAkun,
+                    'bagian'     => $bagian,
+                    'keterangan' => $keteranganSpesifikasi,
+                    'dk'         => $mapDK,
+                    'tipe'       => $tipe,
+                    'banyak'     => $banyak !== null ? (float)$banyak : null,
+                    'volume'     => $volume !== null ? (float)$volume : null,
+                    'harga'      => $harga !== null ? (float)$harga : null,
+                    'jumlah'     => $jumlah !== null ? (float)$jumlah : null,
+                ];
+            }
+        }
+
+        // Group raw rows by machine (bagian)
+        $rawRowsByMachine = [];
+        foreach ($rawRows as $row) {
+            $machine = $row['bagian'];
+            if ($machine === '-') {
+                continue;
+            }
+            $rawRowsByMachine[$machine][] = $row;
+        }
+
+        $machineTables = [];
+        foreach ($rawRowsByMachine as $machine => $rowsOfMachine) {
+            $grouped = [];
+            $totalDebit = 0.0;
+            $totalKredit = 0.0;
+
+            foreach ($rowsOfMachine as $row) {
+                $key = implode('|', [
+                    $row['no_akun'],
+                    $row['keterangan'],
+                    $row['dk'],
+                    $row['tipe'],
+                    $row['nama_akun']
+                ]);
+
+                if (!isset($grouped[$key])) {
+                    $grouped[$key] = [
+                        'nama_akun'  => $row['nama_akun'],
+                        'no_akun'    => $row['no_akun'],
+                        'bagian'     => $machine,
+                        'keterangan' => $row['keterangan'],
+                        'dk'         => $row['dk'],
+                        'tipe'       => $row['tipe'],
+                        'banyak'     => 0.0,
+                        'volume'     => 0.0,
+                        'harga'      => $row['harga'],
+                        'jumlah'     => 0.0,
+                        'has_qty'    => $row['banyak'] !== null,
+                        'has_vol'    => $row['volume'] !== null,
+                    ];
+                }
+
+                if ($row['banyak'] !== null) {
+                    $grouped[$key]['banyak'] += $row['banyak'];
+                    $grouped[$key]['has_qty'] = true;
+                }
+                if ($row['volume'] !== null) {
+                    $grouped[$key]['volume'] += $row['volume'];
+                    $grouped[$key]['has_vol'] = true;
+                }
+                if ($row['jumlah'] !== null) {
+                    $grouped[$key]['jumlah'] += $row['jumlah'];
+                }
+            }
+
+            foreach ($grouped as $g) {
+                if ($g['dk'] === 'd') {
+                    $totalDebit += $g['jumlah'];
+                } else {
+                    $totalKredit += $g['jumlah'];
+                }
+            }
+
+            // Selisih → selalu masuk ke 'hutang mesin rotary' (520-09) sebagai KREDIT
+            $selisih = round($totalDebit - $totalKredit, 2);
+            $grouped[] = [
+                'nama_akun'  => 'hutang mesin rotary',
+                'no_akun'    => '520-09',
+                'bagian'     => $machine,
+                'keterangan' => '',
+                'dk'         => 'k',
+                'tipe'       => 'b',
+                'banyak'     => null,
+                'volume'     => null,
+                'harga'      => null,
+                'jumlah'     => $selisih > 0 ? abs($selisih) : 0,
+                'has_qty'    => false,
+                'has_vol'    => false,
+            ];
+
+            $machineTables[$machine] = $grouped;
+        }
+
+        $dateStr = \Carbon\Carbon::parse($this->tanggal)->format('Ymd');
+        $currentRow = 1;
+
+        foreach ($machineTables as $machine => $groupedRows) {
+            // Title Row
+            $noJurnal = 'ROT/' . $dateStr . '/' . strtoupper(str_replace(' ', '', $machine));
+            $rows->push([
+                'No. Jurnal: ' . $noJurnal, '', '', '', '', '', '', '', '', '', '', '', ''
+            ]);
+            $this->titleRows[] = $currentRow;
+            $currentRow++;
+
+            // Header Row
+            $rows->push([
+                'Nama Akun',
+                'tgl',
+                'jurnal',
+                'No Akun',
+                'No',
+                'mm',
+                'Nama',
+                'Keterangan',
+                'map',
+                'hit kbk',
+                'Banyak',
+                'M3',
+                'Harga'
+            ]);
+            $this->headerRows[] = $currentRow;
+            $currentRow++;
+
+            // Data Rows
+            $dataStart = $currentRow;
+            $tglVal = \Carbon\Carbon::parse($this->tanggal)->format('d-m-Y');
+            foreach ($groupedRows as $g) {
+                // Format `Nama` (Col 7 / G)
+                if ($g['no_akun'] === '115-07' || $g['no_akun'] === '115-08') {
+                    $namaVal = 'KUPASAN (M - ' . strtoupper($g['bagian']) . ')';
+                } else {
+                    $namaVal = 'KUPASAN';
+                }
+
+                // Format `hit kbk` (Col 10 / J)
+                $hitKbkVal = '';
+                if ($g['no_akun'] === '115-07' || $g['no_akun'] === '115-08') {
+                    $hitKbkVal = 'm';
+                } elseif ($g['no_akun'] === '210-02') {
+                    $hitKbkVal = 'b';
+                }
+
+                // Format `Harga` (Col 13 / M)
+                // - For Veneer rows: pegged price 2.700.000
+                // - For Worker rows: pegged price 150.000
+                // - For Selisih rows: the actual calculated amount (jumlah)
+                $hargaVal = null;
+                if ($g['no_akun'] === '115-07' || $g['no_akun'] === '115-08') {
+                    $hargaVal = 2700000;
+                } elseif ($g['no_akun'] === '210-02') {
+                    $hargaVal = 150000;
+                } else {
+                    $hargaVal = $g['jumlah'];
+                }
+
+                $rows->push([
+                    $g['nama_akun'],                                    // 1. Nama Akun
+                    $tglVal,                                            // 2. tgl
+                    '',                                                 // 3. jurnal
+                    $g['no_akun'],                                      // 4. No Akun
+                    '',                                                 // 5. No
+                    '',                                                 // 6. mm
+                    $namaVal,                                           // 7. Nama
+                    $g['keterangan'],                                   // 8. Keterangan
+                    $g['dk'],                                           // 9. map
+                    $hitKbkVal,                                         // 10. hit kbk
+                    $g['has_qty'] ? $g['banyak'] : null,                // 11. Banyak
+                    $g['has_vol'] ? $g['volume'] : null,                // 12. M3
+                    $hargaVal                                           // 13. Harga
+                ]);
+                $currentRow++;
+            }
+            $dataEnd = $currentRow - 1;
+            $this->dataRanges[] = ['start' => $dataStart, 'end' => $dataEnd];
+
+            // 2 Blank separating rows
+            $rows->push(['', '', '', '', '', '', '', '', '', '', '', '', '']);
+            $rows->push(['', '', '', '', '', '', '', '', '', '', '', '', '']);
+            $currentRow += 2;
+        }
+
+        return $rows;
+    }
+
+    public function title(): string
+    {
+        return 'Jurnal Pembantu Produksi';
+    }
+
+    public function styles(Worksheet $sheet)
+    {
+        return [];
+    }
+
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function (AfterSheet $event) {
+                $sheet = $event->sheet->getDelegate();
+
+                // Style Title Rows
+                foreach ($this->titleRows as $row) {
+                    $sheet->mergeCells("A{$row}:M{$row}");
+                    $sheet->getStyle("A{$row}:M{$row}")->applyFromArray([
+                        'font' => ['bold' => true, 'size' => 11, 'color' => ['argb' => 'FF1D2939']],
+                        'fill' => [
+                            'fillType' => Fill::FILL_SOLID,
+                            'startColor' => ['argb' => 'FFD2E4F0']
+                        ],
+                        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
+                    ]);
+                    $sheet->getRowDimension($row)->setRowHeight(25);
+                }
+
+                // Style Header Rows
+                foreach ($this->headerRows as $row) {
+                    $sheet->getStyle("A{$row}:M{$row}")->applyFromArray([
+                        'font' => ['bold' => true, 'size' => 10],
+                        'alignment' => [
+                            'horizontal' => Alignment::HORIZONTAL_CENTER,
+                            'vertical' => Alignment::VERTICAL_CENTER,
+                        ],
+                        'fill' => [
+                            'fillType' => Fill::FILL_SOLID,
+                            'startColor' => ['argb' => 'FFE5E8EB']
+                        ],
+                        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
+                    ]);
+                    $sheet->getRowDimension($row)->setRowHeight(25);
+                }
+
+                // Style Data Rows
+                foreach ($this->dataRanges as $range) {
+                    $start = $range['start'];
+                    $end = $range['end'];
+                    if ($start > $end) continue;
+
+                    $sheet->getStyle("A{$start}:M{$end}")->applyFromArray([
+                        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
+                    ]);
+
+                    $sheet->getStyle("A{$start}:A{$end}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+                    $sheet->getStyle("B{$start}:F{$end}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $sheet->getStyle("G{$start}:H{$end}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+                    $sheet->getStyle("I{$start}:J{$end}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $sheet->getStyle("K{$start}:M{$end}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+
+                    $sheet->getStyle("K{$start}:K{$end}")->getNumberFormat()->setFormatCode('#,##0');
+                    $sheet->getStyle("L{$start}:L{$end}")->getNumberFormat()->setFormatCode('#,##0.0000');
+                    $sheet->getStyle("M{$start}:M{$end}")->getNumberFormat()->setFormatCode('#,##0');
+                }
+
+                // Column Widths
+                $sheet->getColumnDimension('A')->setWidth(25); // Nama Akun
+                $sheet->getColumnDimension('B')->setWidth(15); // tgl
+                $sheet->getColumnDimension('C')->setWidth(12); // jurnal
+                $sheet->getColumnDimension('D')->setWidth(15); // No Akun
+                $sheet->getColumnDimension('E')->setWidth(10); // No
+                $sheet->getColumnDimension('F')->setWidth(10); // mm
+                $sheet->getColumnDimension('G')->setWidth(30); // Nama
+                $sheet->getColumnDimension('H')->setWidth(40); // Keterangan
+                $sheet->getColumnDimension('I')->setWidth(10); // map
+                $sheet->getColumnDimension('J')->setWidth(10); // hit kbk
+                $sheet->getColumnDimension('K')->setWidth(12); // Banyak
+                $sheet->getColumnDimension('L')->setWidth(15); // M3
+                $sheet->getColumnDimension('M')->setWidth(18); // Harga
+            }
+        ];
+    }
 }
