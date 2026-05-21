@@ -44,4 +44,10 @@ class NotaBarangMasuk extends Model
     {
         return $this->hasMany(DetailNotaBarangMasuk::class, 'id_nota_bm');
     }
+
+    // Relasi ke veneer mutasi
+    public function mutasi()
+    {
+        return $this->hasOne(VeneerMutasi::class, 'id_nota_bm');
+    }
 }

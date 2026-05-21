@@ -30,6 +30,8 @@ class StokVeneerKering extends Model
         'nilai_stok_sesudah',
         'hpp_average',
         'keterangan',
+        'id_veneer_mutasi',
+        'id_veneer_mutasi_detail',
     ];
 
     protected $casts = [
