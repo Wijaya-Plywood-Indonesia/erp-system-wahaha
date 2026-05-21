@@ -1,0 +1,222 @@
+<x-filament-panels::page>
+    @php
+        $fieldClass = 'flex flex-col gap-1';
+        $labelClass = 'text-sm font-medium leading-6 text-gray-950 dark:text-white';
+    @endphp
+
+    <div class="space-y-6">
+
+        {{-- ═══════════════════════════════════════════
+             HEADER DOKUMEN
+        ═══════════════════════════════════════════ --}}
+        <x-filament::section heading="Informasi Dokumen BM">
+            <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+
+                <div class="{{ $fieldClass }}">
+                    <label class="{{ $labelClass }}">Tanggal <span class="text-danger-500">*</span></label>
+                    <x-filament::input.wrapper>
+                        <x-filament::input type="date" wire:model.live="tanggal" />
+                    </x-filament::input.wrapper>
+                    @error('tanggal') <p class="text-xs text-danger-500">{{ $message }}</p> @enderror
+                </div>
+
+                <div class="{{ $fieldClass }}">
+                    <label class="{{ $labelClass }}">No. Nota BM <span class="text-danger-500">*</span></label>
+                    <x-filament::input.wrapper>
+                        <x-filament::input type="text" wire:model.live="no_nota" placeholder="BM-001..." />
+                    </x-filament::input.wrapper>
+                    @error('no_nota') <p class="text-xs text-danger-500">{{ $message }}</p> @enderror
+                </div>
+
+                <div class="{{ $fieldClass }}">
+                    <label class="{{ $labelClass }}">Supplier / Pengirim <span class="text-danger-500">*</span></label>
+                    <x-filament::input.wrapper>
+                        <x-filament::input type="text" wire:model.live="tujuan_nota" placeholder="Nama supplier..." />
+                    </x-filament::input.wrapper>
+                    @error('tujuan_nota') <p class="text-xs text-danger-500">{{ $message }}</p> @enderror
+                </div>
+
+                <div class="{{ $fieldClass }}">
+                    <label class="{{ $labelClass }}">Keterangan</label>
+                    <x-filament::input.wrapper>
+                        <x-filament::input type="text" wire:model.live="keterangan" placeholder="Opsional..." />
+                    </x-filament::input.wrapper>
+                </div>
+
+            </div>
+        </x-filament::section>
+
+        {{-- ═══════════════════════════════════════════
+             INPUT TAMBAH BARANG
+        ═══════════════════════════════════════════ --}}
+        <x-filament::section heading="Tambah Barang">
+            <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+
+                {{-- Tipe Veneer --}}
+                <div class="{{ $fieldClass }}">
+                    <label class="{{ $labelClass }}">Tipe Veneer <span class="text-danger-500">*</span></label>
+                    <x-filament::input.wrapper>
+                        <x-filament::input.select wire:model.live="item_tipe_veneer">
+                            <option value="">-- Pilih --</option>
+                            <option value="basah">Veneer Basah</option>
+                            <option value="kering">Veneer Kering</option>
+                        </x-filament::input.select>
+                    </x-filament::input.wrapper>
+                    @error('item_tipe_veneer') <p class="text-xs text-danger-500">{{ $message }}</p> @enderror
+                </div>
+
+                {{-- Jenis Kayu --}}
+                <div class="{{ $fieldClass }}">
+                    <label class="{{ $labelClass }}">Jenis Kayu <span class="text-danger-500">*</span></label>
+                    <x-filament::input.wrapper>
+                        <x-filament::input.select wire:model.live="item_id_jenis_kayu">
+                            <option value="">-- Pilih Tipe dulu --</option>
+                            @foreach($this->jenisKayuOptions as $id => $nama)
+                                <option value="{{ $id }}">{{ $nama }}</option>
+                            @endforeach
+                        </x-filament::input.select>
+                    </x-filament::input.wrapper>
+                    @error('item_id_jenis_kayu') <p class="text-xs text-danger-500">{{ $message }}</p> @enderror
+                </div>
+
+                {{-- KW / Grade --}}
+                <div class="{{ $fieldClass }}">
+                    <label class="{{ $labelClass }}">KW / Grade <span class="text-danger-500">*</span></label>
+                    <x-filament::input.wrapper>
+                        <x-filament::input.select wire:model.live="item_kw">
+                            <option value="">-- Pilih Jenis dulu --</option>
+                            @foreach($this->kwOptions as $val => $label)
+                                <option value="{{ $val }}">{{ $label }}</option>
+                            @endforeach
+                        </x-filament::input.select>
+                    </x-filament::input.wrapper>
+                    @error('item_kw') <p class="text-xs text-danger-500">{{ $message }}</p> @enderror
+                </div>
+
+                {{-- Ukuran --}}
+                <div class="{{ $fieldClass }}">
+                    <label class="{{ $labelClass }}">Ukuran Barang (P × L × T) <span class="text-danger-500">*</span></label>
+                    <x-filament::input.wrapper>
+                        <x-filament::input.select wire:model.live="item_id_ukuran">
+                            <option value="">-- Pilih KW dulu --</option>
+                            @foreach($this->ukuranOptions as $id => $dim)
+                                <option value="{{ $id }}">{{ $dim }}</option>
+                            @endforeach
+                        </x-filament::input.select>
+                    </x-filament::input.wrapper>
+                    @error('item_id_ukuran') <p class="text-xs text-danger-500">{{ $message }}</p> @enderror
+                </div>
+
+                {{-- Stok Saat Ini (read-only, same height as inputs) --}}
+                <div class="{{ $fieldClass }}">
+                    <label class="{{ $labelClass }}">Stok Saat Ini (Sistem)</label>
+                    <x-filament::input.wrapper>
+                        <div class="flex w-full items-center justify-between px-3 py-2 text-sm font-semibold
+                            {{ $stok_sistem > 0 ? 'text-primary-600 dark:text-primary-400' : 'text-gray-400 dark:text-gray-500' }}">
+                            <span>{{ number_format($stok_sistem) }}</span>
+                            <span class="text-xs font-normal opacity-70">Lembar</span>
+                        </div>
+                    </x-filament::input.wrapper>
+                </div>
+
+                {{-- Qty Masuk --}}
+                <div class="{{ $fieldClass }}">
+                    <label class="{{ $labelClass }}">Jumlah Masuk (Lembar) <span class="text-danger-500">*</span></label>
+                    <x-filament::input.wrapper>
+                        <x-filament::input
+                            type="number"
+                            wire:model.blur="item_qty"
+                            min="1"
+                            placeholder="0"
+                        />
+                        <x-slot name="suffix">lbr</x-slot>
+                    </x-filament::input.wrapper>
+                    @error('item_qty') <p class="text-xs text-danger-500">{{ $message }}</p> @enderror
+                </div>
+
+            </div>
+
+            <div class="mt-5 border-t border-gray-100 dark:border-gray-700 pt-4">
+                <x-filament::button wire:click="tambahBarang" icon="heroicon-o-plus-circle" color="primary" size="md">
+                    Tambah Barang
+                </x-filament::button>
+            </div>
+        </x-filament::section>
+
+        {{-- ═══════════════════════════════════════════
+             DAFTAR BARANG
+        ═══════════════════════════════════════════ --}}
+        @if(count($items) > 0)
+        <x-filament::section heading="Daftar Barang ({{ count($items) }} item)">
+            <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 dark:bg-gray-800 text-xs uppercase text-gray-500 dark:text-gray-400">
+                        <tr>
+                            <th class="px-4 py-3 text-left">#</th>
+                            <th class="px-4 py-3 text-left">Tipe</th>
+                            <th class="px-4 py-3 text-left">Jenis Kayu</th>
+                            <th class="px-4 py-3 text-left">KW</th>
+                            <th class="px-4 py-3 text-left">Ukuran</th>
+                            <th class="px-4 py-3 text-right">Stok Sebelum</th>
+                            <th class="px-4 py-3 text-right">Qty Masuk</th>
+                            <th class="px-4 py-3 text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                        @foreach($items as $i => $item)
+                        <tr class="bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                            <td class="px-4 py-3 text-gray-500">{{ $i + 1 }}</td>
+                            <td class="px-4 py-3">
+                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
+                                    {{ $item['tipe_veneer'] === 'basah' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' : 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' }}">
+                                    {{ ucfirst($item['tipe_veneer']) }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 font-medium">{{ $item['nama_jenis_kayu'] }}</td>
+                            <td class="px-4 py-3">KW {{ $item['kw'] }}</td>
+                            <td class="px-4 py-3 font-mono text-xs">{{ $item['dimensi'] }}</td>
+                            <td class="px-4 py-3 text-right text-gray-500">{{ number_format($item['stok_sebelum']) }} lbr</td>
+                            <td class="px-4 py-3 text-right font-semibold text-success-600 dark:text-success-400">
+                                +{{ number_format($item['qty']) }} lbr
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <button wire:click="hapusBarang({{ $i }})"
+                                    class="inline-flex items-center justify-center rounded p-1 text-danger-500 hover:bg-danger-50 hover:text-danger-700 dark:hover:bg-danger-900 transition-colors"
+                                    wire:confirm="Hapus barang ini dari daftar?">
+                                    <x-heroicon-o-trash class="w-4 h-4" />
+                                </button>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </x-filament::section>
+        @else
+        <x-filament::section>
+            <div class="flex flex-col items-center justify-center py-10 text-gray-400 dark:text-gray-600">
+                <x-heroicon-o-inbox-arrow-down class="w-12 h-12 mb-3 opacity-30" />
+                <p class="text-sm">Belum ada barang yang ditambahkan.</p>
+                <p class="text-xs mt-1 opacity-70">Isi form di atas lalu klik "Tambah Barang".</p>
+            </div>
+        </x-filament::section>
+        @endif
+
+        {{-- SUBMIT --}}
+        <div class="flex flex-wrap items-center justify-end gap-3">
+            <x-filament::button tag="a" :href="$this->getResource()::getUrl('index')" color="gray" icon="heroicon-o-arrow-left">
+                Batal
+            </x-filament::button>
+
+            <x-filament::button wire:click="simpanDraft" color="warning" icon="heroicon-o-document-text">
+                Simpan Draft
+            </x-filament::button>
+
+            <x-filament::button wire:click="kirim" color="success" icon="heroicon-o-paper-airplane"
+                wire:confirm="Kirim dokumen? Stok akan langsung ditambahkan dan tidak bisa diubah lagi.">
+                Kirim &amp; Posting ke BM
+            </x-filament::button>
+        </div>
+
+    </div>
+</x-filament-panels::page>

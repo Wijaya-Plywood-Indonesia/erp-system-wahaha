@@ -5,7 +5,6 @@ namespace App\Filament\Resources\NotaBarangMasuks\Pages;
 use App\Filament\Resources\NotaBarangMasuks\NotaBarangMasukResource;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
-
 use Filament\Actions\Action;
 
 class ListNotaBarangMasuks extends ListRecords
@@ -14,8 +13,13 @@ class ListNotaBarangMasuks extends ListRecords
 
     protected function getHeaderActions(): array
     {
-
         return [
+            Action::make('veneer_masuk')
+                ->label('Veneer Masuk')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->color('warning')
+                ->url('/admin/veneer-masuks/create'),
+
             Action::make('rekap_nota_bm')
                 ->label('Rekap Nota Barang Masuk')
                 ->icon('heroicon-o-document-text')

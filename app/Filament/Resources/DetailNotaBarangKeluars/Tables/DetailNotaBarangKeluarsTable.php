@@ -59,10 +59,13 @@ class DetailNotaBarangKeluarsTable
             ->headerActions([
                 CreateAction::make()
                     ->label('Tambah Barang')
+                    ->visible(function (RelationManager $livewire) {
+                        $nota = $livewire->getOwnerRecord();
+                        // Hanya muncul jika belum divalidasi dan tidak memiliki mutasi veneer terkait
+                        return $nota && $nota->divalidasi_oleh === null && !$nota->mutasi()->exists();
+                    })
                     ->disabled(function (RelationManager $livewire) {
                         $nota = $livewire->getOwnerRecord();
-
-                        // Disable jika SUDAH divalidasi
                         return $nota?->divalidasi_oleh !== null;
                     })
                     ->tooltip('Nota sudah divalidasi, tidak bisa menambah barang'),
@@ -82,46 +85,30 @@ class DetailNotaBarangKeluarsTable
                         return $livewire->ownerRecord->dibuat_oleh == auth()->id();
                     })
                     ->action(function (RelationManager $livewire) {
-
                         $nota = $livewire->ownerRecord;
 
-                        $nota->update([
-                            'divalidasi_oleh' => auth()->id(),
-                        ]);
+                        try {
+                            $hasMutasi = \App\Models\VeneerMutasi::where('id_nota_bk', $nota->id)->exists();
+                            // Run the business service to deduct stock and set divalidasi_oleh
+                            app(\App\Services\VeneerMutasiService::class)->processStockFromNota($nota);
 
-                        Notification::make()
-                            ->title('Nota berhasil divalidasi!')
-                            ->success()
-                            ->send();
+                            Notification::make()
+                                ->title('Nota berhasil divalidasi!')
+                                ->body($hasMutasi ? 'Stok veneer telah dikurangi sesuai isi nota BK.' : 'Status nota telah diperbarui.')
+                                ->success()
+                                ->send();
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('Validasi Gagal')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
                     })
                     ->after(function ($livewire) {
                         // Refresh komponen supaya status berubah
                         $livewire->dispatch('$refresh');
                     }),
-                // Action::make('batalkan_validasi')
-                //     ->label('Batalkan Validasi')
-                //     ->icon('heroicon-o-x-circle')
-                //     ->color('danger')
-                //     ->requiresConfirmation()
-                //     ->visible(function (RelationManager $livewire) {
-                //         $nota = $livewire->ownerRecord;
-
-                //         // Tombol muncul hanya jika nota SUDAH divalidasi
-                //         return $nota->divalidasi_oleh != null;
-                //     })
-                //     ->action(function (RelationManager $livewire) {
-                //         $nota = $livewire->ownerRecord;
-
-                //         $nota->update([
-                //             'divalidasi_oleh' => null,
-                //         ]);
-
-                //         Notification::make()
-                //             ->title('Validasi berhasil dibatalkan.')
-                //             ->danger()
-                //             ->send();
-                //     })
-                //     ->after(fn($livewire) => $livewire->dispatch('$refresh')),
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
@@ -129,16 +116,22 @@ class DetailNotaBarangKeluarsTable
             ])
             ->recordActions([
                 EditAction::make()
+                    ->url(function ($record) {
+                        $nota = $record->nota;
+                        if ($nota && $nota->mutasi) {
+                            return route('filament.admin.resources.veneer-keluars.edit', $nota->mutasi->id);
+                        }
+                        return null;
+                    })
                     ->visible(function (RelationManager $livewire) {
                         $nota = $livewire->getOwnerRecord();
-
-                        return $nota?->divalidasi_oleh === null;
+                        return $nota && $nota->divalidasi_oleh === null;
                     }),
                 DeleteAction::make()
                     ->visible(function (RelationManager $livewire) {
                         $nota = $livewire->getOwnerRecord();
-
-                        return $nota?->divalidasi_oleh === null;
+                        // Hanya bisa delete manual jika tidak ada mutasi veneer terkait
+                        return $nota && $nota->divalidasi_oleh === null && !$nota->mutasi()->exists();
                     }),
             ])
             ->toolbarActions([
