@@ -17,9 +17,9 @@ use Illuminate\Support\Facades\Log;
 
 class TempatKayusTable
 {
-    private const ROLE_GRADER   = ['Grader Kayu 1', 'Grader Kayu 2'];
+    private const ROLE_GRADER = ['Grader Kayu 1', 'Grader Kayu 2'];
     private const ROLE_PENGAWAS = ['pengawas_rotary_1', 'pengawas_rotary_2'];
-    private const ROLE_ADMIN    = ['super_admin', 'Super Admin', 'admin_kayu'];
+    private const ROLE_ADMIN = ['super_admin', 'Super Admin', 'admin_kayu'];
 
     public const MESIN_MAP = [
         130 => ['SANJI', 'YUEQUN'],
@@ -30,11 +30,11 @@ class TempatKayusTable
     {
         $user = Auth::user();
 
-        $isGrader   = $user->hasAnyRole(self::ROLE_GRADER);
+        $isGrader = $user->hasAnyRole(self::ROLE_GRADER);
         $isPengawas = $user->hasAnyRole(self::ROLE_PENGAWAS);
-        $isAdmin    = $user->hasAnyRole(self::ROLE_ADMIN);
+        $isAdmin = $user->hasAnyRole(self::ROLE_ADMIN);
 
-        $bisaSerah  = $isGrader || $isAdmin;
+        $bisaSerah = $isGrader || $isAdmin;
         $bisaTerima = $isPengawas || $isAdmin;
 
         return $table
@@ -119,30 +119,34 @@ class TempatKayusTable
 
                 TextColumn::make('group_panjang')
                     ->label('Pjg')
+                    ->sortable()
                     ->badge()
                     ->color(fn($state) => $state == 260 ? 'success' : 'info'),
 
                 TextColumn::make('diserahkan_oleh')
                     ->label('Diserahkan Oleh')
+                    ->sortable()
                     ->default('-'),
 
                 TextColumn::make('diterima_oleh')
+                    ->sortable()
                     ->label('Diterima Oleh')
                     ->default('-'),
 
                 // ✅ Status langsung dari kolom tempat_kayus
                 TextColumn::make('status')
+                    ->sortable()
                     ->label('Status')
                     ->badge()
                     ->formatStateUsing(fn($state) => match ($state) {
                         'sudah diserahkan' => 'Diserahkan',
-                        'sudah diterima'   => 'Diterima',
-                        default            => 'Belum Diserahkan',
+                        'sudah diterima' => 'Diterima',
+                        default => 'Belum Diserahkan',
                     })
                     ->color(fn($state) => match ($state) {
-                        'sudah diterima'   => 'success',
+                        'sudah diterima' => 'success',
                         'sudah diserahkan' => 'warning',
-                        default            => 'gray',
+                        default => 'gray',
                     }),
             ])
             ->filters([])
@@ -179,7 +183,7 @@ class TempatKayusTable
 
                         foreach ($logs as $log) {
                             $isM = $log->tipe_transaksi === 'masuk';
-                            
+
                             $seri = 'Tanpa Seri';
                             if ($log->referensi_type === \App\Models\NotaKayu::class || $log->referensi_type === 'NotaKayu') {
                                 if (!$log->relationLoaded('referensi')) {
@@ -190,27 +194,27 @@ class TempatKayusTable
                                     $seri = $log->referensi->kayuMasuk->seri ?? 'Tanpa Seri';
                                 }
                             }
-                            
+
                             if ($seri === 'Tanpa Seri') {
                                 if (preg_match('/SERI:\s*(\d+)/i', $log->keterangan, $matches)) {
                                     $seri = $matches[1];
                                 }
                             }
-                            
+
                             if ($isM) {
                                 $queue[] = [
                                     'seri' => $seri,
                                     'qty_left' => $log->total_batang,
-                                    'kubikasi_left' => (float)$log->total_kubikasi,
+                                    'kubikasi_left' => (float) $log->total_kubikasi,
                                 ];
                             } else {
                                 $qtyKeluar = $log->total_batang;
-                                $kubikasiKeluar = (float)$log->total_kubikasi;
-                                
+                                $kubikasiKeluar = (float) $log->total_kubikasi;
+
                                 while ($qtyKeluar > 0 && !empty($queue)) {
                                     $firstKey = array_key_first($queue);
                                     $item = &$queue[$firstKey];
-                                    
+
                                     if ($item['qty_left'] <= $qtyKeluar) {
                                         $qtyKeluar -= $item['qty_left'];
                                         $kubikasiKeluar -= $item['kubikasi_left'];
@@ -234,8 +238,8 @@ class TempatKayusTable
                             ->groupBy('seri')
                             ->map(function ($group, $seri) {
                                 return [
-                                    'seri'           => $seri,
-                                    'total_batang'   => $group->sum('qty_left'),
+                                    'seri' => $seri,
+                                    'total_batang' => $group->sum('qty_left'),
                                     'total_kubikasi' => $group->sum('kubikasi_left'),
                                 ];
                             })
@@ -253,9 +257,9 @@ class TempatKayusTable
                             ->sum('stok_kubikasi');
 
                         return view('filament.components.detail-kayu-modal', [
-                            'record'        => $record,
-                            'details'       => $groupedBySeri,
-                            'totalBatang'   => $totalStokRiil,
+                            'record' => $record,
+                            'details' => $groupedBySeri,
+                            'totalBatang' => $totalStokRiil,
                             'totalKubikasi' => $totalKubikasiRiil,
                         ]);
                     }),
@@ -275,8 +279,10 @@ class TempatKayusTable
                     )
                     ->modalSubmitActionLabel('Ya, Serahkan')
                     ->visible(function ($record) use ($bisaSerah, $isAdmin) {
-                        if (!$bisaSerah) return false;
-                        if ($isAdmin) return true;
+                        if (!$bisaSerah)
+                            return false;
+                        if ($isAdmin)
+                            return true;
 
                         // Grader: hanya muncul jika belum diserahkan
                         return $record->status === 'belum serah' || $record->status === null;
@@ -305,27 +311,27 @@ class TempatKayusTable
                                         ->where('id_lahan', $record->id_lahan)
                                         ->where('tipe', 'lahan_rotary')
                                         ->update([
-                                            'jumlah_batang'   => max(0, $totalBatang),
-                                            'kubikasi'        => max(0, $kubikasi),
+                                            'jumlah_batang' => max(0, $totalBatang),
+                                            'kubikasi' => max(0, $kubikasi),
                                             'diserahkan_oleh' => Auth::user()->name,
-                                            'diterima_oleh'   => '-',
-                                            'status'          => 'Lahan Siap',
-                                            'updated_at'      => now(),
+                                            'diterima_oleh' => '-',
+                                            'status' => 'Lahan Siap',
+                                            'updated_at' => now(),
                                         ]);
                                 } else {
                                     DB::table('detail_hasil_palet_rotary_serah_terima_pivot')
                                         ->insert([
                                             'id_detail_hasil_palet_rotary' => null,
-                                            'id_lahan'                     => $record->id_lahan,
-                                            'id_produksi'                  => null,
-                                            'jumlah_batang'                => max(0, $totalBatang),
-                                            'kubikasi'                     => max(0, $kubikasi),
-                                            'diserahkan_oleh'              => Auth::user()->name,
-                                            'diterima_oleh'                => '-',
-                                            'tipe'                         => 'lahan_rotary',
-                                            'status'                       => 'Lahan Siap',
-                                            'created_at'                   => now(),
-                                            'updated_at'                   => now(),
+                                            'id_lahan' => $record->id_lahan,
+                                            'id_produksi' => null,
+                                            'jumlah_batang' => max(0, $totalBatang),
+                                            'kubikasi' => max(0, $kubikasi),
+                                            'diserahkan_oleh' => Auth::user()->name,
+                                            'diterima_oleh' => '-',
+                                            'tipe' => 'lahan_rotary',
+                                            'status' => 'Lahan Siap',
+                                            'created_at' => now(),
+                                            'updated_at' => now(),
                                         ]);
                                 }
 
@@ -334,9 +340,9 @@ class TempatKayusTable
                                     ->where('id_lahan', $record->id_lahan)
                                     ->update([
                                         'diserahkan_oleh' => Auth::user()->name,
-                                        'diterima_oleh'   => null,
-                                        'status'          => 'sudah diserahkan',
-                                        'updated_at'      => now(),
+                                        'diterima_oleh' => null,
+                                        'status' => 'sudah diserahkan',
+                                        'updated_at' => now(),
                                     ]);
                             });
 
@@ -347,7 +353,7 @@ class TempatKayusTable
                         } catch (\Throwable $e) {
                             Log::channel('single')->error('Serah Kayu FAILED', [
                                 'message' => $e->getMessage(),
-                                'code'    => $e->getCode(),
+                                'code' => $e->getCode(),
                             ]);
 
                             Notification::make()
@@ -368,11 +374,12 @@ class TempatKayusTable
                     ->modalDescription(
                         fn($record) =>
                         "Kayu dari lahan {$record->lahan?->kode_lahan} akan diterima atas nama " .
-                            Auth::user()->name . "."
+                        Auth::user()->name . "."
                     )
                     ->modalSubmitActionLabel('Ya, Terima')
                     ->visible(function ($record) use ($bisaTerima) {
-                        if (!$bisaTerima) return false;
+                        if (!$bisaTerima)
+                            return false;
 
                         return $record->status === 'sudah diserahkan';
                     })
@@ -384,8 +391,8 @@ class TempatKayusTable
                                     ->where('tipe', 'lahan_rotary')
                                     ->update([
                                         'diterima_oleh' => Auth::user()->name,
-                                        'status'        => 'Sudah Diterima',
-                                        'updated_at'    => now(),
+                                        'status' => 'Sudah Diterima',
+                                        'updated_at' => now(),
                                     ]);
 
                                 // ✅ Update semua row tempat_kayus dengan id_lahan yang sama
@@ -393,8 +400,8 @@ class TempatKayusTable
                                     ->where('id_lahan', $record->id_lahan)
                                     ->update([
                                         'diterima_oleh' => Auth::user()->name,
-                                        'status'        => 'sudah diterima',
-                                        'updated_at'    => now(),
+                                        'status' => 'sudah diterima',
+                                        'updated_at' => now(),
                                     ]);
                             });
 
@@ -406,8 +413,8 @@ class TempatKayusTable
                         } catch (\Throwable $e) {
                             Log::channel('single')->error('Terima Kayu FAILED', [
                                 'message' => $e->getMessage(),
-                                'code'    => $e->getCode(),
-                                'trace'   => $e->getTraceAsString(),
+                                'code' => $e->getCode(),
+                                'trace' => $e->getTraceAsString(),
                             ]);
 
                             Notification::make()
