@@ -153,7 +153,7 @@ class LaporanJoinSummarySheet implements FromCollection, WithHeadings, WithTitle
         $allGroups = [];
 
         foreach ($this->rawCollection as $produksi) {
-            $tanggal = Carbon::parse($produksi->tanggal_produksi)->format('dd-mm-yy');
+            $tanggal = Carbon::parse($produksi->tanggal_produksi)->format('d-m-yy');
 
             $bahanRows = [];
             try {
@@ -363,7 +363,7 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles,
         return [
             'K' => '#,##0',        // Banyak -> Langsung angka bulat murni (Tanpa ,00)
             'L' => '#,##0.0000',   // M3 -> Template Fix: 4 angka di belakang koma desimal
-            'M' => '#,##0',        // Harga -> Langsung angka bulat murni (Tanpa ,00)
+            'M' => '#,##0.00',        // Harga -> Langsung angka bulat murni (Tanpa ,00)
             'N' => '#,##0',        // Total -> Langsung angka bulat murni (Tanpa ,00)
         ];
     }
@@ -409,7 +409,10 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles,
 
     private function normalizeJenis(string $jenis): string
     {
+        // Mengubah semua input ke lowercase untuk diperiksa
         $jns = strtolower(trim($jenis));
+
+        // Jika mengandung 'sengon', maka kelompokkan ke sengon, sisanya (jabon, pinus, meranti, dll) ke meranti
         return str_contains($jns, 'sengon') ? 'sengon' : 'meranti';
     }
 
@@ -459,7 +462,7 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles,
         $rows[] = ['Nama Akun', 'tgl', 'jurnal', 'No Akun', 'No', 'mm', 'Nama', 'Keterangan', 'map', 'hit kbk', 'Banyak', 'M3', 'Harga', 'Total'];
 
         foreach ($this->rawCollection as $produksi) {
-            $tglFormat = Carbon::parse($produksi->tanggal_produksi)->format('dd-mm-yy');
+            $tglFormat = Carbon::parse($produksi->tanggal_produksi)->format('d-m-Y');
 
             $totalDebit  = 0;
             $totalKredit = 0;
@@ -470,29 +473,21 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles,
             // ============================================================
             foreach ($produksi->hasilJoint as $hasil) {
                 $ukuran = $hasil->ukuran;
-                $jenisNama = $hasil->jenisKayu->nama_kayu ?? 'meranti';
-                $jnsNorm = $this->normalizeJenis($jenisNama);
+                $jenisNamaAsli = $hasil->jenisKayu->nama_kayu ?? 'meranti';
+                $jnsNorm = $this->normalizeJenis($jenisNamaAsli); // Sengon atau Meranti
 
                 $tebal = (float)($ukuran->tebal ?? 0);
-                $tipeUkuran = ($tebal < 1) ? '260 face/back' : '130 core';
+                $m3 = ($ukuran->panjang * $ukuran->lebar * $tebal * $hasil->jumlah) / 10000000;
 
-                $p = (float)($ukuran->panjang ?? 0);
-                $l = (float)($ukuran->lebar ?? 0);
-                $t = $tebal;
-                $m3 = $p * $l * $t * $hasil->jumlah / 10000000;
-
-                $hargaPatok = $this->getHargaPatok($jenisNama, $tebal);
-
-                // 🚀 RUMUS EVALUASI: hit kbk == m -> m3 * harga
+                $hargaPatok = $this->getHargaPatok($jnsNorm, $tebal); // Gunakan jnsNorm untuk harga
                 $totalValue = $m3 * $hargaPatok;
 
-                $noAkunKoma = ($jnsNorm === 'sengon') ? '1466,00' : '1467,00';
-                $namaAkun = "Veneer Jadi {$jnsNorm} WJY";
-                $keterangan = "130 core " . strtolower($jenisNama) . " {$ukuran->panjang} x {$ukuran->lebar} x {$ukuran->tebal}";
+                // Akun gunakan jnsNorm, Keterangan gunakan jenisNamaAsli
+                $noAkun = ($jnsNorm === 'sengon') ? '1466,00' : '1467,00';
+                $namaAkun = "Veneer Jadi " . ucfirst($jnsNorm) . " WJY";
+                $ket = "130 core " . strtolower($jenisNamaAsli) . " {$ukuran->panjang} x {$ukuran->lebar} x {$tebal}";
 
-                // Sisi Hasil Jadi tetap hit kbk = 'm'
-                $jurnalBlock[] = $this->makeRow($namaAkun, $tglFormat, $noAkunKoma, $keterangan, 'd', $hasil->jumlah, $m3, $hargaPatok, $totalValue, 'm');
-
+                $jurnalBlock[] = $this->makeRow($namaAkun, $tglFormat, $noAkun, $ket, 'd', $hasil->jumlah, $m3, $hargaPatok, $totalValue, 'm');
                 $totalDebit += $totalValue;
             }
 
@@ -501,29 +496,20 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles,
             // ============================================================
             foreach ($produksi->modalJoint as $modal) {
                 $ukuran = $modal->ukuran;
-                $jenisNama = $modal->jenisKayu->nama_kayu ?? 'meranti';
-                $jnsNorm = $this->normalizeJenis($jenisNama);
+                $jenisNamaAsli = $modal->jenisKayu->nama_kayu ?? 'meranti';
+                $jnsNorm = $this->normalizeJenis($jenisNamaAsli);
 
                 $tebal = (float)($ukuran->tebal ?? 0);
-                $tipeUkuran = ($tebal < 1) ? '260 face/back' : '130 core';
+                $m3 = ($ukuran->panjang * $ukuran->lebar * $tebal * $modal->jumlah) / 10000000;
 
-                $p = (float)($ukuran->panjang ?? 0);
-                $l = (float)($ukuran->lebar ?? 0);
-                $t = $tebal;
-                $m3 = $p * $l * $t * $modal->jumlah / 10000000;
-
-                $hargaPatok = $this->getHargaPatok($jenisNama, $tebal);
-
-                // 🚀 RUMUS EVALUASI: hit kbk == m -> m3 * harga
+                $hargaPatok = $this->getHargaPatok($jnsNorm, $tebal);
                 $totalValue = $m3 * $hargaPatok;
 
-                $noAkunKoma = ($jnsNorm === 'sengon') ? '1416,00' : '1417,00';
-                $namaAkun = "Veneer Jadi {$jnsNorm} WJY";
-                $keterangan = "130 core " . strtolower($jenisNama) . " {$ukuran->panjang} x {$ukuran->lebar} x {$ukuran->tebal}";
+                $noAkun = ($jnsNorm === 'sengon') ? '1416,00' : '1417,00';
+                $namaAkun = "Veneer Jadi " . ucfirst($jnsNorm) . " WJY";
+                $ket = "130 core " . strtolower($jenisNamaAsli) . " {$ukuran->panjang} x {$ukuran->lebar} x {$tebal}";
 
-                // Sisi Sortimen tetap hit kbk = 'm'
-                $jurnalBlock[] = $this->makeRow($namaAkun, $tglFormat, $noAkunKoma, $keterangan, 'k', $modal->jumlah, $m3, $hargaPatok, $totalValue, 'm');
-
+                $jurnalBlock[] = $this->makeRow($namaAkun, $tglFormat, $noAkun, $ket, 'k', $modal->jumlah, $m3, $hargaPatok, $totalValue, 'm');
                 $totalKredit += $totalValue;
             }
 
