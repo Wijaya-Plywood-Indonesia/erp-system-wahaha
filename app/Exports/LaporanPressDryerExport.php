@@ -18,6 +18,7 @@ class LaporanPressDryerExport implements WithMultipleSheets
         return [
             new Sheets\LaporanPressDryerSheet($this->dataProduksi),
             new Sheets\HasilProduksiSheet($this->dataProduksi),
+            new Sheets\JurnalSheet($this->dataProduksi),
         ];
     }
 }

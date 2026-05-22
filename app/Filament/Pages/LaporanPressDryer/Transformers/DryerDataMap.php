@@ -103,15 +103,6 @@ class DryerDataMap
                             $targetModel = null;
                         }
 
-                        Log::info('DEBUG Query Target DRYER', [
-                            'mesin' => $namaMesin,
-                            'shift' => $shift,
-                            'kode_ukuran_digunakan' => $shift === 'PAGI' ? 'DRYER PAGI' : ($shift === 'MALAM' ? 'DRYER MALAM' : 'UNKNOWN'),
-                            'found' => $targetModel !== null,
-                            'target' => $targetModel->target ?? 0,
-                            'jam' => $targetModel->jam ?? 0,
-                        ]);
-
                     } else {
                         $targetModel = Target::where('id_mesin', $mesinUtamaId)
                             ->when($ukuranId !== null, function ($q) use ($ukuranId) {
@@ -124,21 +115,8 @@ class DryerDataMap
                                 ->whereNull('id_ukuran')
                                 ->first();
                         }
-
-                        Log::info('DEBUG Query Target Non-DRYER', [
-                            'mesin' => $namaMesin,
-                            'mesin_id' => $mesinUtamaId,
-                            'ukuran_id' => $ukuranId,
-                            'found' => $targetModel !== null,
-                            'target' => $targetModel->target ?? 0,
-                        ]);
                     }
 
-                } else {
-                    Log::warning('DEBUG: mesin_utama_id adalah NULL', [
-                        'id_produksi' => $item->id,
-                        'mesin' => $namaMesin,
-                    ]);
                 }
             }
 
@@ -236,24 +214,18 @@ class DryerDataMap
              * ============================================================ */
 
             $detailHasils = $item->detailHasils->map(function ($dh) {
-
-                // Kolom di tabel ukurans: panjang, lebar, tebal (dalam mm)
                 $ukuran  = $dh->ukuran ?? null;
                 $panjang = $ukuran?->panjang ?? null;
                 $lebar   = $ukuran?->lebar   ?? null;
                 $tebal   = $ukuran?->tebal   ?? null;
                 $isi     = $dh->isi ?? 0;
 
-                // m3 = (panjang mm / 1000) * (lebar mm / 1000) * (tebal mm / 1000) * isi
                 $m3 = null;
                 if ($panjang && $lebar && $tebal && $isi) {
                     $m3 = round(($panjang / 1000) * ($lebar / 1000) * ($tebal / 1000) * $isi, 4);
                 }
 
-                // Jenis kayu
                 $jenisKayu = $dh->jenisKayu?->kode_kayu ?? '-';
-
-                // kw: field 'kw' di DetailHasil menentukan kualitas (1, 2, 3, 4)
                 $kw = (int) ($dh->kw ?? 0);
 
                 return [
@@ -270,12 +242,38 @@ class DryerDataMap
                         'p'     => $panjang,
                         'l'     => $lebar,
                         't'     => $tebal,
-                        'label' => $panjang && $lebar && $tebal
-                            ? "{$panjang}x{$lebar}x{$tebal}"
-                            : '-',
+                        'label' => $panjang && $lebar && $tebal ? "{$panjang}x{$lebar}x{$tebal}" : '-',
                     ],
                 ];
 
+            })->toArray();
+
+
+            /* ============================================================
+             * 5C. DETAIL MASUK (MODAL UNTUK MENGHITUNG KEHILANGAN)
+             * ============================================================ */
+            $detailMasuks = $item->detailMasuks->map(function ($dm) {
+                $ukuran  = $dm->ukuran ?? null;
+                $panjang = $ukuran?->panjang ?? null;
+                $lebar   = $ukuran?->lebar   ?? null;
+                $tebal   = $ukuran?->tebal   ?? null;
+                $isi     = $dm->isi ?? 0;
+
+                $m3 = null;
+                if ($panjang && $lebar && $tebal && $isi) {
+                    $m3 = round(($panjang / 1000) * ($lebar / 1000) * ($tebal / 1000) * $isi, 8);
+                }
+
+                return [
+                    'isi'        => $isi,
+                    'm3'         => $m3,
+                    'jenis_kayu' => $dm->jenisKayu?->kode_kayu ?? '-',
+                    'ukuran'     => [
+                        'p' => $panjang,
+                        'l' => $lebar,
+                        't' => $tebal,
+                    ],
+                ];
             })->toArray();
 
 
@@ -306,28 +304,11 @@ class DryerDataMap
 
                 'has_target' => $targetModel !== null,
 
-                // ✅ BARU: detail per palet untuk sheet Hasil Produksi
                 'detail_hasils' => $detailHasils,
+                'detail_masuks' => $detailMasuks,
                 'jumlah_pekerja' => $jumlahPekerja,
             ];
 
-
-            /* ============================================================
-             * 7. LOG DEBUG
-             * ============================================================ */
-
-            Log::info('DryerDataMap - Final Result', [
-                'mesin' => $namaMesin,
-                'shift' => $shift,
-                'ukuran_id' => $ukuranId,
-                'target_ditemukan' => $targetModel !== null,
-                'target' => $targetHarian,
-                'jam_kerja' => $jamKerja,
-                'hasil' => $totalHasil,
-                'selisih' => $selisihProduksi,
-                'potongan_per_orang' => $potonganPerOrang,
-                'detail_hasils_count' => count($detailHasils),
-            ]);
         }
 
         return $result;
