@@ -113,6 +113,39 @@ class RotaryJurnalService
         return $this->buildStructure($tgl, $produksiList, $calc);
     }
 
+    /**
+     * Build preview payload jurnal untuk tanggal produksi tertentu tanpa cek validasi.
+     *
+     * @param  string  $tanggal  Format: Y-m-d
+     * @return array|null
+     */
+    public function buildJurnalPayloadPreview(string $tanggal): ?array
+    {
+        $tgl = Carbon::parse($tanggal)->startOfDay();
+
+        $produksiList = ProduksiRotary::with([
+            'mesin',
+            'detailValidasiHasilRotary',
+            'detailPegawaiRotary.pegawai',
+            'detailLahanRotary.lahan',
+            'detailLahanRotary.jenisKayu',
+            'detailPaletRotary.ukuran',
+            'detailPaletRotary.penggunaanLahan.lahan',
+            'bahanPenolongRotary.bahanPenolong',
+            'detailKayuPecah.penggunaanLahan',
+        ])
+            ->whereDate('tgl_produksi', $tgl)
+            ->get();
+
+        if ($produksiList->isEmpty()) {
+            return null;
+        }
+
+        $calc = $this->hitungNominal($produksiList);
+
+        return $this->buildStructure($tgl, $produksiList, $calc);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     //  KALKULASI
     // ─────────────────────────────────────────────────────────────────────────
@@ -1319,7 +1352,7 @@ class RotaryJurnalService
                     * ($palet->total_lembar ?? 0)
                     / 10_000_000;
 
-                $namaLahan = $palet->penggunaanLahan->lahan->nama_lahan ?? '-';
+                $namaLahan = $palet->penggunaanLahan->lahan->kode_lahan ?? '-';
                 $ukuranStr = "{$ukuran->panjang}x{$ukuran->lebar}x{$ukuran->tebal}";
 
                 // Ambil nama kayu dari lahan yang dipakai mesin ini
@@ -1389,7 +1422,7 @@ class RotaryJurnalService
                 $items[] = [
                     'urut'        => $urut++,
                     'jenis_pihak' => 'pemasok',
-                    'nama_pihak'  => 'Lahan ' . $lahan['kode_lahan'] . ' [' . $lahan['nama_lahan'] . ']',
+                    'nama_pihak'  => 'Lahan ' . $lahan['kode_lahan'],
                     'nama_barang' => 'Kayu',
                     'keterangan'  => $lahan['nama_kayu'] . ' - ' . $lahan['nama_mesin'] . ' - ' . $lahan['jumlah_batang'] . ' batang',
                     'ukuran'      => '-',

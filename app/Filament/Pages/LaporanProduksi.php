@@ -140,7 +140,7 @@ class LaporanProduksi extends Page implements HasForms
     public function exportToExcel()
     {
         $tanggal = $this->data['tanggal'] ?? now()->format('Y-m-d');
-        $filename = 'Laporan-Produksi-' . Carbon::parse($tanggal)->format('Y-m-d') . '.xlsx';
+        $filename = 'Laporan-Produksi-Rotary-' . Carbon::parse($tanggal)->format('Y-m-d') . '.xlsx';
         return Excel::download(new LaporanProduksiExport($this->dataProduksi, $tanggal), $filename);
     }
 }
