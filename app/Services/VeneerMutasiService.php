@@ -269,7 +269,7 @@ class VeneerMutasiService
             'kw'                      => $detail->kw,
             'jenis_transaksi'         => $mutasi->tipe_transaksi,
             'tanggal_transaksi'       => $mutasi->tanggal,
-            'qty'                     => $isKeluar ? -$detail->qty : $detail->qty,
+            'qty'                     => $detail->qty,
             'm3'                      => $detail->m3,
             'hpp_veneer_basah_per_m3' => 0,
             'ongkos_dryer_per_m3'     => 0,
