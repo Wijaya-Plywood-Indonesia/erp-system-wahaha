@@ -46,7 +46,6 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
     {
         $lastRow = $sheet->getHighestRow();
 
-        // Border hitam tipis untuk semua sel
         $borderStyle = [
             'borders' => [
                 'allBorders' => [
@@ -57,7 +56,6 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
         ];
         $sheet->getStyle("A1:N{$lastRow}")->applyFromArray($borderStyle);
 
-        // Header: biru gelap, teks putih bold, center
         $sheet->getStyle('A1:N1')->applyFromArray([
             'font' => [
                 'bold'  => true,
@@ -73,15 +71,9 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
             ],
         ]);
 
-        // Kolom No Akun (D): format angka 2 desimal
         $sheet->getStyle("D2:D{$lastRow}")->getNumberFormat()->setFormatCode('0.00');
-
-        // Kolom M3 (L): format 4 desimal
         $sheet->getStyle("L2:L{$lastRow}")->getNumberFormat()->setFormatCode('0.0000');
-
-        // Kolom Harga (M) dan Total (N): format angka ribuan tanpa desimal
         $sheet->getStyle("M2:N{$lastRow}")->getNumberFormat()->setFormatCode('#,##0');
-
         $sheet->getRowDimension(1)->setRowHeight(20);
 
         return [];
@@ -198,7 +190,12 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
         foreach ($this->dataKedi as $produksi) {
             $totalPegawai += $produksi['total_pekerja'] ?? 0;
             if (empty($tglProduksi)) {
-                $tglProduksi = str_replace('/', '-', $produksi['tanggal_masuk'] ?? '');
+                $rawTgl = str_replace('/', '-', $produksi['tanggal_masuk'] ?? '');
+                try {
+                    $tglProduksi = \Carbon\Carbon::parse($rawTgl)->format('d-m-Y');
+                } catch (\Exception $e) {
+                    $tglProduksi = $rawTgl;
+                }
             }
             foreach ($produksi['detail_bongkar'] ?? [] as $db) $allBongkars[] = $db;
             foreach ($produksi['detail_masuk'] ?? [] as $dm) $allMasuks[] = $dm;
@@ -222,7 +219,7 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
         $totalKredit = 0;
         $jurnalShift = [];
 
-        // DEBIT: Hasil Bongkar Reguler
+        // 1. DEBIT: Hasil Bongkar Reguler
         foreach ($groupedBongkarsReguler as $key => $dbs) {
             $sample        = $dbs->first();
             $jenisAsli     = trim($sample['jenis_kayu'] ?? '');
@@ -253,7 +250,7 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
             }
         }
 
-        // DEBIT: Hasil Bongkar PPC (AF)
+        // 2. DEBIT: Hasil Bongkar PPC (AF)
         foreach ($groupedBongkarsAf as $key => $dbs) {
             $sample        = $dbs->first();
             $jenisAsli     = trim($sample['jenis_kayu'] ?? '');
@@ -273,7 +270,7 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
             }
         }
 
-        // KREDIT: Masuk Basah Reguler & Kehilangan
+        // 3. KREDIT: Masuk Basah
         $allKeys = collect(array_keys($groupedMasuks->toArray()))
             ->merge(array_keys($groupedBongkarsReguler->toArray()))
             ->merge(array_keys($groupedBongkarsAf->toArray()))
@@ -294,17 +291,35 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
             $dim        = $this->parseDimensi($sample['ukuran'] ?? '');
             $tebal      = $dim['t'];
             $hargaBasah = $this->getHargaPatok($jenisAsli, $tebal, 'basah');
-            $akun       = $this->getAkun('basah', $jenisAsli, $tebal, false);
+            
+            $hilang = $dms->sum('jumlah') - $totalHasilIsi;
+            $teksKelebihan = ($hilang < 0) ? 'kelebihan ' . abs($hilang) : '';
 
             if ($dbsReguler->sum('jumlah') > 0) {
+                $akun      = $this->getAkun('basah', $jenisAsli, $tebal, false);
                 $m3Reguler = round($this->hitungM3($dbsReguler), 4);
                 $subtotal  = round($m3Reguler * $hargaBasah, 2);
-                $jurnalShift[] = $this->makeRow($akun['nama'], $akun['no'], $tglProduksi, $namaProduksi, '', 'k', 'm', $dbsReguler->sum('jumlah'), $m3Reguler, $hargaBasah, $subtotal);
+                $jurnalShift[] = $this->makeRow($akun['nama'], $akun['no'], $tglProduksi, $namaProduksi, $teksKelebihan, 'k', 'm', $dbsReguler->sum('jumlah'), $m3Reguler, $hargaBasah, $subtotal);
+                $totalKredit  += $subtotal;
+                $teksKelebihan = ''; 
+            }
+
+            if ($dbsAf->sum('jumlah') > 0) {
+                $akunAf   = $this->getAkun('basah', $jenisAsli, $tebal, true);
+                $m3Af     = round($this->hitungM3($dbsAf), 4);
+                $subtotal = round($m3Af * $hargaBasah, 2);
+                
+                $ketAf = 'af';
+                if ($teksKelebihan !== '') {
+                    $ketAf = 'af, ' . $teksKelebihan;
+                }
+
+                $jurnalShift[] = $this->makeRow($akunAf['nama'], $akunAf['no'], $tglProduksi, $namaProduksi, $ketAf, 'k', 'm', $dbsAf->sum('jumlah'), $m3Af, $hargaBasah, $subtotal);
                 $totalKredit  += $subtotal;
             }
 
-            $hilang = $dms->sum('jumlah') - $totalHasilIsi;
             if ($hilang > 0) {
+                $akun           = $this->getAkun('basah', $jenisAsli, $tebal, false);
                 $m3Hilang       = round($this->hitungM3($dms) - $totalHasilM3, 4);
                 $subtotalHilang = round($m3Hilang * $hargaBasah, 2);
                 $jurnalShift[]  = $this->makeRow($akun['nama'], $akun['no'], $tglProduksi, $namaProduksi, 'kehilangan ' . $hilang, 'k', 'm', $hilang, $m3Hilang, $hargaBasah, $subtotalHilang);
@@ -312,34 +327,16 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
             }
         }
 
-        // KREDIT: Masuk Basah PPC (Untuk Hasil Bongkar AF)
-        foreach ($groupedBongkarsAf as $key => $dbs) {
-            $sample     = $dbs->first();
-            $jenisAsli  = trim($sample['jenis_kayu'] ?? '');
-            $dim        = $this->parseDimensi($sample['ukuran'] ?? '');
-            $tebal      = $dim['t'];
-            $hargaBasah = $this->getHargaPatok($jenisAsli, $tebal, 'basah');
-            $akun       = $this->getAkun('basah', $jenisAsli, $tebal, true);
-
-            if ($dbs->sum('jumlah') > 0) {
-                $m3Af     = round($this->hitungM3($dbs), 4);
-                $subtotal = round($m3Af * $hargaBasah, 2);
-                $jurnalShift[] = $this->makeRow($akun['nama'], $akun['no'], $tglProduksi, $namaProduksi, 'af', 'k', 'm', $dbs->sum('jumlah'), $m3Af, $hargaBasah, $subtotal);
-                $totalKredit  += $subtotal;
-            }
-        }
-
-        // KREDIT: Hutang Gaji
+        // 4. HUTANG & HPP
         if ($totalPegawai > 0) {
             $jurnalShift[] = $this->makeRow('Hutang Gaji', '2400.01', $tglProduksi, $namaProduksi, '', 'k', 'b', $totalPegawai, '', 150000, ($totalPegawai * 150000));
             $totalKredit  += ($totalPegawai * 150000);
         }
 
-        // HPP (Otomatis menyesuaikan posisi Debet/Kredit agar jurnal Balance)
-        $hpp = $totalKredit - $totalDebit;
+        // HPP DENGAN POSISI SELALU DEBET ('d')
+        $hpp = abs($totalKredit - $totalDebit);
         if (round($hpp, 2) != 0) {
-            $posisiHpp = ($hpp > 0) ? 'd' : 'k';
-            $jurnalShift[] = $this->makeRow('hpp', '6111', $tglProduksi, $namaProduksi, '', $posisiHpp, '', '', '', abs(round($hpp, 2)), abs(round($hpp, 2)));
+            $jurnalShift[] = $this->makeRow('hpp', '6111', $tglProduksi, $namaProduksi, '', 'd', '', '', '', round($hpp, 2), round($hpp, 2));
         }
 
         foreach ($jurnalShift as $r) {

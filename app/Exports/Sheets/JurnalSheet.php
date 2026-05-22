@@ -47,7 +47,6 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
     {
         $lastRow = $sheet->getHighestRow();
 
-        // Border hitam tipis untuk semua sel
         $borderStyle = [
             'borders' => [
                 'allBorders' => [
@@ -58,7 +57,6 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
         ];
         $sheet->getStyle("A1:N{$lastRow}")->applyFromArray($borderStyle);
 
-        // Header: biru gelap, teks putih bold, center
         $sheet->getStyle('A1:N1')->applyFromArray([
             'font' => [
                 'bold'  => true,
@@ -74,30 +72,14 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
             ],
         ]);
 
-        // Kolom No Akun (D): format angka 2 desimal
-        $sheet->getStyle("D2:D{$lastRow}")
-              ->getNumberFormat()
-              ->setFormatCode('0.00');
-
-        // Kolom M3 (K): format 8 desimal
-        $sheet->getStyle("L2:L{$lastRow}")
-              ->getNumberFormat()
-              ->setFormatCode('0.0000');
-
-        // Kolom Harga (L) dan Total (M): format angka ribuan tanpa desimal
-        $sheet->getStyle("M2:N{$lastRow}")
-              ->getNumberFormat()
-              ->setFormatCode('#,##0');
-
-        // Row height header
+        $sheet->getStyle("D2:D{$lastRow}")->getNumberFormat()->setFormatCode('0.00');
+        $sheet->getStyle("L2:L{$lastRow}")->getNumberFormat()->setFormatCode('0.0000');
+        $sheet->getStyle("M2:N{$lastRow}")->getNumberFormat()->setFormatCode('#,##0');
         $sheet->getRowDimension(1)->setRowHeight(20);
 
         return [];
     }
 
-    /**
-     * Expand singkatan jenis kayu ke nama lengkap.
-     */
     private function expandJenis(string $jenis): string
     {
         $map = [
@@ -111,11 +93,6 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
         return $map[$jns] ?? $jns;
     }
 
-    /**
-     * Normalisasi jenis kayu untuk label NAMA AKUN dan HARGA:
-     * - sengon → 'sengon'
-     * - selain sengon → 'meranti'
-     */
     private function normalizeJenis(string $jenis): string
     {
         $jns = strtolower(trim($jenis));
@@ -146,9 +123,6 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
         return !in_array((int)$kw, [1, 2, 3, 4]);
     }
 
-    /**
-     * Hitung M3 dari koleksi detail
-     */
     private function hitungM3(\Illuminate\Support\Collection $items): float
     {
         $total = 0.0;
@@ -233,10 +207,17 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
                 $totalPegawai += $produksi['jumlah_pekerja'] ?? 0;
                 foreach ($produksi['detail_hasils'] ?? [] as $dh) $allHasils[] = $dh;
                 foreach ($produksi['detail_masuks'] ?? [] as $dm) $allMasuks[] = $dm;
+                
+                // Mencegah error Carbon jika format tanggal pakai garis miring (/)
                 if (empty($tglProduksi)) {
                     $rawTgl = $produksi['tanggal_produksi'] ?? $produksi['tanggal'] ?? $produksi['tgl_produksi'] ?? $produksi['date'] ?? '';
                     if (!empty($rawTgl)) {
-                        $tglProduksi = \Carbon\Carbon::parse($rawTgl)->format('d-m-Y');
+                        $rawTgl = str_replace('/', '-', $rawTgl);
+                        try {
+                            $tglProduksi = \Carbon\Carbon::parse($rawTgl)->format('d-m-Y');
+                        } catch (\Exception $e) {
+                            $tglProduksi = $rawTgl;
+                        }
                     }
                 }
             }
@@ -364,11 +345,10 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
                 $totalKredit  += ($totalPegawai * 150000);
             }
 
-            // HPP (Otomatis menyesuaikan posisi Debet/Kredit agar jurnal Balance)
-            $hpp = $totalKredit - $totalDebit;
+            // HPP DENGAN POSISI SELALU DEBET ('d')
+            $hpp = abs($totalKredit - $totalDebit);
             if (round($hpp, 2) != 0) {
-                $posisiHpp = ($hpp > 0) ? 'd' : 'k';
-                $jurnalShift[] = $this->makeRow('hpp', '6111', $tglProduksi, $namaProduksi, '', $posisiHpp, '', '', '', abs(round($hpp, 2)), abs(round($hpp, 2)));
+                $jurnalShift[] = $this->makeRow('hpp', '6111', $tglProduksi, $namaProduksi, '', 'd', '', '', '', round($hpp, 2), round($hpp, 2));
             }
 
             foreach ($jurnalShift as $r) $rows[] = $r;
