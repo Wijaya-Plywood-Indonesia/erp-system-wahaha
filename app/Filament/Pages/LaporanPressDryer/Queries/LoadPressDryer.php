@@ -17,10 +17,12 @@ class LoadPressDryer
             // Detail hasil + relasi ukuran & jenis kayu (untuk sheet Hasil Produksi)
             'detailHasils:id,id_produksi_dryer,no_palet,kw,isi,id_ukuran,id_jenis_kayu',
             'detailHasils.ukuran:id,panjang,lebar,tebal',
-            'detailHasils.jenisKayu:id,kode_kayu',  // ← sesuaikan nama kolom di tabel jenis_kayus
+            'detailHasils.jenisKayu:id,kode_kayu',
 
-            // Detail masuk
-            'detailMasuks:id,id_produksi_dryer',
+            // Detail masuk (Update untuk menghitung modal & kehilangan di Jurnal)
+            'detailMasuks:id,id_produksi_dryer,isi,id_ukuran,id_jenis_kayu',
+            'detailMasuks.ukuran:id,panjang,lebar,tebal',
+            'detailMasuks.jenisKayu:id,kode_kayu',
 
             // Mesin
             'detailMesins:id,id_produksi_dryer,id_mesin_dryer',
