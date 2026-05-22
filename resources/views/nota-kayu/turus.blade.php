@@ -449,25 +449,55 @@
 
     async function generateCanvas() {
 
-        const element = document.getElementById('nota-area');
+        const source = document.querySelector('.phone-wrapper');
+        const CONTENT_W = source.offsetWidth; // 360px
 
-        return await html2canvas(element, {
-
-            scale: 4,
-
-            useCORS: true,
-
-            allowTaint: true,
-
-            backgroundColor: '#ffffff',
-
-            logging: false,
-
-            scrollX: 0,
-
-            scrollY: -window.scrollY
-
+        // Build an isolated off-screen container exactly CONTENT_W wide
+        const offscreen = document.createElement('div');
+        Object.assign(offscreen.style, {
+            position:   'fixed',
+            top:        '0',
+            left:       '0',
+            width:      CONTENT_W + 'px',
+            overflow:   'hidden',
+            zIndex:     '-9999',
+            background: '#fff',
+            pointerEvents: 'none'
         });
+
+        // Deep-clone the content and strip any box-shadow / margin
+        const clone = source.cloneNode(true);
+        Object.assign(clone.style, {
+            width:     CONTENT_W + 'px',
+            margin:    '0',
+            boxShadow: 'none',
+            position:  'static'
+        });
+
+        offscreen.appendChild(clone);
+        document.body.appendChild(offscreen);
+
+        // Let the browser lay out the clone before measuring
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+        const contentHeight = clone.offsetHeight;
+
+        const canvas = await html2canvas(offscreen, {
+            scale:       4,
+            useCORS:     true,
+            allowTaint:  true,
+            backgroundColor: '#ffffff',
+            logging:     false,
+            width:       CONTENT_W,
+            height:      contentHeight,
+            windowWidth: CONTENT_W,
+            x:           0,
+            y:           0
+        });
+
+        document.body.removeChild(offscreen);
+
+        return canvas;
 
     }
 
@@ -529,57 +559,29 @@
 
             const { jsPDF } = window.jspdf;
 
+            const pxToMm = 0.264583;
+
+            const pdfWidth  = canvas.width  * pxToMm;
+            const pdfHeight = canvas.height * pxToMm;
+
             const pdf = new jsPDF({
 
-                orientation: 'portrait',
+                orientation: pdfWidth > pdfHeight ? 'landscape' : 'portrait',
 
                 unit: 'mm',
 
-                format: 'a4'
+                format: [pdfWidth, pdfHeight]
 
             });
-
-            const pdfWidth = 210;
-
-            const pdfHeight = 297;
-
-            const imgWidth = pdfWidth;
-
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-            let heightLeft = imgHeight;
-
-            let position = 0;
 
             pdf.addImage(
                 imgData,
                 'PNG',
                 0,
-                position,
-                imgWidth,
-                imgHeight
+                0,
+                pdfWidth,
+                pdfHeight
             );
-
-            heightLeft -= pdfHeight;
-
-            while (heightLeft > 0) {
-
-                position = heightLeft - imgHeight;
-
-                pdf.addPage();
-
-                pdf.addImage(
-                    imgData,
-                    'PNG',
-                    0,
-                    position,
-                    imgWidth,
-                    imgHeight
-                );
-
-                heightLeft -= pdfHeight;
-
-            }
 
             pdf.save('nota-turus-{{ $record->no_nota }}.pdf');
 
