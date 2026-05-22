@@ -256,9 +256,37 @@ class LaporanProduksiJurnalSheet implements FromCollection, WithTitle, WithStyle
                     $jumlah = 150_000; // 1 orang × 150.000
                 }
 
+                // Map original accounts (115-07, 115-08, 210-02) based on wood type (Sengon vs Meranti)
+                $mappedNoAkun = $noAkun;
+                $mappedNamaAkun = $namaAkun;
+
+                if ($noAkun === '115-07') {
+                    // Veneer Basah F/B
+                    if (stripos($subItem['keterangan'] ?? '', 'sengon') !== false) {
+                        $mappedNoAkun = '1421,00';
+                        $mappedNamaAkun = 'Veneer Basah 260 face/back sengon WJY';
+                    } else {
+                        $mappedNoAkun = '1422,00';
+                        $mappedNamaAkun = 'Veneer Basah 260 face/back meranti WJY';
+                    }
+                } elseif ($noAkun === '115-08') {
+                    // Veneer Basah CORE
+                    if (stripos($subItem['keterangan'] ?? '', 'sengon') !== false) {
+                        $mappedNoAkun = '1426,00';
+                        $mappedNamaAkun = 'Veneer Basah 130 core sengon WJY';
+                    } else {
+                        $mappedNoAkun = '1427,00';
+                        $mappedNamaAkun = 'Veneer Basah 130 core meranti WJY';
+                    }
+                } elseif ($noAkun === '210-02') {
+                    // Hutang Gaji
+                    $mappedNoAkun = '2231,00';
+                    $mappedNamaAkun = 'Hutang Gaji';
+                }
+
                 $rawRows[] = [
-                    'nama_akun'  => $namaAkun,
-                    'no_akun'    => $noAkun,
+                    'nama_akun'  => $mappedNamaAkun,
+                    'no_akun'    => $mappedNoAkun,
                     'bagian'     => $bagian,
                     'keterangan' => $keteranganSpesifikasi,
                     'dk'         => $mapDK,
@@ -334,11 +362,11 @@ class LaporanProduksiJurnalSheet implements FromCollection, WithTitle, WithStyle
                 }
             }
 
-            // Selisih → selalu masuk ke 'hutang mesin rotary' (520-09) sebagai KREDIT
+            // Selisih → selalu masuk ke 'hpp triplek' (6111,00) sebagai KREDIT
             $selisih = round($totalDebit - $totalKredit, 2);
             $grouped[] = [
-                'nama_akun'  => 'hutang mesin rotary',
-                'no_akun'    => '520-09',
+                'nama_akun'  => 'hpp triplek',
+                'no_akun'    => '6111,00',
                 'bagian'     => $machine,
                 'keterangan' => '',
                 'dk'         => 'k',
@@ -361,7 +389,7 @@ class LaporanProduksiJurnalSheet implements FromCollection, WithTitle, WithStyle
             // Title Row
             $noJurnal = 'ROT/' . $dateStr . '/' . strtoupper(str_replace(' ', '', $machine));
             $rows->push([
-                'No. Jurnal: ' . $noJurnal, '', '', '', '', '', '', '', '', '', '', '', ''
+                'No. Jurnal: ' . $noJurnal, '', '', '', '', '', '', '', '', '', '', '', '', ''
             ]);
             $this->titleRows[] = $currentRow;
             $currentRow++;
@@ -380,7 +408,8 @@ class LaporanProduksiJurnalSheet implements FromCollection, WithTitle, WithStyle
                 'hit kbk',
                 'Banyak',
                 'M3',
-                'Harga'
+                'Harga',
+                'Total'
             ]);
             $this->headerRows[] = $currentRow;
             $currentRow++;
@@ -389,8 +418,12 @@ class LaporanProduksiJurnalSheet implements FromCollection, WithTitle, WithStyle
             $dataStart = $currentRow;
             $tglVal = \Carbon\Carbon::parse($this->tanggal)->format('d-m-Y');
             foreach ($groupedRows as $g) {
+                // Whitelist mapped accounts for formatting logic
+                $isVeneer = in_array($g['no_akun'], ['115-07', '115-08', '1421,00', '1422,00', '1426,00', '1427,00']);
+                $isHutangGaji = in_array($g['no_akun'], ['210-02', '2231,00']);
+
                 // Format `Nama` (Col 7 / G)
-                if ($g['no_akun'] === '115-07' || $g['no_akun'] === '115-08') {
+                if ($isVeneer) {
                     $namaVal = 'KUPASAN (M - ' . strtoupper($g['bagian']) . ')';
                 } else {
                     $namaVal = 'KUPASAN';
@@ -398,9 +431,9 @@ class LaporanProduksiJurnalSheet implements FromCollection, WithTitle, WithStyle
 
                 // Format `hit kbk` (Col 10 / J)
                 $hitKbkVal = '';
-                if ($g['no_akun'] === '115-07' || $g['no_akun'] === '115-08') {
+                if ($isVeneer) {
                     $hitKbkVal = 'm';
-                } elseif ($g['no_akun'] === '210-02') {
+                } elseif ($isHutangGaji) {
                     $hitKbkVal = 'b';
                 }
 
@@ -409,12 +442,22 @@ class LaporanProduksiJurnalSheet implements FromCollection, WithTitle, WithStyle
                 // - For Worker rows: pegged price 150.000
                 // - For Selisih rows: the actual calculated amount (jumlah)
                 $hargaVal = null;
-                if ($g['no_akun'] === '115-07' || $g['no_akun'] === '115-08') {
+                if ($isVeneer) {
                     $hargaVal = 2700000;
-                } elseif ($g['no_akun'] === '210-02') {
+                } elseif ($isHutangGaji) {
                     $hargaVal = 150000;
                 } else {
                     $hargaVal = $g['jumlah'];
+                }
+
+                // Calculate Total: volume * Harga if volume is present, Banyak * Harga if qty is present, else Harga
+                $totalVal = 0.0;
+                if ($g['has_vol'] && $g['volume'] !== null && $g['volume'] > 0) {
+                    $totalVal = (float)$g['volume'] * (float)$hargaVal;
+                } elseif ($g['has_qty'] && $g['banyak'] !== null && $g['banyak'] > 0) {
+                    $totalVal = (float)$g['banyak'] * (float)$hargaVal;
+                } else {
+                    $totalVal = (float)$hargaVal;
                 }
 
                 $rows->push([
@@ -430,7 +473,8 @@ class LaporanProduksiJurnalSheet implements FromCollection, WithTitle, WithStyle
                     $hitKbkVal,                                         // 10. hit kbk
                     $g['has_qty'] ? $g['banyak'] : null,                // 11. Banyak
                     $g['has_vol'] ? $g['volume'] : null,                // 12. M3
-                    $hargaVal                                           // 13. Harga
+                    $hargaVal,                                          // 13. Harga
+                    $totalVal                                           // 14. Total
                 ]);
                 $currentRow++;
             }
@@ -438,8 +482,8 @@ class LaporanProduksiJurnalSheet implements FromCollection, WithTitle, WithStyle
             $this->dataRanges[] = ['start' => $dataStart, 'end' => $dataEnd];
 
             // 2 Blank separating rows
-            $rows->push(['', '', '', '', '', '', '', '', '', '', '', '', '']);
-            $rows->push(['', '', '', '', '', '', '', '', '', '', '', '', '']);
+            $rows->push(['', '', '', '', '', '', '', '', '', '', '', '', '', '']);
+            $rows->push(['', '', '', '', '', '', '', '', '', '', '', '', '', '']);
             $currentRow += 2;
         }
 
@@ -464,8 +508,8 @@ class LaporanProduksiJurnalSheet implements FromCollection, WithTitle, WithStyle
 
                 // Style Title Rows
                 foreach ($this->titleRows as $row) {
-                    $sheet->mergeCells("A{$row}:M{$row}");
-                    $sheet->getStyle("A{$row}:M{$row}")->applyFromArray([
+                    $sheet->mergeCells("A{$row}:N{$row}");
+                    $sheet->getStyle("A{$row}:N{$row}")->applyFromArray([
                         'font' => ['bold' => true, 'size' => 11, 'color' => ['argb' => 'FF1D2939']],
                         'fill' => [
                             'fillType' => Fill::FILL_SOLID,
@@ -478,7 +522,7 @@ class LaporanProduksiJurnalSheet implements FromCollection, WithTitle, WithStyle
 
                 // Style Header Rows
                 foreach ($this->headerRows as $row) {
-                    $sheet->getStyle("A{$row}:M{$row}")->applyFromArray([
+                    $sheet->getStyle("A{$row}:N{$row}")->applyFromArray([
                         'font' => ['bold' => true, 'size' => 10],
                         'alignment' => [
                             'horizontal' => Alignment::HORIZONTAL_CENTER,
@@ -499,7 +543,7 @@ class LaporanProduksiJurnalSheet implements FromCollection, WithTitle, WithStyle
                     $end = $range['end'];
                     if ($start > $end) continue;
 
-                    $sheet->getStyle("A{$start}:M{$end}")->applyFromArray([
+                    $sheet->getStyle("A{$start}:N{$end}")->applyFromArray([
                         'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
                     ]);
 
@@ -507,11 +551,12 @@ class LaporanProduksiJurnalSheet implements FromCollection, WithTitle, WithStyle
                     $sheet->getStyle("B{$start}:F{$end}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
                     $sheet->getStyle("G{$start}:H{$end}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
                     $sheet->getStyle("I{$start}:J{$end}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-                    $sheet->getStyle("K{$start}:M{$end}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                    $sheet->getStyle("K{$start}:N{$end}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
 
                     $sheet->getStyle("K{$start}:K{$end}")->getNumberFormat()->setFormatCode('#,##0');
                     $sheet->getStyle("L{$start}:L{$end}")->getNumberFormat()->setFormatCode('#,##0.0000');
                     $sheet->getStyle("M{$start}:M{$end}")->getNumberFormat()->setFormatCode('#,##0');
+                    $sheet->getStyle("N{$start}:N{$end}")->getNumberFormat()->setFormatCode('#,##0');
                 }
 
                 // Column Widths
@@ -528,6 +573,7 @@ class LaporanProduksiJurnalSheet implements FromCollection, WithTitle, WithStyle
                 $sheet->getColumnDimension('K')->setWidth(12); // Banyak
                 $sheet->getColumnDimension('L')->setWidth(15); // M3
                 $sheet->getColumnDimension('M')->setWidth(18); // Harga
+                $sheet->getColumnDimension('N')->setWidth(18); // Total
             }
         ];
     }
