@@ -16,6 +16,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use App\Models\DetailTurusanKayu;
 
 class LaporanProduksiExport implements WithMultipleSheets
 {
@@ -355,10 +356,34 @@ class LaporanProduksiJurnalSheet implements FromCollection, WithTitle, WithStyle
             }
 
             foreach ($grouped as $g) {
-                if ($g['dk'] === 'd') {
-                    $totalDebit += $g['jumlah'];
+                $isVeneer = in_array($g['no_akun'], ['115-07', '115-08', '1421,00', '1422,00', '1426,00', '1427,00']);
+                $isHutangGaji = in_array($g['no_akun'], ['210-02', '2231,00']);
+                $isWood = in_array($g['no_akun'], ['115-01', '115-02', '1411,01', '1411,02', '1411,03', '1411,04']);
+
+                $rowHarga = 0.0;
+                if ($isVeneer) {
+                    $rowHarga = 2700000.0;
+                } elseif ($isHutangGaji) {
+                    $rowHarga = 150000.0;
+                } elseif ($isWood) {
+                    $rowHarga = (float)($g['harga'] ?? 0.0);
                 } else {
-                    $totalKredit += $g['jumlah'];
+                    $rowHarga = (float)($g['jumlah'] ?? 0.0);
+                }
+
+                $rowTotal = 0.0;
+                if ($g['has_vol'] && $g['volume'] !== null && $g['volume'] > 0) {
+                    $rowTotal = (float)$g['volume'] * $rowHarga;
+                } elseif ($g['has_qty'] && $g['banyak'] !== null && $g['banyak'] > 0) {
+                    $rowTotal = (float)$g['banyak'] * $rowHarga;
+                } else {
+                    $rowTotal = $rowHarga;
+                }
+
+                if ($g['dk'] === 'd') {
+                    $totalDebit += $rowTotal;
+                } else {
+                    $totalKredit += $rowTotal;
                 }
             }
 
@@ -421,6 +446,7 @@ class LaporanProduksiJurnalSheet implements FromCollection, WithTitle, WithStyle
                 // Whitelist mapped accounts for formatting logic
                 $isVeneer = in_array($g['no_akun'], ['115-07', '115-08', '1421,00', '1422,00', '1426,00', '1427,00']);
                 $isHutangGaji = in_array($g['no_akun'], ['210-02', '2231,00']);
+                $isWood = in_array($g['no_akun'], ['115-01', '115-02', '1411,01', '1411,02', '1411,03', '1411,04']);
 
                 // Format `Nama` (Col 7 / G)
                 if ($isVeneer) {
@@ -438,14 +464,13 @@ class LaporanProduksiJurnalSheet implements FromCollection, WithTitle, WithStyle
                 }
 
                 // Format `Harga` (Col 13 / M)
-                // - For Veneer rows: pegged price 2.700.000
-                // - For Worker rows: pegged price 150.000
-                // - For Selisih rows: the actual calculated amount (jumlah)
                 $hargaVal = null;
                 if ($isVeneer) {
                     $hargaVal = 2700000;
                 } elseif ($isHutangGaji) {
                     $hargaVal = 150000;
+                } elseif ($isWood) {
+                    $hargaVal = $g['harga'];
                 } else {
                     $hargaVal = $g['jumlah'];
                 }
@@ -570,9 +595,6 @@ class LaporanProduksiJurnalSheet implements FromCollection, WithTitle, WithStyle
                 $sheet->getColumnDimension('H')->setWidth(40); // Keterangan
                 $sheet->getColumnDimension('I')->setWidth(10); // map
                 $sheet->getColumnDimension('J')->setWidth(10); // hit kbk
-                $sheet->getColumnDimension('K')->setWidth(12); // Banyak
-                $sheet->getColumnDimension('L')->setWidth(15); // M3
-                $sheet->getColumnDimension('M')->setWidth(18); // Harga
                 $sheet->getColumnDimension('N')->setWidth(18); // Total
             }
         ];
