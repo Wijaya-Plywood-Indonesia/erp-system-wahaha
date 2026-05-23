@@ -404,11 +404,10 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
             $totalKredit += ($totalPegawai * 150000);
         }
 
-        $selisih = $totalKredit - $totalDebit;
-        if (round(abs($selisih), 2) != 0) {
-            $posisiMap = ($selisih > 0) ? 'd' : 'k';
-            $nilaiHpp  = round(abs($selisih), 2);
-            $rows[]    = $this->makeRow('hpp produksi kedi', '6111', $tglProduksi, $namaProduksi, '', $posisiMap, '', '', '', $nilaiHpp, $nilaiHpp);
+        // REVISI HPP: Sekarang selalu 'd' (debit)
+        $hpp = abs($totalKredit - $totalDebit);
+        if (round($hpp, 2) != 0) {
+            $rows[] = $this->makeRow('hpp produksi kedi', '6111', $tglProduksi, $namaProduksi, '', 'd', '', '', '', round($hpp, 2), round($hpp, 2));
         }
 
         return $rows;
