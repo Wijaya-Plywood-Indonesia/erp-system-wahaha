@@ -64,7 +64,7 @@ class AdminPanelProvider extends PanelProvider
                 Dashboard::class,
                 DashboardHppDryer::class,
                 OpnameStokKayu::class,
-                LaporanTurunKayu::class,
+                // LaporanTurunKayu::class,
                 LaporanKayuKeluar::class,
             ])
             ->brandName('Wijaya')
