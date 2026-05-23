@@ -96,7 +96,8 @@
                 {{-- Ukuran --}}
                 <div class="{{ $fieldClass }}">
                     <label class="{{ $labelClass }}">Ukuran Barang (P × L × T) <span class="text-danger-500">*</span></label>
-                    <div x-data="{ 
+                    <div wire:key="ukuran-select-{{ $item_tipe_veneer ?? 'null' }}-{{ $item_id_jenis_kayu ?? 'null' }}-{{ $item_kw ?? 'null' }}"
+                        x-data="{ 
                             open: false, 
                             search: '', 
                             selected: @entangle('item_id_ukuran').live,
