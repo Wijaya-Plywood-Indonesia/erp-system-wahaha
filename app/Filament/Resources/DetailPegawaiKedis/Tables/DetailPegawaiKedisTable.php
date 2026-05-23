@@ -57,6 +57,7 @@ class DetailPegawaiKedisTable
                 TextColumn::make('ket')
                     ->label('Keterangan')
                     ->limit(30)
+                    ->tooltip(fn(TextColumn $column): ?string => $column->getState())
                     ->toggleable(isToggledHiddenByDefault: false),
             ])
             ->headerActions([

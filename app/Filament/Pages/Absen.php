@@ -161,7 +161,7 @@ class Absen extends Page implements HasForms
             $listRepair = RepairWorkerMap::make(ProduksiRepair::with(['rencanaPegawais.pegawai'])->whereDate('tanggal', $tgl)->get());
             $listDryer = PressDryerWorkerMap::make(ProduksiPressDryer::with(['detailPegawais.pegawai'])->whereDate('tanggal_produksi', $tgl)->get());
             $listStik = StikWorkerMap::make(ProduksiStik::with(['detailPegawaiStik.pegawai'])->whereDate('tanggal_produksi', $tgl)->get());
-            $listKedi = KediWorkerMap::make(ProduksiKedi::with(['detailPegawaiKedi.pegawai'])->whereDate('tanggal', $tgl)->get());
+            $listKedi = KediWorkerMap::make(ProduksiKedi::with(['detailPegawaiKedi.pegawai'])->whereDate('tanggal_actual_bongkar', $tgl)->get());
             $listJoint = JoinWorkerMap::make(ProduksiJoint::with(['pegawaiJoint.pegawai'])->whereDate('tanggal_produksi', $tgl)->get());
             $listSandingJoin = SandingJoinWorkerMap::make(ProduksiSandingJoint::with(['pegawaiSandingJoint.pegawai'])->whereDate('tanggal_produksi', $tgl)->get());
             $listPotAfJoin = PotAfalanJoinWorkerMap::make(ProduksiPotAfJoint::with(['pegawaiPotAfJoint.pegawai'])->whereDate('tanggal_produksi', $tgl)->get());
@@ -270,31 +270,40 @@ class Absen extends Page implements HasForms
 
             // Gabungkan hasil untuk tabel utama (Terdaftar)
             $finalMerge = array_merge($pegawaiBekerja->values()->all(), $listLibur);
+            // usort($finalMerge, function ($a, $b) {
+            //     $kodeA = (string)($a['kodep'] ?? '');
+            //     $kodeB = (string)($b['kodep'] ?? '');
+
+            //     // Fungsi pembantu untuk menentukan prioritas (semakin kecil angka, semakin di atas)
+            //     $getPriority = function ($kode) {
+            //         if (str_starts_with($kode, '8') || str_starts_with($kode, '9')) {
+            //             return 1; // Prioritas tertinggi (paling atas)
+            //         }
+            //         if (str_starts_with($kode, '7')) {
+            //             return 3; // Prioritas terendah (paling bawah)
+            //         }
+            //         return 2; // Untuk kode kepala 1-6 atau lainnya (di tengah)
+            //     };
+
+            //     $prioA = $getPriority($kodeA);
+            //     $prioB = $getPriority($kodeB);
+
+            //     // Jika prioritas berbeda (misal 8 vs 7), urutkan berdasarkan prioritas
+            //     if ($prioA !== $prioB) {
+            //         return $prioA <=> $prioB;
+            //     }
+
+            //     // Jika di dalam grup yang sama (misal sama-sama kepala 8), gunakan urutan angka alami
+            //     return strnatcasecmp($kodeA, $kodeB);
+            // });
+
             usort($finalMerge, function ($a, $b) {
-                $kodeA = (string)($a['kodep'] ?? '');
-                $kodeB = (string)($b['kodep'] ?? '');
+                // Pastikan kode diubah ke integer untuk pengurutan numerik yang benar
+                // Contoh: '1' akan muncul sebelum '10', bukan sesudahnya
+                $kodeA = (int)($a['kodep'] ?? 0);
+                $kodeB = (int)($b['kodep'] ?? 0);
 
-                // Fungsi pembantu untuk menentukan prioritas (semakin kecil angka, semakin di atas)
-                $getPriority = function ($kode) {
-                    if (str_starts_with($kode, '8') || str_starts_with($kode, '9')) {
-                        return 1; // Prioritas tertinggi (paling atas)
-                    }
-                    if (str_starts_with($kode, '7')) {
-                        return 3; // Prioritas terendah (paling bawah)
-                    }
-                    return 2; // Untuk kode kepala 1-6 atau lainnya (di tengah)
-                };
-
-                $prioA = $getPriority($kodeA);
-                $prioB = $getPriority($kodeB);
-
-                // Jika prioritas berbeda (misal 8 vs 7), urutkan berdasarkan prioritas
-                if ($prioA !== $prioB) {
-                    return $prioA <=> $prioB;
-                }
-
-                // Jika di dalam grup yang sama (misal sama-sama kepala 8), gunakan urutan angka alami
-                return strnatcasecmp($kodeA, $kodeB);
+                return $kodeA <=> $kodeB;
             });
 
             $this->listAbsensi = array_values($finalMerge);
