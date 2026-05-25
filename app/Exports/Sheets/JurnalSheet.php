@@ -162,7 +162,6 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
             $no   = $noAkun[$jnsAkun][$tipeVeneer];
             $nama = "Veneer {$namaVeneer} ppc {$jnsAkun} WJY";
         } else {
-            // PERBAIKAN: Nomor akun Meranti disesuaikan (berakhiran 2 untuk faceback, 7 untuk core)
             $noAkun = [
                 'sengon'  => [
                     'basah'  => ['faceback' => '1421', 'core' => '1426'],
@@ -394,7 +393,8 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
             foreach ($creditRows as $r) $rows[] = $r;
 
             if ($totalPegawai > 0) {
-                $rows[] = $this->makeRow('Hutang Gaji', '2400.01', $tglProduksi, $namaProduksi, '', 'k', 'b', $totalPegawai, '', 150000, ($totalPegawai * 150000));
+                // UPDATE: Menggunakan 2231.00 untuk Hutang Gaji
+                $rows[] = $this->makeRow('Hutang Gaji', '2231.00', $tglProduksi, $namaProduksi, '', 'k', 'b', $totalPegawai, '', 150000, ($totalPegawai * 150000));
                 $totalKredit += ($totalPegawai * 150000);
             }
 
