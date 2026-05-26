@@ -59,6 +59,7 @@ class ProduksiRotaryResource extends Resource
             RelationManagers\DetailgantiPisauRotaryRelationManager::class,
             RelationManagers\BahanPenolongRotaryRelationManager::class,
             RelationManagers\DetailValidasiHasilRotaryRelationManager::class,
+            RelationManagers\KendalaRotaryRelationManager::class,
 
 
         ];
