@@ -344,6 +344,11 @@ class LaporanProduksiJurnalSheet extends DefaultValueBinder implements FromColle
     public function bindValue(Cell $cell, $value)
     {
         if ($cell->getColumn() === 'D') {
+            if (is_numeric($value)) {
+                $cell->setValueExplicit((float)$value, DataType::TYPE_NUMERIC);
+                $cell->getWorksheet()->getStyle($cell->getCoordinate())->getNumberFormat()->setFormatCode('0.00');
+                return true;
+            }
             $cell->setValueExplicit($value, DataType::TYPE_STRING);
             return true;
         }
@@ -651,7 +656,7 @@ class LaporanProduksiJurnalSheet extends DefaultValueBinder implements FromColle
 
                 // Format `hit kbk` (Col 10 / J)
                 $hitKbkVal = '';
-                if ($isVeneer) {
+                if ($isVeneer || $isWood) {
                     $hitKbkVal = 'm';
                 } elseif ($isHutangGaji) {
                     $hitKbkVal = 'b';
