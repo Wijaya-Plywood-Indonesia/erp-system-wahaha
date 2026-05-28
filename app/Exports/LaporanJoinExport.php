@@ -530,7 +530,7 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles,
             // 5. HPP
             $selisih = $totalDebit - $totalKredit;
             if (round($selisih, 2) != 0) {
-                $jurnalBlock[] = $this->makeRow('hpp triplek', $tglFormat, '6111.00', '', 'd', 0, 0, abs($selisih), abs($selisih), 'm');
+                $jurnalBlock[] = $this->makeRow('hpp triplek', $tglFormat, '6111.00', '', 'k', 0, 0, abs($selisih), abs($selisih), 'm');
             }
 
             foreach ($jurnalBlock as $row) $rows[] = $row;
