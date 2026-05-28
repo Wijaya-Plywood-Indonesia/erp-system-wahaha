@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\ProduksiPressDryers\RelationManagers;
+namespace App\Filament\Resources\ProduksiHotPresses\RelationManagers;
 
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -21,10 +21,10 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Carbon\Carbon;
 
-class KendalaPressDryerRelationManager extends RelationManager
+class KendalaHpRelationManager extends RelationManager
 {
-    protected static string $relationship = 'kendalaPressDryers';
-    protected static ?string $title = 'Kendala';
+    protected static string $relationship = 'kendalaHps';
+    protected static ?string $title = 'Downtime & Kendala Mesin';
 
     public function isReadOnly(): bool
     {
@@ -39,7 +39,8 @@ class KendalaPressDryerRelationManager extends RelationManager
                     ->label('Mesin')
                     ->relationship('mesin', 'nama_mesin', function (Builder $query) {
                         $query->whereHas('kategoriMesin', function ($q) {
-                            $q->where('nama_kategori_mesin', 'like', '%dryer%');
+                            $q->where('nama_kategori_mesin', 'like', '%press%')
+                              ->orWhere('nama_kategori_mesin', 'like', '%hot%');
                         });
                     })
                     ->required()
@@ -134,11 +135,7 @@ class KendalaPressDryerRelationManager extends RelationManager
                     ->label('Tambah Kendala')
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['status'] = 'pending';
-                        
-                        $parentDate = $this->getOwnerRecord()?->tanggal_produksi ?? now()->format('Y-m-d');
-                        $parentDateStr = Carbon::parse($parentDate)->format('Y-m-d');
-                        $data['waktu_mulai'] = $parentDateStr . ' ' . Carbon::parse($data['waktu_mulai'])->format('H:i') . ':00';
-                        
+                        $data['waktu_mulai'] = now()->format('Y-m-d') . ' ' . Carbon::parse($data['waktu_mulai'])->format('H:i') . ':00';
                         return $data;
                     }),
             ])

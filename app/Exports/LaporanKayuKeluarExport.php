@@ -210,6 +210,11 @@ class LaporanProduksiJurnalGabungSheet extends DefaultValueBinder implements Fro
     public function bindValue(Cell $cell, $value)
     {
         if ($cell->getColumn() === 'D') {
+            if (is_numeric($value)) {
+                $cell->setValueExplicit((float)$value, DataType::TYPE_NUMERIC);
+                $cell->getWorksheet()->getStyle($cell->getCoordinate())->getNumberFormat()->setFormatCode('0.00');
+                return true;
+            }
             $cell->setValueExplicit($value, DataType::TYPE_STRING);
             return true;
         }
@@ -576,7 +581,7 @@ class LaporanProduksiJurnalGabungSheet extends DefaultValueBinder implements Fro
 
                 // Format `hit kbk` (Col 10 / J)
                 $hitKbkVal = '';
-                if ($isVeneer) {
+                if ($isVeneer || $isKayuKeluar) {
                     $hitKbkVal = 'm';
                 } elseif ($isHutangGaji) {
                     $hitKbkVal = 'b';
@@ -749,6 +754,11 @@ class LaporanProduksiJurnalPenggunaanSheet extends DefaultValueBinder implements
     public function bindValue(Cell $cell, $value)
     {
         if ($cell->getColumn() === 'D') {
+            if (is_numeric($value)) {
+                $cell->setValueExplicit((float)$value, DataType::TYPE_NUMERIC);
+                $cell->getWorksheet()->getStyle($cell->getCoordinate())->getNumberFormat()->setFormatCode('0.00');
+                return true;
+            }
             $cell->setValueExplicit($value, DataType::TYPE_STRING);
             return true;
         }
@@ -917,7 +927,7 @@ class LaporanProduksiJurnalPenggunaanSheet extends DefaultValueBinder implements
                 'kayu keluar',                                      // 7. Nama
                 $g['keterangan'],                                   // 8. Keterangan
                 'k',                                                // 9. map
-                '',                                                 // 10. hit kbk
+                'm',                                                // 10. hit kbk
                 $g['has_qty'] ? $g['banyak'] : null,                // 11. Banyak
                 $g['has_vol'] ? $g['volume'] : null,                // 12. M3
                 $g['harga'],                                        // 13. Harga
@@ -1030,6 +1040,11 @@ class LaporanProduksiJurnalHargaAsliSheet extends DefaultValueBinder implements 
     public function bindValue(Cell $cell, $value)
     {
         if ($cell->getColumn() === 'D') {
+            if (is_numeric($value)) {
+                $cell->setValueExplicit((float)$value, DataType::TYPE_NUMERIC);
+                $cell->getWorksheet()->getStyle($cell->getCoordinate())->getNumberFormat()->setFormatCode('0.00');
+                return true;
+            }
             $cell->setValueExplicit($value, DataType::TYPE_STRING);
             return true;
         }
@@ -1272,7 +1287,7 @@ class LaporanProduksiJurnalHargaAsliSheet extends DefaultValueBinder implements 
                 'kayu keluar',                                     // G
                 $keteranganSpec,                                   // H
                 'k',                                               // I
-                '',                                                // J
+                'm',                                                // J
                 $g['banyak'] > 0 ? $g['banyak'] : null,            // K
                 $g['volume'] > 0 ? $g['volume'] : null,            // L
                 $hargaPerM3,                                       // M
@@ -1474,6 +1489,11 @@ class LaporanProduksiKayuHabisSheet extends DefaultValueBinder implements FromCo
     public function bindValue(Cell $cell, $value)
     {
         if ($cell->getColumn() === 'D') {
+            if (is_numeric($value)) {
+                $cell->setValueExplicit((float)$value, DataType::TYPE_NUMERIC);
+                $cell->getWorksheet()->getStyle($cell->getCoordinate())->getNumberFormat()->setFormatCode('0.00');
+                return true;
+            }
             $cell->setValueExplicit($value, DataType::TYPE_STRING);
             return true;
         }
@@ -1509,7 +1529,7 @@ class LaporanProduksiKayuHabisSheet extends DefaultValueBinder implements FromCo
         $noJurnal = 'ROT/' . $dateStr . '/KAYU_KELUAR';
 
         $rows->push([
-            'No. Jurnal: ' . $noJurnal, '', '', '', '', '', '', '', '', '', '', ''
+            'No. Jurnal: ' . $noJurnal, '', '', '', '', '', '', '', '', '', '', '', '', ''
         ]);
         $this->titleRows[] = $currentRow;
         $currentRow++;
@@ -1525,9 +1545,11 @@ class LaporanProduksiKayuHabisSheet extends DefaultValueBinder implements FromCo
             'Nama',
             'Keterangan',
             'map',
+            'hit kbk',
             'Banyak',
             'M3',
-            'Harga'
+            'Harga',
+            'Total'
         ]);
         $this->headerRows[] = $currentRow;
         $currentRow++;
@@ -1568,25 +1590,28 @@ class LaporanProduksiKayuHabisSheet extends DefaultValueBinder implements FromCo
 
             $banyak = $record->total_batang > 0 ? $record->total_batang : 0;
             $m3 = $record->total_kubikasi > 0 ? $record->total_kubikasi : 0;
-            $harga = $record->nilai_stok;
+            $totalStokValue = $record->nilai_stok;
+            $hargaUnit = $m3 > 0 ? $totalStokValue / $m3 : 0;
 
             $totalBanyak += $banyak;
             $totalM3 += $m3;
-            $totalHarga += $harga;
+            $totalHarga += $totalStokValue;
 
             $rows->push([
-                $namaAkun,                                                 // A
-                $tglVal,                                                   // B
-                '',                                                        // C
-                $noAkun,                                                   // D
-                '',                                                        // E
-                '',                                                        // F
-                'kayu keluar',                                             // G
-                $keteranganSpec,                                           // H
-                'k',                                                       // I
-                $record->total_batang > 0 ? $record->total_batang : null,  // J
-                $record->total_kubikasi > 0 ? $record->total_kubikasi : null, // K
-                $harga                                                     // L
+                $namaAkun,                                                    // 1. Nama Akun
+                $tglVal,                                                      // 2. tgl
+                '',                                                           // 3. jurnal
+                $noAkun,                                                      // 4. No Akun
+                '',                                                           // 5. No
+                '',                                                           // 6. mm
+                'kayu keluar',                                                // 7. Nama
+                $keteranganSpec,                                              // 8. Keterangan
+                'k',                                                          // 9. map
+                'm',                                                          // 10. hit kbk
+                $banyak > 0 ? $banyak : null,                                 // 11. Banyak
+                $m3 > 0 ? $m3 : null,                                         // 12. M3
+                $hargaUnit,                                                   // 13. Harga
+                $totalStokValue                                               // 14. Total
             ]);
 
             $currentRow++;
@@ -1594,18 +1619,20 @@ class LaporanProduksiKayuHabisSheet extends DefaultValueBinder implements FromCo
 
         if (!$records->isEmpty()) {
             $rows->push([
-                'HPP Triplek',                                             // A
-                $tglVal,                                                   // B
-                '',                                                        // C
-                '6111.00',                                                 // D
-                '',                                                        // E
-                '',                                                        // F
-                'kayu habis',                                              // G
-                '',                                                        // H
-                'd',                                                       // I
-                $totalBanyak > 0 ? $totalBanyak : null,                    // J
-                $totalM3 > 0 ? $totalM3 : null,                            // K
-                $totalHarga                                                // L
+                'HPP Triplek',                                                // 1. Nama Akun
+                $tglVal,                                                      // 2. tgl
+                '',                                                           // 3. jurnal
+                '6111.00',                                                    // 4. No Akun
+                '',                                                           // 5. No
+                '',                                                           // 6. mm
+                'kayu habis',                                                 // 7. Nama
+                '',                                                           // 8. Keterangan
+                'd',                                                          // 9. map
+                'm',                                                          // 10. hit kbk
+                $totalBanyak > 0 ? $totalBanyak : null,                       // 11. Banyak
+                $totalM3 > 0 ? $totalM3 : null,                               // 12. M3
+                $totalM3 > 0 ? $totalHarga / $totalM3 : 0,                    // 13. Harga
+                $totalHarga                                                   // 14. Total
             ]);
             $currentRow++;
         }
@@ -1637,8 +1664,8 @@ class LaporanProduksiKayuHabisSheet extends DefaultValueBinder implements FromCo
 
                 // Style Title Rows
                 foreach ($this->titleRows as $row) {
-                    $sheet->mergeCells("A{$row}:L{$row}");
-                    $sheet->getStyle("A{$row}:L{$row}")->applyFromArray([
+                    $sheet->mergeCells("A{$row}:N{$row}");
+                    $sheet->getStyle("A{$row}:N{$row}")->applyFromArray([
                         'font' => [
                             'bold' => true,
                             'size' => 11,
@@ -1657,7 +1684,7 @@ class LaporanProduksiKayuHabisSheet extends DefaultValueBinder implements FromCo
 
                 // Style Header Rows
                 foreach ($this->headerRows as $row) {
-                    $sheet->getStyle("A{$row}:L{$row}")->applyFromArray([
+                    $sheet->getStyle("A{$row}:N{$row}")->applyFromArray([
                         'font' => [
                             'bold' => true,
                             'size' => 10
@@ -1683,7 +1710,7 @@ class LaporanProduksiKayuHabisSheet extends DefaultValueBinder implements FromCo
                     $end = $range['end'];
                     if ($start > $end) continue;
 
-                    $sheet->getStyle("A{$start}:L{$end}")->applyFromArray([
+                    $sheet->getStyle("A{$start}:N{$end}")->applyFromArray([
                         'borders' => [
                             'allBorders' => ['borderStyle' => Border::BORDER_THIN]
                         ]
@@ -1692,28 +1719,30 @@ class LaporanProduksiKayuHabisSheet extends DefaultValueBinder implements FromCo
                     $sheet->getStyle("A{$start}:A{$end}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
                     $sheet->getStyle("B{$start}:F{$end}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
                     $sheet->getStyle("G{$start}:H{$end}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-                    $sheet->getStyle("I{$start}:I{$end}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-                    $sheet->getStyle("J{$start}:L{$end}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                    $sheet->getStyle("I{$start}:J{$end}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $sheet->getStyle("K{$start}:N{$end}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
 
                     // Number formats
-                    $sheet->getStyle("J{$start}:J{$end}")->getNumberFormat()->setFormatCode('#,##0');
-                    $sheet->getStyle("K{$start}:K{$end}")->getNumberFormat()->setFormatCode('#,##0.0000');
-                    $sheet->getStyle("L{$start}:L{$end}")->getNumberFormat()->setFormatCode('#,##0');
+                    $sheet->getStyle("K{$start}:K{$end}")->getNumberFormat()->setFormatCode('#,##0');
+                    $sheet->getStyle("L{$start}:L{$end}")->getNumberFormat()->setFormatCode('#,##0.0000');
+                    $sheet->getStyle("M{$start}:N{$end}")->getNumberFormat()->setFormatCode('#,##0');
                 }
 
                 // Column Widths
                 $sheet->getColumnDimension('A')->setWidth(25);
                 $sheet->getColumnDimension('B')->setWidth(15);
-                $sheet->getColumnDimension('C')->setWidth(12);
+                $sheet->getColumnDimension('C')->setWidth(10);
                 $sheet->getColumnDimension('D')->setWidth(15);
                 $sheet->getColumnDimension('E')->setWidth(10);
-                $sheet->getColumnDimension('F')->setWidth(10);
-                $sheet->getColumnDimension('G')->setWidth(20);
-                $sheet->getColumnDimension('H')->setWidth(45);
-                $sheet->getColumnDimension('I')->setWidth(10);
-                $sheet->getColumnDimension('J')->setWidth(12);
-                $sheet->getColumnDimension('K')->setWidth(15);
-                $sheet->getColumnDimension('L')->setWidth(18);
+                $sheet->getColumnDimension('F')->setWidth(10); // mm
+                $sheet->getColumnDimension('G')->setWidth(20); // Nama / 'kayu keluar' / 'kayu habis'
+                $sheet->getColumnDimension('H')->setWidth(30); // Keterangan (e.g. 'lahan A')
+                $sheet->getColumnDimension('I')->setWidth(10); // map
+                $sheet->getColumnDimension('J')->setWidth(12); // hit kbk
+                $sheet->getColumnDimension('K')->setWidth(12); // Banyak
+                $sheet->getColumnDimension('L')->setWidth(15); // M3
+                $sheet->getColumnDimension('M')->setWidth(18); // Harga
+                $sheet->getColumnDimension('N')->setWidth(18); // Total
             }
         ];
     }

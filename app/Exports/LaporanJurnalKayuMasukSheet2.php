@@ -10,8 +10,26 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 
-class LaporanJurnalKayuMasukSheet2 implements FromCollection, WithTitle, WithStyles
+use PhpOffice\PhpSpreadsheet\Cell\Cell;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
+
+class LaporanJurnalKayuMasukSheet2 extends DefaultValueBinder implements FromCollection, WithTitle, WithStyles, WithCustomValueBinder
 {
+    public function bindValue(Cell $cell, $value)
+    {
+        if ($cell->getColumn() === 'D') {
+            if (is_numeric($value)) {
+                $cell->setValueExplicit((float)$value, DataType::TYPE_NUMERIC);
+                $cell->getWorksheet()->getStyle($cell->getCoordinate())->getNumberFormat()->setFormatCode('0.00');
+                return true;
+            }
+            $cell->setValueExplicit($value, DataType::TYPE_STRING);
+            return true;
+        }
+        return parent::bindValue($cell, $value);
+    }
     protected array $jurnalTables;
 
     public function __construct(array $jurnalTables)
@@ -60,7 +78,7 @@ class LaporanJurnalKayuMasukSheet2 implements FromCollection, WithTitle, WithSty
             $tglVal = \Carbon\Carbon::parse($table['tgl_kayu_masuk'])->format('d/m/Y');
 
             // Table Header Block
-            $flatRows[] = ['No. Jurnal: ' . $noJurnal, '', '', '', '', '', '', '', '', '', '', ''];
+            $flatRows[] = ['No. Jurnal: ' . $noJurnal, '', '', '', '', '', '', '', '', '', '', '', '', ''];
             
             // Column Headers
             $flatRows[] = [
@@ -69,9 +87,11 @@ class LaporanJurnalKayuMasukSheet2 implements FromCollection, WithTitle, WithSty
                 'jur',
                 'No Akun',
                 'No',
+                'mm',
                 'Nama Suplier',
                 'Lahan',
                 'm',
+                'hit kbk',
                 'Banyak',
                 'M3',
                 'Harga',
@@ -114,9 +134,11 @@ class LaporanJurnalKayuMasukSheet2 implements FromCollection, WithTitle, WithSty
                     '',
                     $acc['no_akun'],
                     $table['seri'],
+                    '',
                     $table['nama_supplier'],
                     $kodeLahan,
                     'd',
+                    'm',
                     $group['total_batang'],
                     $group['total_kubikasi'],
                     $group['total_harga'],
@@ -131,9 +153,11 @@ class LaporanJurnalKayuMasukSheet2 implements FromCollection, WithTitle, WithSty
                 '',
                 '2400.01',
                 $table['seri'],
+                '',
                 $table['nama_supplier'],
                 '',
                 'k',
+                '',
                 '',
                 '',
                 $table['selisih'],
@@ -147,9 +171,11 @@ class LaporanJurnalKayuMasukSheet2 implements FromCollection, WithTitle, WithSty
                 '',
                 '4000.00',
                 $table['seri'],
+                '',
                 $table['nama_supplier'],
                 '',
                 'k',
+                '',
                 '',
                 '',
                 '',
@@ -163,9 +189,11 @@ class LaporanJurnalKayuMasukSheet2 implements FromCollection, WithTitle, WithSty
                 '',
                 '1111.00',
                 $table['seri'],
+                '',
                 $table['nama_supplier'],
                 '',
                 'k',
+                '',
                 $table['totalBatang'],
                 $table['totalKubikasi'],
                 $table['hargaFinal'],
@@ -173,8 +201,8 @@ class LaporanJurnalKayuMasukSheet2 implements FromCollection, WithTitle, WithSty
             ];
 
             // Spacer Rows between multiple tables
-            $flatRows[] = ['', '', '', '', '', '', '', '', '', '', '', ''];
-            $flatRows[] = ['', '', '', '', '', '', '', '', '', '', '', ''];
+            $flatRows[] = ['', '', '', '', '', '', '', '', '', '', '', '', '', ''];
+            $flatRows[] = ['', '', '', '', '', '', '', '', '', '', '', '', '', ''];
         }
 
         return collect($flatRows);
@@ -194,8 +222,8 @@ class LaporanJurnalKayuMasukSheet2 implements FromCollection, WithTitle, WithSty
 
             if (str_starts_with((string)$cellValue, 'No. Jurnal:')) {
                 // Style the Title block of each table
-                $sheet->mergeCells("A{$row}:L{$row}");
-                $sheet->getStyle("A{$row}:L{$row}")->applyFromArray([
+                $sheet->mergeCells("A{$row}:N{$row}");
+                $sheet->getStyle("A{$row}:N{$row}")->applyFromArray([
                     'font' => [
                         'bold' => true,
                         'size' => 11,
@@ -211,7 +239,7 @@ class LaporanJurnalKayuMasukSheet2 implements FromCollection, WithTitle, WithSty
                 ]);
             } elseif ($cellValue === 'Nama Akun') {
                 // Style Table Column Headers
-                $sheet->getStyle("A{$row}:L{$row}")->applyFromArray([
+                $sheet->getStyle("A{$row}:N{$row}")->applyFromArray([
                     'font' => [
                         'bold' => true,
                         'size' => 10
@@ -230,21 +258,22 @@ class LaporanJurnalKayuMasukSheet2 implements FromCollection, WithTitle, WithSty
                 ]);
             } elseif (!empty($cellValue)) {
                 // Style data rows
-                $sheet->getStyle("A{$row}:L{$row}")->applyFromArray([
+                $sheet->getStyle("A{$row}:N{$row}")->applyFromArray([
                     'borders' => [
                         'allBorders' => ['borderStyle' => Border::BORDER_THIN]
                     ]
                 ]);
 
                 // Alignments
-                $sheet->getStyle("B{$row}:E{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-                $sheet->getStyle("G{$row}:H{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-                $sheet->getStyle("I{$row}:L{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                $sheet->getStyle("B{$row}:F{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle("G{$row}:H{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+                $sheet->getStyle("I{$row}:J{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle("K{$row}:N{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
 
                 // Formats
-                $sheet->getStyle("I{$row}")->getNumberFormat()->setFormatCode('#,##0');
-                $sheet->getStyle("J{$row}")->getNumberFormat()->setFormatCode('#,##0.0000');
-                $sheet->getStyle("K{$row}:L{$row}")->getNumberFormat()->setFormatCode('#,##0');
+                $sheet->getStyle("K{$row}")->getNumberFormat()->setFormatCode('#,##0');
+                $sheet->getStyle("L{$row}")->getNumberFormat()->setFormatCode('#,##0.0000');
+                $sheet->getStyle("M{$row}:N{$row}")->getNumberFormat()->setFormatCode('#,##0');
             }
         }
 
@@ -254,13 +283,15 @@ class LaporanJurnalKayuMasukSheet2 implements FromCollection, WithTitle, WithSty
         $sheet->getColumnDimension('C')->setWidth(10);
         $sheet->getColumnDimension('D')->setWidth(15);
         $sheet->getColumnDimension('E')->setWidth(10);
-        $sheet->getColumnDimension('F')->setWidth(25);
-        $sheet->getColumnDimension('G')->setWidth(10);
-        $sheet->getColumnDimension('H')->setWidth(10);
-        $sheet->getColumnDimension('I')->setWidth(12);
-        $sheet->getColumnDimension('J')->setWidth(15);
-        $sheet->getColumnDimension('K')->setWidth(18);
-        $sheet->getColumnDimension('L')->setWidth(18);
+        $sheet->getColumnDimension('F')->setWidth(10); // mm
+        $sheet->getColumnDimension('G')->setWidth(25); // Nama Suplier
+        $sheet->getColumnDimension('H')->setWidth(10); // Lahan
+        $sheet->getColumnDimension('I')->setWidth(10); // m
+        $sheet->getColumnDimension('J')->setWidth(12); // hit kbk
+        $sheet->getColumnDimension('K')->setWidth(12); // Banyak
+        $sheet->getColumnDimension('L')->setWidth(15); // M3
+        $sheet->getColumnDimension('M')->setWidth(18); // Harga
+        $sheet->getColumnDimension('N')->setWidth(18); // Total
 
         return [];
     }

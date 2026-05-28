@@ -137,11 +137,12 @@ class LaporanKayuKeluar extends Page implements HasForms
 
             $banyak = $record->total_batang > 0 ? $record->total_batang : 0;
             $m3 = $record->total_kubikasi > 0 ? $record->total_kubikasi : 0;
-            $harga = $record->nilai_stok;
+            $totalStokValue = $record->nilai_stok;
+            $hargaUnit = $m3 > 0 ? $totalStokValue / $m3 : 0;
 
             $totalBanyak += $banyak;
             $totalM3 += $m3;
-            $totalHarga += $harga;
+            $totalHarga += $totalStokValue;
 
             $rows[] = [
                 'nama_akun' => $namaAkun,
@@ -153,9 +154,11 @@ class LaporanKayuKeluar extends Page implements HasForms
                 'nama' => 'kayu keluar',
                 'keterangan' => $keteranganSpec,
                 'map' => 'k',
-                'banyak' => $record->total_batang > 0 ? $record->total_batang : null,
-                'm3' => $record->total_kubikasi > 0 ? $record->total_kubikasi : null,
-                'harga' => $harga,
+                'hit_kbk' => 'm',
+                'banyak' => $banyak > 0 ? $banyak : null,
+                'm3' => $m3 > 0 ? $m3 : null,
+                'harga' => $hargaUnit,
+                'total' => $totalStokValue,
             ];
         }
 
@@ -170,9 +173,11 @@ class LaporanKayuKeluar extends Page implements HasForms
                 'nama' => 'kayu habis',
                 'keterangan' => '',
                 'map' => 'd',
+                'hit_kbk' => 'm',
                 'banyak' => $totalBanyak > 0 ? $totalBanyak : null,
                 'm3' => $totalM3 > 0 ? $totalM3 : null,
-                'harga' => $totalHarga,
+                'harga' => $totalM3 > 0 ? $totalHarga / $totalM3 : 0,
+                'total' => $totalHarga,
             ];
         }
 
