@@ -38,7 +38,7 @@ class ProduksiDataMap
             // 1. KENDALA: Dari Kendala Rotary Baru (kendalaRotaries)
             if (!empty($item->kendalaRotaries) && $item->kendalaRotaries->count() > 0) {
                 foreach ($item->kendalaRotaries as $knd) {
-                    if ($knd->status === 'selesai' && !empty($knd->durasi_menit)) {
+                    if ($knd->status === 'selesai' && !is_null($knd->durasi_menit)) {
                         $durasiMenit = (int)$knd->durasi_menit;
                         $totalDowntimeMenit += $durasiMenit;
 
@@ -54,6 +54,20 @@ class ProduksiDataMap
                             'durasi_menit' => $durasiMenit,
                             'jam_mulai' => $mulai ? $mulai->format('H:i') : '-',
                             'jam_selesai' => $selesai ? $selesai->format('H:i') : '-',
+                            'text' => $formattedText,
+                        ];
+                    } else {
+                        // Include pending/in-progress kendalas in the text list so they are visible
+                        $mulai = $knd->waktu_mulai ? Carbon::parse($knd->waktu_mulai) : null;
+                        $timeStr = $mulai ? ' (Mulai: ' . $mulai->format('H:i') . ' - Pending)' : ' (Pending)';
+                        $formattedText = ($knd->kendala ?? 'Tidak disebutkan') . $timeStr;
+
+                        $daftarKendala[] = [
+                            'kendala' => $knd->kendala ?? 'Tidak disebutkan',
+                            'keterangan' => '-',
+                            'durasi_menit' => 0,
+                            'jam_mulai' => $mulai ? $mulai->format('H:i') : '-',
+                            'jam_selesai' => '-',
                             'text' => $formattedText,
                         ];
                     }

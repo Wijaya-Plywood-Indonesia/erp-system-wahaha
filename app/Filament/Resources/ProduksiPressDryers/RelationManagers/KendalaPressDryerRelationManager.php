@@ -24,7 +24,7 @@ use Carbon\Carbon;
 class KendalaPressDryerRelationManager extends RelationManager
 {
     protected static string $relationship = 'kendalaPressDryers';
-    protected static ?string $title = 'Downtime & Kendala Mesin';
+    protected static ?string $title = 'Kendala';
 
     public function isReadOnly(): bool
     {
@@ -134,7 +134,11 @@ class KendalaPressDryerRelationManager extends RelationManager
                     ->label('Tambah Kendala')
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['status'] = 'pending';
-                        $data['waktu_mulai'] = now()->format('Y-m-d') . ' ' . Carbon::parse($data['waktu_mulai'])->format('H:i') . ':00';
+                        
+                        $parentDate = $this->getOwnerRecord()?->tanggal_produksi ?? now()->format('Y-m-d');
+                        $parentDateStr = Carbon::parse($parentDate)->format('Y-m-d');
+                        $data['waktu_mulai'] = $parentDateStr . ' ' . Carbon::parse($data['waktu_mulai'])->format('H:i') . ':00';
+                        
                         return $data;
                     }),
             ])

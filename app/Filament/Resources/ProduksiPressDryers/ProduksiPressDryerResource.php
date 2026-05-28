@@ -29,7 +29,7 @@ class ProduksiPressDryerResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->latest('created_at');
+        return parent::getEloquentQuery()->with(['kendalaPressDryers', 'validasiTerakhir'])->latest('created_at');
     }
 
     public static function form(Schema $schema): Schema
