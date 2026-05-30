@@ -122,10 +122,10 @@ class LaporanStik extends Page
             ->whereDate('tanggal_produksi', $tanggal)
             ->get();
 
-        $targetRef        = Target::where('kode_ukuran', 'STIK')->first();
-        $stdTarget        = $targetRef->target   ?? 7000;
-        $stdJam           = $targetRef->jam      ?? 10;
-        $stdPotonganHarga = $targetRef->potongan ?? 0;
+        $targetRef        = Target::where('id_mesin', 8)->where('id_ukuran', 33)->first();
+        $stdTarget        = $targetRef ? (float) $targetRef->target : 3000;
+        $stdJam           = $targetRef ? (int) $targetRef->jam : 10;
+        $stdPotonganHarga = $targetRef ? (float) $targetRef->potongan : 0;
 
         $this->dataStik = [];
 
