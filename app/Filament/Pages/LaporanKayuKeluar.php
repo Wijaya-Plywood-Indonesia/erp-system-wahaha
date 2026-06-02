@@ -173,10 +173,10 @@ class LaporanKayuKeluar extends Page implements HasForms
                 'nama' => 'kayu habis',
                 'keterangan' => '',
                 'map' => 'd',
-                'hit_kbk' => 'm',
+                'hit_kbk' => '',
                 'banyak' => $totalBanyak > 0 ? $totalBanyak : null,
                 'm3' => $totalM3 > 0 ? $totalM3 : null,
-                'harga' => $totalM3 > 0 ? $totalHarga / $totalM3 : 0,
+                'harga' => $totalHarga,
                 'total' => $totalHarga,
             ];
         }

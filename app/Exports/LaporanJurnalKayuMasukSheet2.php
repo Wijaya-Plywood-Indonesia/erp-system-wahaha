@@ -72,6 +72,7 @@ class LaporanJurnalKayuMasukSheet2 extends DefaultValueBinder implements FromCol
     public function collection()
     {
         $flatRows = [];
+        $currentRow = 1;
 
         foreach ($this->jurnalTables as $table) {
             $noJurnal = "MASUK/" . \Carbon\Carbon::parse($table['tgl_kayu_masuk'])->format('Ymd') . "/" . $table['no_nota'];
@@ -79,6 +80,7 @@ class LaporanJurnalKayuMasukSheet2 extends DefaultValueBinder implements FromCol
 
             // Table Header Block
             $flatRows[] = ['No. Jurnal: ' . $noJurnal, '', '', '', '', '', '', '', '', '', '', '', '', ''];
+            $currentRow++;
             
             // Column Headers
             $flatRows[] = [
@@ -97,6 +99,7 @@ class LaporanJurnalKayuMasukSheet2 extends DefaultValueBinder implements FromCol
                 'Harga',
                 'Total'
             ];
+            $currentRow++;
 
             // 1. Add Debit entries from groups
             foreach ($table['groups'] as $group) {
@@ -128,6 +131,9 @@ class LaporanJurnalKayuMasukSheet2 extends DefaultValueBinder implements FromCol
 
                 $acc = $this->getAccountDetails($jenisKayuNama, $panjang);
 
+                $hargaVal = $group['total_kubikasi'] > 0 ? (float)($group['total_harga'] / $group['total_kubikasi']) : 0.0;
+                $totalVal = "=IF(J{$currentRow}=\"m\",M{$currentRow}*L{$currentRow},IF(J{$currentRow}=\"b\",M{$currentRow}*K{$currentRow},M{$currentRow}))";
+
                 $flatRows[] = [
                     $acc['nama_akun'],
                     $tglVal,
@@ -141,12 +147,14 @@ class LaporanJurnalKayuMasukSheet2 extends DefaultValueBinder implements FromCol
                     'm',
                     $group['total_batang'],
                     $group['total_kubikasi'],
-                    $group['total_harga'],
-                    $group['total_harga']
+                    $hargaVal,
+                    $totalVal
                 ];
+                $currentRow++;
             }
 
             // 2. Add Credit Row 1: hutang ongkos turun kayu
+            $totalValRow1 = "=IF(J{$currentRow}=\"m\",M{$currentRow}*L{$currentRow},IF(J{$currentRow}=\"b\",M{$currentRow}*K{$currentRow},M{$currentRow}))";
             $flatRows[] = [
                 'hutang ongkos turun kayu',
                 $tglVal,
@@ -161,8 +169,9 @@ class LaporanJurnalKayuMasukSheet2 extends DefaultValueBinder implements FromCol
                 '',
                 '',
                 $table['selisih'],
-                $table['selisih']
+                $totalValRow1
             ];
+            $currentRow++;
 
             // 3. Add Credit Row 2: pendapatan
             $flatRows[] = [
@@ -181,8 +190,10 @@ class LaporanJurnalKayuMasukSheet2 extends DefaultValueBinder implements FromCol
                 '',
                 ''
             ];
+            $currentRow++;
 
             // 4. Add Credit Row 3: Kas Mut
+            $totalValKasMut = "=IF(J{$currentRow}=\"m\",M{$currentRow}*L{$currentRow},IF(J{$currentRow}=\"b\",M{$currentRow}*K{$currentRow},M{$currentRow}))";
             $flatRows[] = [
                 'Kas Mut',
                 $tglVal,
@@ -197,12 +208,15 @@ class LaporanJurnalKayuMasukSheet2 extends DefaultValueBinder implements FromCol
                 $table['totalBatang'],
                 $table['totalKubikasi'],
                 $table['hargaFinal'],
-                $table['hargaFinal']
+                $totalValKasMut
             ];
+            $currentRow++;
 
             // Spacer Rows between multiple tables
             $flatRows[] = ['', '', '', '', '', '', '', '', '', '', '', '', '', ''];
+            $currentRow++;
             $flatRows[] = ['', '', '', '', '', '', '', '', '', '', '', '', '', ''];
+            $currentRow++;
         }
 
         return collect($flatRows);

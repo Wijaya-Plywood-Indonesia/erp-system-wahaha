@@ -118,11 +118,9 @@ class LaporanJurnalKayuMasuk extends Page implements \Filament\Forms\Contracts\H
             return;
         }
 
-        $tanggal = Carbon::parse($this->tanggal);
-        $start = $tanggal->copy()->startOfDay();
-        $end   = $tanggal->copy()->endOfDay();
+        $dateStr = Carbon::parse($this->tanggal)->format('d/m/Y');
 
-        // Fetch all NotaKayu created on this date with all related tables
+        // Fetch all NotaKayu marked as Lunas on this date with all related tables
         $notas = NotaKayu::with([
             'kayuMasuk.detailTurusanKayus.jenisKayu',
             'kayuMasuk.detailTurusanKayus.lahan',
@@ -130,7 +128,7 @@ class LaporanJurnalKayuMasuk extends Page implements \Filament\Forms\Contracts\H
             'kayuMasuk.penggunaanKendaraanSupplier',
             'kayuMasuk.penggunaanDokumenKayu',
         ])
-        ->whereBetween('created_at', [$start, $end])
+        ->where('status_pelunasan', 'LIKE', "Lunas - {$dateStr}%")
         ->get();
 
         $tables = [];
@@ -221,8 +219,14 @@ class LaporanJurnalKayuMasuk extends Page implements \Filament\Forms\Contracts\H
 
             $selisih = (int) ($grandTotal - $totalAkhir);
 
+            // Extract lunas date from status_pelunasan as tglJurnalExcel (format: "Lunas - dd/mm/yyyy hh:mm (username)")
+            $tglJurnalExcel = $nota->kayuMasuk->tgl_kayu_masuk ?? null;
+            if (preg_match('/Lunas\s*-\s*(\d{2})\/(\d{2})\/(\d{4})/', $nota->status_pelunasan ?? '', $matches)) {
+                $tglJurnalExcel = "{$matches[3]}-{$matches[2]}-{$matches[1]}"; // "yyyy-mm-dd" for Carbon::parse
+            }
+
             $tableRows = [];
-            $tglVal = Carbon::parse($nota->kayuMasuk->tgl_kayu_masuk)->format('d/m/Y');
+            $tglVal = $tglJurnalExcel ? Carbon::parse($tglJurnalExcel)->format('d/m/Y') : '-';
 
             // 1. Add Debit entries from groups
             foreach ($groupsData as $group) {
@@ -301,7 +305,7 @@ class LaporanJurnalKayuMasuk extends Page implements \Filament\Forms\Contracts\H
             $tables[] = [
                 'no_nota' => $nota->no_nota,
                 'seri' => $nota->kayuMasuk->seri ?? '-',
-                'tgl_kayu_masuk' => $nota->kayuMasuk->tgl_kayu_masuk ?? '-',
+                'tgl_kayu_masuk' => $tglJurnalExcel ?? '-',
                 'nama_supplier' => $nota->kayuMasuk->penggunaanSupplier?->nama_supplier ?? '-',
                 'nopol_kendaraan' => $nota->kayuMasuk->penggunaanKendaraanSupplier?->nopol_kendaraan ?? '-',
                 'dokumen_legal' => $nota->kayuMasuk->penggunaanDokumenKayu?->dokumen_legal ?? '-',

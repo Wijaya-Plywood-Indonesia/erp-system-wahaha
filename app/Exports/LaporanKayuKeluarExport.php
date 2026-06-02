@@ -614,16 +614,8 @@ class LaporanProduksiJurnalGabungSheet extends DefaultValueBinder implements Fro
                     $hargaVal = $g['jumlah'];
                 }
 
-                $totalVal = 0.0;
-                if ($isKayuKeluar) {
-                    $totalVal = (float)$g['jumlah'];
-                } elseif ($g['has_vol'] && $g['volume'] !== null && $g['volume'] > 0) {
-                    $totalVal = (float)$g['volume'] * (float)$hargaVal;
-                } elseif ($g['has_qty'] && $g['banyak'] !== null && $g['banyak'] > 0) {
-                    $totalVal = (float)$g['banyak'] * (float)$hargaVal;
-                } else {
-                    $totalVal = (float)$hargaVal;
-                }
+                // Calculate Total as an Excel formula referencing 'hit kbk' (Col J), Harga (Col M), M3 (Col L), and Banyak (Col K)
+                $totalVal = "=IF(J{$currentRow}=\"m\",M{$currentRow}*L{$currentRow},IF(J{$currentRow}=\"b\",M{$currentRow}*K{$currentRow},M{$currentRow}))";
 
                 $rows->push([
                     $g['nama_akun'],                                    // 1. Nama Akun
@@ -917,6 +909,8 @@ class LaporanProduksiJurnalPenggunaanSheet extends DefaultValueBinder implements
         $dataStart = $currentRow;
         $tglVal = Carbon::parse($this->tanggal)->format('d-m-Y');
         foreach ($grouped as $g) {
+            $totalVal = "=IF(J{$currentRow}=\"m\",M{$currentRow}*L{$currentRow},IF(J{$currentRow}=\"b\",M{$currentRow}*K{$currentRow},M{$currentRow}))";
+
             $rows->push([
                 $g['nama_akun'],                                    // 1. Nama Akun
                 $tglVal,                                            // 2. tgl
@@ -931,7 +925,7 @@ class LaporanProduksiJurnalPenggunaanSheet extends DefaultValueBinder implements
                 $g['has_qty'] ? $g['banyak'] : null,                // 11. Banyak
                 $g['has_vol'] ? $g['volume'] : null,                // 12. M3
                 $g['harga'],                                        // 13. Harga
-                $g['jumlah']                                        // 14. Total
+                $totalVal                                           // 14. Total
             ]);
             $currentRow++;
         }
@@ -1277,6 +1271,8 @@ class LaporanProduksiJurnalHargaAsliSheet extends DefaultValueBinder implements 
             // =====================================================
             // PUSH ROW
             // =====================================================
+            $totalVal = "=IF(J{$currentRow}=\"m\",M{$currentRow}*L{$currentRow},IF(J{$currentRow}=\"b\",M{$currentRow}*K{$currentRow},M{$currentRow}))";
+
             $rows->push([
                 $namaAkun,                                         // A
                 $tglVal,                                           // B
@@ -1291,7 +1287,7 @@ class LaporanProduksiJurnalHargaAsliSheet extends DefaultValueBinder implements 
                 $g['banyak'] > 0 ? $g['banyak'] : null,            // K
                 $g['volume'] > 0 ? $g['volume'] : null,            // L
                 $hargaPerM3,                                       // M
-                $g['total_harga']                                  // N
+                $totalVal                                          // N
             ]);
 
             $currentRow++;
@@ -1597,6 +1593,8 @@ class LaporanProduksiKayuHabisSheet extends DefaultValueBinder implements FromCo
             $totalM3 += $m3;
             $totalHarga += $totalStokValue;
 
+            $totalVal = "=IF(J{$currentRow}=\"m\",M{$currentRow}*L{$currentRow},IF(J{$currentRow}=\"b\",M{$currentRow}*K{$currentRow},M{$currentRow}))";
+
             $rows->push([
                 $namaAkun,                                                    // 1. Nama Akun
                 $tglVal,                                                      // 2. tgl
@@ -1611,13 +1609,15 @@ class LaporanProduksiKayuHabisSheet extends DefaultValueBinder implements FromCo
                 $banyak > 0 ? $banyak : null,                                 // 11. Banyak
                 $m3 > 0 ? $m3 : null,                                         // 12. M3
                 $hargaUnit,                                                   // 13. Harga
-                $totalStokValue                                               // 14. Total
+                $totalVal                                                     // 14. Total
             ]);
 
             $currentRow++;
         }
 
         if (!$records->isEmpty()) {
+            $totalValHpp = "=IF(J{$currentRow}=\"m\",M{$currentRow}*L{$currentRow},IF(J{$currentRow}=\"b\",M{$currentRow}*K{$currentRow},M{$currentRow}))";
+
             $rows->push([
                 'HPP Triplek',                                                // 1. Nama Akun
                 $tglVal,                                                      // 2. tgl
@@ -1628,11 +1628,11 @@ class LaporanProduksiKayuHabisSheet extends DefaultValueBinder implements FromCo
                 'kayu habis',                                                 // 7. Nama
                 '',                                                           // 8. Keterangan
                 'd',                                                          // 9. map
-                'm',                                                          // 10. hit kbk
+                '',                                                           // 10. hit kbk
                 $totalBanyak > 0 ? $totalBanyak : null,                       // 11. Banyak
                 $totalM3 > 0 ? $totalM3 : null,                               // 12. M3
-                $totalM3 > 0 ? $totalHarga / $totalM3 : 0,                    // 13. Harga
-                $totalHarga                                                   // 14. Total
+                $totalHarga,                                                  // 13. Harga
+                $totalValHpp                                                  // 14. Total
             ]);
             $currentRow++;
         }
