@@ -44,7 +44,7 @@ class HppAveragePage extends Page
         // ✅ Update notifikasi karena sekarang log HPP mencatat SEMUA transaksi
         Notification::make()
             ->info()
-            ->title('📊 Informasi Log HPP Kayu')
+            ->title('Informasi Log HPP Kayu')
             ->body('Log siap Digunakan')
             ->duration(8000)
             ->send();
