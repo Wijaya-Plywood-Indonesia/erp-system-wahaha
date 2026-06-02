@@ -362,10 +362,10 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles,
     {
         return [
             'D' => '0.00',           // No Akun sebagai Teks agar .00 tidak hilang
-            'K' => '#,##0',       // Banyak
-            'L' => '#,##0.0000',  // M3: 4 desimal
-            'M' => '#,##0.00',    // Harga
-            'N' => '#,##0',       // Total
+            'K' => '#,##0',          // Banyak
+            'L' => '#,##0.0000',     // M3: 4 desimal
+            'M' => '#,##0.00',       // Harga
+            'N' => '#,##0',          // Total
         ];
     }
 
@@ -383,6 +383,23 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles,
             $sheet->getStyle("A2:N{$lastRow}")->applyFromArray(['borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
             $sheet->getStyle("D2:D{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle("K2:N{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+
+            // =========================================================================
+            // PENYESUAIAN RUMUS TOTAL (KOLOM N) SECARA DINAMIS
+            // =========================================================================
+            // Jika J="m", maka Total = Harga * M3 (M*L)
+            // Jika J="b", maka Total = Harga * Banyak (M*K)
+            // Jika tidak keduanya, maka langsung mengambil Harga (M)
+            // =========================================================================
+            for ($row = 2; $row <= $lastRow; $row++) {
+                $namaAkunVal = $sheet->getCell("A{$row}")->getValue();
+                // Formula hanya diisi pada baris yang memiliki data Akun (bukan baris kosong)
+                if ($namaAkunVal !== '' && $namaAkunVal !== null) {
+                    $sheet->getCell("N{$row}")->setValue(
+                        "=IF(J{$row}=\"m\",M{$row}*L{$row},IF(J{$row}=\"b\",M{$row}*K{$row},M{$row}))"
+                    );
+                }
+            }
         }
     }
 
@@ -530,7 +547,8 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles,
             // 5. HPP
             $selisih = $totalDebit - $totalKredit;
             if (round($selisih, 2) != 0) {
-                $jurnalBlock[] = $this->makeRow('hpp triplek', $tglFormat, '6111.00', '', 'k', 0, 0, abs($selisih), abs($selisih), 'm');
+                // PENYESUAIAN: hitKbk diubah dari 'm' menjadi '' agar rumus excel membaca harga di Kolom M secara utuh tanpa dikalikan 0
+                $jurnalBlock[] = $this->makeRow('hpp triplek', $tglFormat, '6111.00', '', 'd', 0, 0, abs($selisih), abs($selisih), '');
             }
 
             foreach ($jurnalBlock as $row) $rows[] = $row;

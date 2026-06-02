@@ -91,7 +91,12 @@ class NotaBarangKeluarForm
             return;
         }
 
-        $nomor = NomorNotaService::generate($tipe, Carbon::parse($tanggal));
+        // Tambahkan parameter ketiga berisi class model target (sesuaikan namespace model Anda jika berbeda)
+        $nomor = NomorNotaService::generate(
+            $tipe,
+            Carbon::parse($tanggal),
+            \App\Models\NotaBarangKeluar::class // <-- Parameter ke-3 dimasukkan di sini
+        );
 
         $set('no_nota_display', $nomor); // tampilan
         $set('no_nota', $nomor);         // hidden — yang dikirim ke DB
