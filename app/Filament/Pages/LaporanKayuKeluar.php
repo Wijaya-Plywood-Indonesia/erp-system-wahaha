@@ -109,6 +109,34 @@ class LaporanKayuKeluar extends Page implements HasForms
         $totalM3 = 0;
         $totalHarga = 0;
 
+        // Pre-calculate totals
+        foreach ($records as $record) {
+            $totalBanyak += ($record->total_batang > 0 ? $record->total_batang : 0);
+            $totalM3 += ($record->total_kubikasi > 0 ? $record->total_kubikasi : 0);
+            $totalHarga += $record->nilai_stok;
+        }
+
+        // 1. Add Debit row first: HPP Triplek
+        if (!$records->isEmpty()) {
+            $rows[] = [
+                'nama_akun' => 'HPP Triplek',
+                'tgl' => $tglVal,
+                'jurnal' => '',
+                'no_akun' => '6111.00',
+                'no' => '',
+                'mm' => '',
+                'nama' => 'kayu habis',
+                'keterangan' => '',
+                'map' => 'd',
+                'hit_kbk' => '',
+                'banyak' => $totalBanyak > 0 ? $totalBanyak : null,
+                'm3' => $totalM3 > 0 ? $totalM3 : null,
+                'harga' => $totalHarga,
+                'total' => $totalHarga,
+            ];
+        }
+
+        // 2. Add Credit rows second
         foreach ($records as $record) {
             $jenisNama = $record->jenisKayu?->nama_kayu ?? '-';
             $isSengon = (stripos($jenisNama, 'sengon') !== false);
@@ -138,11 +166,6 @@ class LaporanKayuKeluar extends Page implements HasForms
             $banyak = $record->total_batang > 0 ? $record->total_batang : 0;
             $m3 = $record->total_kubikasi > 0 ? $record->total_kubikasi : 0;
             $totalStokValue = $record->nilai_stok;
-            $hargaUnit = $m3 > 0 ? $totalStokValue / $m3 : 0;
-
-            $totalBanyak += $banyak;
-            $totalM3 += $m3;
-            $totalHarga += $totalStokValue;
 
             $rows[] = [
                 'nama_akun' => $namaAkun,
@@ -154,30 +177,11 @@ class LaporanKayuKeluar extends Page implements HasForms
                 'nama' => 'kayu keluar',
                 'keterangan' => $keteranganSpec,
                 'map' => 'k',
-                'hit_kbk' => 'm',
+                'hit_kbk' => '',
                 'banyak' => $banyak > 0 ? $banyak : null,
                 'm3' => $m3 > 0 ? $m3 : null,
-                'harga' => $hargaUnit,
+                'harga' => $totalStokValue,
                 'total' => $totalStokValue,
-            ];
-        }
-
-        if (!empty($rows)) {
-            $rows[] = [
-                'nama_akun' => 'HPP Triplek',
-                'tgl' => $tglVal,
-                'jurnal' => '',
-                'no_akun' => '6111.00',
-                'no' => '',
-                'mm' => '',
-                'nama' => 'kayu habis',
-                'keterangan' => '',
-                'map' => 'd',
-                'hit_kbk' => '',
-                'banyak' => $totalBanyak > 0 ? $totalBanyak : null,
-                'm3' => $totalM3 > 0 ? $totalM3 : null,
-                'harga' => $totalHarga,
-                'total' => $totalHarga,
             ];
         }
 

@@ -1558,6 +1558,37 @@ class LaporanProduksiKayuHabisSheet extends DefaultValueBinder implements FromCo
         $totalM3 = 0;
         $totalHarga = 0;
 
+        // Pre-calculate totals
+        foreach ($records as $record) {
+            $totalBanyak += ($record->total_batang > 0 ? $record->total_batang : 0);
+            $totalM3 += ($record->total_kubikasi > 0 ? $record->total_kubikasi : 0);
+            $totalHarga += $record->nilai_stok;
+        }
+
+        // 1. Add Debit row first: HPP Triplek
+        if (!$records->isEmpty()) {
+            $totalValHpp = "=IF(J{$currentRow}=\"m\",M{$currentRow}*L{$currentRow},IF(J{$currentRow}=\"b\",M{$currentRow}*K{$currentRow},M{$currentRow}))";
+
+            $rows->push([
+                'HPP Triplek',                                                // 1. Nama Akun
+                $tglVal,                                                      // 2. tgl
+                '',                                                           // 3. jurnal
+                '6111.00',                                                    // 4. No Akun
+                '',                                                           // 5. No
+                '',                                                           // 6. mm
+                'kayu habis',                                                 // 7. Nama
+                '',                                                           // 8. Keterangan
+                'd',                                                          // 9. map
+                '',                                                           // 10. hit kbk
+                $totalBanyak > 0 ? $totalBanyak : null,                       // 11. Banyak
+                $totalM3 > 0 ? $totalM3 : null,                               // 12. M3
+                $totalHarga,                                                  // 13. Harga
+                $totalValHpp                                                  // 14. Total
+            ]);
+            $currentRow++;
+        }
+
+        // 2. Add Credit rows second
         foreach ($records as $record) {
             $jenisNama = $record->jenisKayu?->nama_kayu ?? '-';
             $isSengon = (stripos($jenisNama, 'sengon') !== false);
@@ -1587,11 +1618,6 @@ class LaporanProduksiKayuHabisSheet extends DefaultValueBinder implements FromCo
             $banyak = $record->total_batang > 0 ? $record->total_batang : 0;
             $m3 = $record->total_kubikasi > 0 ? $record->total_kubikasi : 0;
             $totalStokValue = $record->nilai_stok;
-            $hargaUnit = $m3 > 0 ? $totalStokValue / $m3 : 0;
-
-            $totalBanyak += $banyak;
-            $totalM3 += $m3;
-            $totalHarga += $totalStokValue;
 
             $totalVal = "=IF(J{$currentRow}=\"m\",M{$currentRow}*L{$currentRow},IF(J{$currentRow}=\"b\",M{$currentRow}*K{$currentRow},M{$currentRow}))";
 
@@ -1605,35 +1631,13 @@ class LaporanProduksiKayuHabisSheet extends DefaultValueBinder implements FromCo
                 'kayu keluar',                                                // 7. Nama
                 $keteranganSpec,                                              // 8. Keterangan
                 'k',                                                          // 9. map
-                'm',                                                          // 10. hit kbk
+                '',                                                           // 10. hit kbk
                 $banyak > 0 ? $banyak : null,                                 // 11. Banyak
                 $m3 > 0 ? $m3 : null,                                         // 12. M3
-                $hargaUnit,                                                   // 13. Harga
+                $totalStokValue,                                              // 13. Harga
                 $totalVal                                                     // 14. Total
             ]);
 
-            $currentRow++;
-        }
-
-        if (!$records->isEmpty()) {
-            $totalValHpp = "=IF(J{$currentRow}=\"m\",M{$currentRow}*L{$currentRow},IF(J{$currentRow}=\"b\",M{$currentRow}*K{$currentRow},M{$currentRow}))";
-
-            $rows->push([
-                'HPP Triplek',                                                // 1. Nama Akun
-                $tglVal,                                                      // 2. tgl
-                '',                                                           // 3. jurnal
-                '6111.00',                                                    // 4. No Akun
-                '',                                                           // 5. No
-                '',                                                           // 6. mm
-                'kayu habis',                                                 // 7. Nama
-                '',                                                           // 8. Keterangan
-                'd',                                                          // 9. map
-                '',                                                           // 10. hit kbk
-                $totalBanyak > 0 ? $totalBanyak : null,                       // 11. Banyak
-                $totalM3 > 0 ? $totalM3 : null,                               // 12. M3
-                $totalHarga,                                                  // 13. Harga
-                $totalValHpp                                                  // 14. Total
-            ]);
             $currentRow++;
         }
 
