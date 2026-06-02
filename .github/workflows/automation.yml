@@ -241,56 +241,40 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # Definisi Daftar Website
-            SITES=("kayu.wijayaplywoods.com" "wahana.wijayaplywoods.com")
+            # 1. Definisikan langsung target direktori situs Anda
+            TARGET_DIR="/home/${{ secrets.SSH_USERNAME }}/kayu.wijayaplywoods.com"
+      
+            echo "=========================================="
+            echo "🚀 Starting deployment for: kayu.wijayaplywoods.com"
+            echo "📂 Target Directory: $TARGET_DIR"
+            echo "=========================================="
+      
+            # 2. Pastikan folder target ada (Safety check)
+            if [ ! -d "$TARGET_DIR" ]; then
+              echo "❌ Directory $TARGET_DIR does not exist. Deployment aborted."
+              exit 1 # Gunakan exit 1 agar GitHub Actions tahu bahwa proses ini gagal
+            fi
+      
+            cd "$TARGET_DIR"
+            php artisan down || true
+            find . -mindepth 1 -maxdepth 1 \
+              ! -name 'storage' \
+              ! -name '.env' \
+              -exec rm -rf {} \;
 
-            # Loop untuk setiap website
-            for SITE in "${SITES[@]}"; do
-              TARGET_DIR="/home/${{ secrets.SSH_USERNAME }}/$SITE"
-              
-              echo "=========================================="
-              echo "🚀 Starting deployment for: $SITE"
-              echo "📂 Target Directory: $TARGET_DIR"
-              echo "=========================================="
-
-              # Pastikan folder target ada (Safety check)
-              if [ ! -d "$TARGET_DIR" ]; then
-                echo "❌ Directory $TARGET_DIR does not exist. Skipping..."
-                continue
-              fi
-
-              cd "$TARGET_DIR"
-
-              # Masuk Maintenance Mode
-              php artisan down || true
-
-              # Hapus file lama (Kecuali .env dan storage)
-              find . -mindepth 1 -maxdepth 1 \
-                ! -name 'storage' \
-                ! -name '.env' \
-                -exec rm -rf {} \;
-
-              # Unzip file dari Home Directory (../deploy.zip)
-              # Karena kita upload ke /home/user, dan folder site ada di /home/user/site
-              # Maka posisi zip ada di satu tingkat di atasnya (..)
-              unzip -oq ../deploy.zip -d .
-
-              # Optimasi Cache Laravel
-              php artisan optimize:clear
-              php artisan config:cache
-              php artisan route:cache
-              php artisan view:cache
-              
-              # Migration disabled for production (Safety)
-              # php artisan migrate --force 
-
-              # Selesai Maintenance Mode
-              php artisan up
-
-              echo "✅ Deployment Success for $SITE"
-              echo ""
-            done
-
-            # (Opsional) Hapus file ZIP setelah semua selesai untuk hemat space
+            unzip -oq ../deploy.zip -d .
+      
+            # 6. Optimasi Cache Laravel
+            php artisan optimize:clear
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            
+            # 7. Selesai Maintenance Mode
+            php artisan up
+      
+            # 8. Hapus file ZIP setelah semua selesai untuk hemat space
             rm /home/${{ secrets.SSH_USERNAME }}/deploy.zip
+            
             echo "🧹 Cleaned up deployment artifacts."
+            echo "✅ Deployment Success!"
