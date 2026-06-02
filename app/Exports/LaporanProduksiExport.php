@@ -690,15 +690,8 @@ class LaporanProduksiJurnalSheet extends DefaultValueBinder implements FromColle
                     $hargaVal = $g['jumlah'];
                 }
 
-                // Calculate Total: volume * Harga if volume is present, Banyak * Harga if qty is present, else Harga
-                $totalVal = 0.0;
-                if ($g['has_vol'] && $g['volume'] !== null && $g['volume'] > 0) {
-                    $totalVal = (float)$g['volume'] * (float)$hargaVal;
-                } elseif ($g['has_qty'] && $g['banyak'] !== null && $g['banyak'] > 0) {
-                    $totalVal = (float)$g['banyak'] * (float)$hargaVal;
-                } else {
-                    $totalVal = (float)$hargaVal;
-                }
+                // Calculate Total as an Excel formula referencing 'hit kbk' (Col J), Harga (Col M), M3 (Col L), and Banyak (Col K)
+                $totalVal = "=IF(J{$currentRow}=\"m\",M{$currentRow}*L{$currentRow},IF(J{$currentRow}=\"b\",M{$currentRow}*K{$currentRow},M{$currentRow}))";
 
                 $rows->push([
                     $g['nama_akun'],                                    // 1. Nama Akun
