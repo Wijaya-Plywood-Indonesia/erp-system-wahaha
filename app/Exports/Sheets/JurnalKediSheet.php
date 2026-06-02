@@ -6,11 +6,13 @@ use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithMapping;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
+class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles, WithMapping
 {
     protected array $dataKedi;
+    protected int $rowIndex = 0; // Tambahan untuk mendeteksi baris ke-berapa
 
     public function __construct($dataKedi)
     {
@@ -392,7 +394,6 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
         foreach ($creditRows as $r) $rows[] = $r;
 
         if ($totalPegawai > 0) {
-            // UPDATE: Menggunakan 2231.00 untuk Hutang Gaji
             $rows[] = $this->makeRow('Hutang Gaji', '2231.00', $tglProduksi, $namaProduksi, '', 'k', 'b', $totalPegawai, '', 150000, ($totalPegawai * 150000));
             $totalKredit += ($totalPegawai * 150000);
         }
@@ -402,10 +403,27 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
             $rows[] = $this->makeRow('hpp', '6111', $tglProduksi, $namaProduksi, '', 'k', '', '', '', round($hpp, 2), round($hpp, 2));
         }
 
-        foreach ($creditRows as $r) {
-           // Tidak melakukan push ke $rows lagi karena sudah ditambahkan di atas.
+        return $rows;
+    }
+
+    /**
+     * Map function dipanggil oleh Laravel Excel untuk SETIAP BARIS data.
+     * Di sinilah kita timpa kolom "Total" dengan rumus baku Excel.
+     */
+    public function map($row): array
+    {
+        $this->rowIndex++; 
+
+        // Lewati baris 1 (Header) atau baris yang kosong mutlak (pemisah antar shift)
+        if ($this->rowIndex === 1 || implode('', (array)$row) === '') {
+            return $row;
         }
 
-        return $rows;
+        $r = $this->rowIndex;
+        // PENTING: Gunakan Koma (,) sebagai separator fungsi. 
+        // Saat diexport ke Excel, ini akan otomatis menyesuaikan dengan format titik koma (;) di komputer Anda.
+        $row[13] = "=IF(J{$r}=\"m\", M{$r}*L{$r}, IF(J{$r}=\"b\", M{$r}*K{$r}, M{$r}))";
+        
+        return $row;
     }
 }
