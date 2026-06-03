@@ -18,7 +18,7 @@ class NomorNotaService
         return self::generate($tipe, $tanggal, NotaBarangMasuk::class);
     }
 
-    private static function generate(string $tipe, Carbon $tanggal, string $model): string
+    public static function generate(string $tipe, Carbon $tanggal, string $model): string
     {
         $bulan  = $tanggal->format('m');
         $hari   = $tanggal->format('d');
