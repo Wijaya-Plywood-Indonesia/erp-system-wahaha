@@ -79,6 +79,101 @@ class LaporanKayuKeluar extends Page implements HasForms
         $this->loadPreview();
     }
 
+    public function getAccountDetails(string $jenisKayuNama, $panjang): array
+    {
+        $jenis = strtolower(trim($jenisKayuNama));
+        $panjang = (int) $panjang;
+
+        $isWHN = false;
+        if (request()) {
+            $host = request()->getHost();
+            if ($host === 'wahana.wijayaplywoods.com' || env('APP_COMPANY') === 'WHN') {
+                $isWHN = true;
+            }
+        }
+
+        $isLunak = (str_contains($jenis, 'sengon') || str_contains($jenis, 'jabon') || str_contains($jenis, 'waru') || str_contains($jenis, 'lunak') || str_contains($jenis, 'albasia'));
+        $isMeranti = str_contains($jenis, 'meranti');
+        $isRijek = str_contains($jenis, 'rijek');
+        $isLogCore = str_contains($jenis, 'log core') || str_contains($jenis, 'core');
+        $isBaloan = str_contains($jenis, 'baloan') || str_contains($jenis, 'balo,an');
+
+        if ($isWHN) {
+            if ($isMeranti) {
+                return ['no_akun' => '1413.09', 'nama_akun' => 'Kayu Meranti WHN'];
+            }
+            if ($isRijek) {
+                return ['no_akun' => '1413.10', 'nama_akun' => 'Kayu Rijek WHN'];
+            }
+            if ($isLogCore) {
+                if ($panjang === 130) {
+                    return ['no_akun' => '1414.00', 'nama_akun' => 'log core 130 WHN'];
+                }
+                return ['no_akun' => '1413.13', 'nama_akun' => 'log core 260 WHN'];
+            }
+            if ($isBaloan) {
+                return ['no_akun' => '1413.05', 'nama_akun' => 'kayu balo,an'];
+            }
+
+            // Lunak
+            if ($isLunak) {
+                if ($panjang === 130) {
+                    return ['no_akun' => '1413.07', 'nama_akun' => 'Kayu Lunak 130 WHN'];
+                }
+                if ($panjang === 230) {
+                    return ['no_akun' => '1413.11', 'nama_akun' => 'kayu Lunak 230 WHN'];
+                }
+                if ($panjang === 100) {
+                    return ['no_akun' => '1413.12', 'nama_akun' => 'kayu Lunak 100 WHN'];
+                }
+                return ['no_akun' => '1413.01', 'nama_akun' => 'kayu Lunak 260 WHN'];
+            }
+
+            // Keras (default)
+            if ($panjang === 130) {
+                return ['no_akun' => '1413.08', 'nama_akun' => 'Kayu Keras 130 WHN'];
+            }
+            return ['no_akun' => '1413.06', 'nama_akun' => 'Kayu Keras 260 WHN'];
+        } else {
+            // WJY
+            if ($isMeranti) {
+                return ['no_akun' => '1411.05', 'nama_akun' => 'Kayu Meranti WJY'];
+            }
+            if ($isRijek) {
+                return ['no_akun' => '1411.06', 'nama_akun' => 'Kayu Rijek WJY'];
+            }
+            if ($isLogCore) {
+                if ($panjang === 130) {
+                    return ['no_akun' => '1413.04', 'nama_akun' => 'log core 130 WJY'];
+                }
+                return ['no_akun' => '1413.03', 'nama_akun' => 'log core 260 WJY'];
+            }
+            if ($isBaloan) {
+                return ['no_akun' => '1413.05', 'nama_akun' => 'kayu balo,an'];
+            }
+
+            // Lunak
+            if ($isLunak) {
+                if ($panjang === 130) {
+                    return ['no_akun' => '1411.03', 'nama_akun' => 'Kayu Lunak 130 WJY'];
+                }
+                if ($panjang === 230) {
+                    return ['no_akun' => '1411.07', 'nama_akun' => 'kayu Lunak 230 WJY'];
+                }
+                if ($panjang === 100) {
+                    return ['no_akun' => '1411.08', 'nama_akun' => 'kayu Lunak 100 WJY'];
+                }
+                return ['no_akun' => '1411.01', 'nama_akun' => 'kayu Lunak 260 WJY'];
+            }
+
+            // Keras (default)
+            if ($panjang === 130) {
+                return ['no_akun' => '1411.04', 'nama_akun' => 'Kayu Keras 130 WJY'];
+            }
+            return ['no_akun' => '1411.02', 'nama_akun' => 'Kayu Keras 260 WJY'];
+        }
+    }
+
     /**
      * Load live data preview from database matching Excel columns
      */
@@ -139,27 +234,10 @@ class LaporanKayuKeluar extends Page implements HasForms
         // 2. Add Credit rows second
         foreach ($records as $record) {
             $jenisNama = $record->jenisKayu?->nama_kayu ?? '-';
-            $isSengon = (stripos($jenisNama, 'sengon') !== false);
-            $is130 = ($record->panjang == 130);
-
-            // Account determination
-            if ($isSengon) {
-                if (!$is130) {
-                    $noAkun = '1411.01';
-                    $namaAkun = 'Kayu Lunak 260 WJY';
-                } else {
-                    $noAkun = '1411.03';
-                    $namaAkun = 'Kayu Lunak 130 WJY';
-                }
-            } else {
-                if (!$is130) {
-                    $noAkun = '1411.02';
-                    $namaAkun = 'Kayu Keras 260 WJY';
-                } else {
-                    $noAkun = '1411.04';
-                    $namaAkun = 'Kayu Keras 130 WJY';
-                }
-            }
+            $panjang = $record->panjang;
+            $acc = $this->getAccountDetails($jenisNama, $panjang);
+            $noAkun = $acc['no_akun'];
+            $namaAkun = $acc['nama_akun'];
 
             $keteranganSpec = "lahan " . ($record->lahan->kode_lahan ?? '-');
 
