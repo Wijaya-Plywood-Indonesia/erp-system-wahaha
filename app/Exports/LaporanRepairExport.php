@@ -369,18 +369,14 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles,
             $sheet->getStyle("K2:N{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
 
             // =========================================================================
-            // PENYESUAIAN 1: RUMUS TOTAL (KOLOM N) YANG BARU & FLEKSIBEL
+            // RUMUS TOTAL (KOLOM N) YANG BARU & FLEKSIBEL
             // =========================================================================
-            // Kita gunakan rumus IF sesuai permintaan Anda:
             // Jika J="m", maka Total = Harga * M3 (M*L)
             // Jika J="b", maka Total = Harga * Banyak (M*K)
             // Jika tidak keduanya, maka Total = Harga (M)
-            // Note: Di PhpSpreadsheet kita menggunakan koma (,) sebagai pemisah argumen bawaan Excel US.
-            // Saat dibuka di Excel lokal Indonesia, Excel otomatis mengonversinya menjadi titik koma (;).
             // =========================================================================
             for ($row = 2; $row <= $lastRow; $row++) {
                 $namaAkunVal = $sheet->getCell("A{$row}")->getValue();
-                // Formula hanya diisi pada baris yang memiliki data Akun (bukan baris kosong/pembatas)
                 if ($namaAkunVal !== '' && $namaAkunVal !== null) {
                     $sheet->getCell("N{$row}")->setValue(
                         "=IF(J{$row}=\"m\",M{$row}*L{$row},IF(J{$row}=\"b\",M{$row}*K{$row},M{$row}))"
@@ -397,7 +393,6 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles,
 
     /**
      * Mengembalikan [noAkun, namaAkun] berdasarkan jenis, tebal, isAf, dan kwNorm.
-     * kwNorm: 'jadi' (dari hasil) atau 'kering' (dari modal)
      */
     private function getNoAkunDanNama(string $jenis, float $tebal, bool $isAf, string $kwNorm): array
     {
