@@ -444,23 +444,34 @@ class LaporanProduksiJurnalSheet extends DefaultValueBinder implements FromColle
                 $mappedNoAkun = $noAkun;
                 $mappedNamaAkun = $namaAkun;
 
-                if ($noAkun === '115-07') {
-                    // Veneer Basah F/B
-                    if (stripos($subItem['keterangan'] ?? '', 'sengon') !== false) {
-                        $mappedNoAkun = '1421.00';
-                        $mappedNamaAkun = 'Veneer Basah 260 face/back sengon WJY';
-                    } else {
-                        $mappedNoAkun = '1422.00';
-                        $mappedNamaAkun = 'Veneer Basah 260 face/back meranti WJY';
+                if ($noAkun === '115-07' || $noAkun === '115-08') {
+                    $isWHN = false;
+                    if (request()) {
+                        $host = request()->getHost();
+                        if ($host === 'wahana.wijayaplywoods.com' || env('APP_COMPANY') === 'WHN') {
+                            $isWHN = true;
+                        }
                     }
-                } elseif ($noAkun === '115-08') {
-                    // Veneer Basah CORE
-                    if (stripos($subItem['keterangan'] ?? '', 'sengon') !== false) {
-                        $mappedNoAkun = '1426.00';
-                        $mappedNamaAkun = 'Veneer Basah 130 core sengon WJY';
+
+                    $isSengon = (stripos($subItem['keterangan'] ?? '', 'sengon') !== false);
+                    if ($noAkun === '115-07') {
+                        // Veneer Basah F/B
+                        if ($isWHN) {
+                            $mappedNoAkun = $isSengon ? '1421.01' : '1422.01';
+                            $mappedNamaAkun = $isSengon ? 'Veneer Basah 260 face/back sengon WHN' : 'Veneer Basah 260 face/back meranti WHN';
+                        } else {
+                            $mappedNoAkun = $isSengon ? '1421.00' : '1422.00';
+                            $mappedNamaAkun = $isSengon ? 'Veneer Basah 260 face/back sengon WJY' : 'Veneer Basah 260 face/back meranti WJY';
+                        }
                     } else {
-                        $mappedNoAkun = '1427.00';
-                        $mappedNamaAkun = 'Veneer Basah 130 core meranti WJY';
+                        // Veneer Basah CORE
+                        if ($isWHN) {
+                            $mappedNoAkun = $isSengon ? '1426.01' : '1427.01';
+                            $mappedNamaAkun = $isSengon ? 'Veneer Basah 130 core sengon WHN' : 'Veneer Basah 130 core meranti WHN';
+                        } else {
+                            $mappedNoAkun = $isSengon ? '1426.00' : '1427.00';
+                            $mappedNamaAkun = $isSengon ? 'Veneer Basah 130 core sengon WJY' : 'Veneer Basah 130 core meranti WJY';
+                        }
                     }
                 } elseif ($noAkun === '210-02') {
                     // Hutang Gaji
@@ -539,21 +550,25 @@ class LaporanProduksiJurnalSheet extends DefaultValueBinder implements FromColle
             }
 
             foreach ($grouped as $g) {
-                $isVeneer = in_array($g['no_akun'], ['115-07', '115-08', '1421.00', '1422.00', '1426.00', '1427.00']);
+                $isVeneer = in_array($g['no_akun'], ['115-07', '115-08', '1421.00', '1421.01', '1422.00', '1422.01', '1426.00', '1426.01', '1427.00', '1427.01']);
                 $isHutangGaji = in_array($g['no_akun'], ['210-02', '2231.00']);
-                $isWood = in_array($g['no_akun'], ['115-01', '115-02', '1411.01', '1411.02', '1411.03', '1411.04']);
+                $isWood = in_array($g['no_akun'], [
+                    '115-01', '115-02', 
+                    '1411.01', '1411.02', '1411.03', '1411.04', '1411.05', '1411.06', '1411.07', '1411.08',
+                    '1413.01', '1413.03', '1413.04', '1413.05', '1413.06', '1413.07', '1413.08', '1413.09', '1413.10', '1413.11', '1413.12', '1413.13', '1414.00'
+                ]);
 
                 $rowHarga = 0.0;
                 if ($isVeneer) {
                     $noAkunVal = $g['no_akun'] ?? '';
                     $namaAkunVal = strtolower($g['nama_akun'] ?? '');
-                    if ($noAkunVal === '1421.00' || ($noAkunVal === '115-07' && str_contains($namaAkunVal, 'sengon'))) {
+                    if ($noAkunVal === '1421.00' || $noAkunVal === '1421.01' || ($noAkunVal === '115-07' && str_contains($namaAkunVal, 'sengon'))) {
                         $rowHarga = 2700000.0;
-                    } elseif ($noAkunVal === '1422.00' || ($noAkunVal === '115-07' && str_contains($namaAkunVal, 'meranti'))) {
+                    } elseif ($noAkunVal === '1422.00' || $noAkunVal === '1422.01' || ($noAkunVal === '115-07' && str_contains($namaAkunVal, 'meranti'))) {
                         $rowHarga = 8000000.0;
-                    } elseif ($noAkunVal === '1426.00' || ($noAkunVal === '115-08' && str_contains($namaAkunVal, 'sengon'))) {
+                    } elseif ($noAkunVal === '1426.00' || $noAkunVal === '1426.01' || ($noAkunVal === '115-08' && str_contains($namaAkunVal, 'sengon'))) {
                         $rowHarga = 1700000.0;
-                    } elseif ($noAkunVal === '1427.00' || ($noAkunVal === '115-08' && str_contains($namaAkunVal, 'meranti'))) {
+                    } elseif ($noAkunVal === '1427.00' || $noAkunVal === '1427.01' || ($noAkunVal === '115-08' && str_contains($namaAkunVal, 'meranti'))) {
                         $rowHarga = 2100000.0;
                     } else {
                         if (str_contains($namaAkunVal, 'core')) {
@@ -643,15 +658,19 @@ class LaporanProduksiJurnalSheet extends DefaultValueBinder implements FromColle
             $tglVal = \Carbon\Carbon::parse($this->tanggal)->format('d-m-Y');
             foreach ($groupedRows as $g) {
                 // Whitelist mapped accounts for formatting logic
-                $isVeneer = in_array($g['no_akun'], ['115-07', '115-08', '1421.00', '1422.00', '1426.00', '1427.00']);
+                $isVeneer = in_array($g['no_akun'], ['115-07', '115-08', '1421.00', '1421.01', '1422.00', '1422.01', '1426.00', '1426.01', '1427.00', '1427.01']);
                 $isHutangGaji = in_array($g['no_akun'], ['210-02', '2231.00']);
-                $isWood = in_array($g['no_akun'], ['115-01', '115-02', '1411.01', '1411.02', '1411.03', '1411.04']);
+                $isWood = in_array($g['no_akun'], [
+                    '115-01', '115-02', 
+                    '1411.01', '1411.02', '1411.03', '1411.04', '1411.05', '1411.06', '1411.07', '1411.08',
+                    '1413.01', '1413.03', '1413.04', '1413.05', '1413.06', '1413.07', '1413.08', '1413.09', '1413.10', '1413.11', '1413.12', '1413.13', '1414.00'
+                ]);
 
                 // Format `Nama` (Col 7 / G)
                 if ($isVeneer) {
-                    $namaVal = 'KUPASAN (M - ' . strtoupper($g['bagian']) . ')';
+                    $namaVal = 'kupasan (m - ' . strtolower($g['bagian']) . ')';
                 } else {
-                    $namaVal = 'KUPASAN';
+                    $namaVal = 'kupasan';
                 }
 
                 // Format `hit kbk` (Col 10 / J)
@@ -667,13 +686,13 @@ class LaporanProduksiJurnalSheet extends DefaultValueBinder implements FromColle
                 if ($isVeneer) {
                     $noAkunVal = $g['no_akun'] ?? '';
                     $namaAkunVal = strtolower($g['nama_akun'] ?? '');
-                    if ($noAkunVal === '1421.00' || ($noAkunVal === '115-07' && str_contains($namaAkunVal, 'sengon'))) {
+                    if ($noAkunVal === '1421.00' || $noAkunVal === '1421.01' || ($noAkunVal === '115-07' && str_contains($namaAkunVal, 'sengon'))) {
                         $hargaVal = 2700000;
-                    } elseif ($noAkunVal === '1422.00' || ($noAkunVal === '115-07' && str_contains($namaAkunVal, 'meranti'))) {
+                    } elseif ($noAkunVal === '1422.00' || $noAkunVal === '1422.01' || ($noAkunVal === '115-07' && str_contains($namaAkunVal, 'meranti'))) {
                         $hargaVal = 8000000;
-                    } elseif ($noAkunVal === '1426.00' || ($noAkunVal === '115-08' && str_contains($namaAkunVal, 'sengon'))) {
+                    } elseif ($noAkunVal === '1426.00' || $noAkunVal === '1426.01' || ($noAkunVal === '115-08' && str_contains($namaAkunVal, 'sengon'))) {
                         $hargaVal = 1700000;
-                    } elseif ($noAkunVal === '1427.00' || ($noAkunVal === '115-08' && str_contains($namaAkunVal, 'meranti'))) {
+                    } elseif ($noAkunVal === '1427.00' || $noAkunVal === '1427.01' || ($noAkunVal === '115-08' && str_contains($namaAkunVal, 'meranti'))) {
                         $hargaVal = 2100000;
                     } else {
                         if (str_contains($namaAkunVal, 'core')) {
