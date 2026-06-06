@@ -6,11 +6,13 @@ use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithMapping;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
+class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles, WithMapping
 {
     protected array $dataKedi;
+    protected int $rowIndex = 0;
 
     public function __construct($dataKedi)
     {
@@ -19,7 +21,7 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
 
     public function title(): string
     {
-        return 'Jurnal Kedi';
+        return 'Jurnal Bongkar'; // ✅ REVISI 1: kedi → bongkar
     }
 
     public function columnWidths(): array
@@ -217,7 +219,7 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
 
     public function array(): array
     {
-        $rows = [];
+        $rows   = [];
         $rows[] = ['Nama Akun', 'tgl', 'jurnal', 'No Akun', 'No', 'mm', 'Nama', 'Keterangan', 'map', 'hit kbk', 'Banyak', 'M3', 'Harga', 'Total'];
 
         if (empty($this->dataKedi)) return $rows;
@@ -229,25 +231,37 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
 
         foreach ($this->dataKedi as $produksi) {
             $totalPegawai += $produksi['total_pekerja'] ?? 0;
+
+            // ✅ REVISI 2: Ambil tanggal dari tanggal_bongkar, fallback ke tanggal_masuk
+            // Prioritas: tanggal_actual_bongkar → tanggal_bongkar → tanggal_masuk
             if (empty($tglProduksi)) {
-                $rawTgl = str_replace('/', '-', $produksi['tanggal_masuk'] ?? '');
+                $rawTgl = str_replace(
+                    '/',
+                    '-',
+                    $produksi['tanggal_actual_bongkar']
+                        ?? $produksi['tanggal_keluar']
+                        ?? $produksi['tanggal_masuk']
+                        ?? ''
+                );
                 try {
-                    $tglProduksi = \Carbon\Carbon::parse($rawTgl)->format('d-m-Y');
+                    // Parse format d/m/Y yang dikirim dari controller
+                    $tglProduksi = \Carbon\Carbon::createFromFormat('d/m/Y', $rawTgl)->format('d-m-Y');
                 } catch (\Exception $e) {
                     $tglProduksi = $rawTgl;
                 }
             }
+
             foreach ($produksi['detail_bongkar'] ?? [] as $db) $allBongkars[] = $db;
-            foreach ($produksi['detail_masuk'] ?? [] as $dm) $allMasuks[] = $dm;
+            foreach ($produksi['detail_masuk']  ?? [] as $dm) $allMasuks[]   = $dm;
         }
 
-        $namaProduksi = 'kedi';
+        $namaProduksi = 'bongkar'; // ✅ REVISI 1: kedi → bongkar
 
         $bongkarsReguler = array_filter($allBongkars, fn($d) => !$this->isKwAf($d['kw'] ?? 0));
         $bongkarsAf      = array_filter($allBongkars, fn($d) =>  $this->isKwAf($d['kw'] ?? 0));
 
         $makeKey = function ($d) {
-            $dim = $this->parseDimensi($d['ukuran'] ?? '');
+            $dim       = $this->parseDimensi($d['ukuran'] ?? '');
             $jenisAsli = trim($d['jenis_kayu'] ?? '');
             return $this->expandJenis($jenisAsli) . '_' . $dim['t'];
         };
@@ -410,11 +424,10 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
             }
         }
 
-        foreach ($debitRows as $r) $rows[] = $r;
+        foreach ($debitRows  as $r) $rows[] = $r;
         foreach ($creditRows as $r) $rows[] = $r;
 
         if ($totalPegawai > 0) {
-            // UPDATE: Menggunakan 2231.00 untuk Hutang Gaji
             $rows[] = $this->makeRow('Hutang Gaji', '2231.00', $tglProduksi, $namaProduksi, '', 'k', 'b', $totalPegawai, '', 150000, ($totalPegawai * 150000));
             $totalKredit += ($totalPegawai * 150000);
         }
@@ -424,10 +437,20 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
             $rows[] = $this->makeRow('hpp', '6111', $tglProduksi, $namaProduksi, '', 'k', '', '', '', round($hpp, 2), round($hpp, 2));
         }
 
-        foreach ($creditRows as $r) {
-            // Tidak melakukan push ke $rows lagi karena sudah ditambahkan di atas.
+        return $rows;
+    }
+
+    public function map($row): array
+    {
+        $this->rowIndex++;
+
+        if ($this->rowIndex === 1 || implode('', (array)$row) === '') {
+            return $row;
         }
 
-        return $rows;
+        $r = $this->rowIndex;
+        $row[13] = "=IF(J{$r}=\"m\", M{$r}*L{$r}, IF(J{$r}=\"b\", M{$r}*K{$r}, M{$r}))";
+
+        return $row;
     }
 }
