@@ -20,6 +20,8 @@ class HargaVeneerForm
                         'face' => 'Face',
                         'back' => 'Back',
                         'core' => 'Core',
+                        'ppc_faceback' => '0.5 PPC',
+                        'ppc_core' => '3.7 PPC',
                     ])
                     ->native(false)
                     ->required()

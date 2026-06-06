@@ -17,7 +17,14 @@ class HargaVeneersTable
             ->columns([
                 TextColumn::make('ukuran')
                     ->label('Ukuran / Posisi')
-                    ->formatStateUsing(fn(string $state) => ucfirst($state))
+                    ->formatStateUsing(fn(string $state) => [
+                        'faceback' => 'Faceback',
+                        'face' => 'Face',
+                        'back' => 'Back',
+                        'core' => 'Core',
+                        'ppc_faceback' => '0.5 PPC',
+                        'ppc_core' => '3.7 PPC',
+                    ][$state] ?? ucfirst($state))
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('jenisKayu.nama_kayu')
