@@ -25,9 +25,20 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
     public function columnWidths(): array
     {
         return [
-            'A' => 45, 'B' => 20, 'C' => 15, 'D' => 12, 'E' => 8, 
-            'F' => 18, 'G' => 20, 'H' => 45, 'I' => 6,  'J' => 10, 
-            'K' => 10, 'L' => 15, 'M' => 15, 'N' => 15,
+            'A' => 45,
+            'B' => 20,
+            'C' => 15,
+            'D' => 12,
+            'E' => 8,
+            'F' => 18,
+            'G' => 20,
+            'H' => 45,
+            'I' => 6,
+            'J' => 10,
+            'K' => 10,
+            'L' => 15,
+            'M' => 15,
+            'N' => 15,
         ];
     }
 
@@ -105,8 +116,8 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
 
         $hargaReguler = [
             'sengon' => [
-                'faceback' => ['basah' => 2700000, 'kering' => 2800000, 'jadi' => 4000000],
-                'core'     => ['basah' => 1700000, 'kering' => 1900000, 'jadi' => 2250000],
+                'faceback' => ['basah' => 2700000, 'kering' => 3050000, 'jadi' => 4000000],
+                'core'     => ['basah' => 1700000, 'kering' => 2000000, 'jadi' => 2250000],
             ],
             'meranti' => [
                 'faceback' => ['basah' => 8000000, 'kering' => 8500000, 'jadi' => 12500000],
@@ -187,7 +198,20 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
     private function makeRow(string $namaAkun, string $noAkun, string $tgl, string $namaProduksi, string $keterangan, string $map, string $hitKbk, $banyak, $m3, $harga, $total): array
     {
         return [
-            $namaAkun, $tgl, '', $noAkun, '', '', $namaProduksi, $keterangan, $map, $hitKbk, $banyak, $m3, $harga, $total
+            $namaAkun,
+            $tgl,
+            '',
+            $noAkun,
+            '',
+            '',
+            $namaProduksi,
+            $keterangan,
+            $map,
+            $hitKbk,
+            $banyak,
+            $m3,
+            $harga,
+            $total
         ];
     }
 
@@ -222,7 +246,7 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
         $bongkarsReguler = array_filter($allBongkars, fn($d) => !$this->isKwAf($d['kw'] ?? 0));
         $bongkarsAf      = array_filter($allBongkars, fn($d) =>  $this->isKwAf($d['kw'] ?? 0));
 
-        $makeKey = function($d) {
+        $makeKey = function ($d) {
             $dim = $this->parseDimensi($d['ukuran'] ?? '');
             $jenisAsli = trim($d['jenis_kayu'] ?? '');
             return $this->expandJenis($jenisAsli) . '_' . $dim['t'];
@@ -298,7 +322,6 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
                     $hargaKelebihan = $this->getHargaPatok($jenisAsli, $tebal, 'kering', false);
                     $ketKelebihan   = "{$tipeLabel} {$jenisAsli} uk {$ukuranLengkap} (kelebihan {$kelebihan})";
                     $kelebihanDebitRow = $this->makeRow($akunKelebihan['nama'], $akunKelebihan['no'], $tglProduksi, $namaProduksi, $ketKelebihan, 'd', 'm', $kelebihan, round($m3Kelebihan, 4), $hargaKelebihan, round($m3Kelebihan * $hargaKelebihan, 2));
-
                 } elseif ($jadiOutputIsi >= $keringOutputIsi && $jadiOutputIsi >= $afOutputIsi) {
                     $regJadiIsi     = max(0, $jadiOutputIsi - $kelebihan);
                     $m3Jadi         = $jadiOutputIsi > 0 ? ($regJadiIsi / $jadiOutputIsi) * $m3JadiTotal : 0;
@@ -307,7 +330,6 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
                     $hargaKelebihan = $this->getHargaPatok($jenisAsli, $tebal, 'jadi', false);
                     $ketKelebihan   = "{$tipeLabel} {$jenisAsli} uk {$ukuranLengkap} (kelebihan {$kelebihan})";
                     $kelebihanDebitRow = $this->makeRow($akunKelebihan['nama'], $akunKelebihan['no'], $tglProduksi, $namaProduksi, $ketKelebihan, 'd', 'm', $kelebihan, round($m3Kelebihan, 4), $hargaKelebihan, round($m3Kelebihan * $hargaKelebihan, 2));
-
                 } else {
                     $regAfIsi       = max(0, $afOutputIsi - $kelebihan);
                     $m3Af           = $afOutputIsi > 0 ? ($regAfIsi / $afOutputIsi) * $m3AfTotal : 0;
@@ -386,7 +408,7 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
                     $totalKredit += $subtotal;
                 }
             }
-        } 
+        }
 
         foreach ($debitRows as $r) $rows[] = $r;
         foreach ($creditRows as $r) $rows[] = $r;
@@ -403,7 +425,7 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
         }
 
         foreach ($creditRows as $r) {
-           // Tidak melakukan push ke $rows lagi karena sudah ditambahkan di atas.
+            // Tidak melakukan push ke $rows lagi karena sudah ditambahkan di atas.
         }
 
         return $rows;

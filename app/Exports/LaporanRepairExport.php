@@ -450,8 +450,8 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles,
         $kelompok = $tebal < 1 ? 'faceback' : 'core';
         $harga    = [
             'sengon'  => [
-                'faceback' => ['basah' => 2700000, 'kering' => 2800000, 'jadi' => 4000000],
-                'core'     => ['basah' => 1700000, 'kering' => 1900000, 'jadi' => 2250000],
+                'faceback' => ['basah' => 2700000, 'kering' => 3050000, 'jadi' => 4000000],
+                'core'     => ['basah' => 1700000, 'kering' => 2000000, 'jadi' => 2250000],
             ],
             'meranti' => [
                 'faceback' => ['basah' => 8000000, 'kering' => 8500000, 'jadi' => 12500000],
