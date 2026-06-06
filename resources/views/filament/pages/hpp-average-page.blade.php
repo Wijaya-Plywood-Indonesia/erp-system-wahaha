@@ -114,13 +114,6 @@
                     {{ number_format($saldoBtg) }} Saldo
                 </span>
 
-                @if($this->limitPerLahan !== 'semua' && $lahanLogs->count() > (int)$this->limitPerLahan)
-                <span class="inline-flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/50 dark:border-amber-900/50 text-amber-700 dark:text-amber-400 text-[10px] font-bold px-2.5 py-0.5 rounded uppercase tracking-wider shrink-0 shadow-sm animate-pulse">
-                    <x-heroicon-m-exclamation-triangle class="w-3.5 h-3.5 text-amber-500" />
-                    Menampilkan {{ $this->limitPerLahan }} log terbaru dari {{ $lahanLogs->count() }}
-                </span>
-                @endif
-
                 @if($lastLogLahan)
                 <span class="sm:ml-auto inline-flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-900/50 text-amber-700 dark:text-amber-300 text-[10px] font-bold px-2.5 py-0.5 rounded uppercase tracking-wider shrink-0 shadow-sm">
                     <x-heroicon-m-calculator class="w-3.5 h-3.5 text-amber-500" />
@@ -138,6 +131,9 @@
                             <th class="px-4 py-3 text-left whitespace-nowrap">Tanggal</th>
                             <th class="px-4 py-3 text-left whitespace-nowrap">Jenis Kayu</th>
                             <th class="px-4 py-3 text-right whitespace-nowrap">Ukuran</th>
+                            <th class="px-4 py-3 text-right border-l border-gray-100 dark:border-gray-700 bg-amber-50/50 dark:bg-amber-900/10 whitespace-nowrap text-amber-600">
+                                HPP Average<div class="text-[10px] font-medium normal-case text-gray-500 tracking-normal text-amber-500">per m³</div>
+                            </th>
                             <th class="px-4 py-3 text-left whitespace-nowrap">Tipe</th>
                             <th class="px-4 py-3 text-left">Keterangan</th>
 
@@ -160,10 +156,6 @@
                             <th class="px-4 py-3 text-right border-l border-gray-100 dark:border-gray-700 whitespace-nowrap">
                                 Total Poin<div class="text-[10px] font-medium normal-case text-gray-500 tracking-normal">Sebelum → Sesudah</div>
                             </th>
-
-                            <th class="px-4 py-3 text-right border-l border-gray-100 dark:border-gray-700 bg-amber-50/50 dark:bg-amber-900/10 whitespace-nowrap text-amber-600">
-                                HPP Average<div class="text-[10px] font-medium normal-case text-gray-500 tracking-normal text-amber-500">per m³</div>
-                            </th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -185,13 +177,16 @@
                             <td class="px-4 py-3 text-right font-black text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap tabular-nums">
                                 {{ $log->panjang }} cm
                             </td>
+                            <td class="px-4 py-3 text-right border-l border-gray-50 dark:border-gray-800 bg-amber-50/20 dark:bg-amber-900/5 whitespace-nowrap">
+                                <span class="font-black text-xs text-amber-700 dark:text-amber-400 tabular-nums">
+                                    {{ number_format($log->hpp_average, 0, ',', '.') }}
+                                </span>
+                            </td>
 
                             <td class="px-4 py-3 whitespace-nowrap">
-                                <span @class([
-                                    'inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border shadow-sm',
-                                    'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900' => $isM,
+                                <span @class([ 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border shadow-sm' , 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900'=> $isM,
                                     'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-900' => !$isM
-                                ])>
+                                    ])>
                                     @if($isM)
                                     <x-heroicon-m-arrow-down-tray class="w-3 h-3 text-emerald-500" />
                                     Masuk
@@ -246,12 +241,6 @@
                                         {{ number_format($log->nilai_stok_after, 0, ',', '.') }}
                                     </span>
                                 </div>
-                            </td>
-
-                            <td class="px-4 py-3 text-right border-l border-gray-50 dark:border-gray-800 bg-amber-50/20 dark:bg-amber-900/5 whitespace-nowrap">
-                                <span class="font-black text-xs text-amber-700 dark:text-amber-400 tabular-nums">
-                                    {{ number_format($log->hpp_average, 0, ',', '.') }}
-                                </span>
                             </td>
                         </tr>
                         @endforeach

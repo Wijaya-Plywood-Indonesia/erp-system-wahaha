@@ -23,7 +23,7 @@ class HotpressWorkerMap
 
         foreach ($collection as $produksi) {
             $produksiId = $produksi->id;
-            $shift = (strtoupper($produksi->shift ?? '') === 'MALAM') ? 'MALAM' : 'PAGI';
+            $shift = (strtoupper(trim($produksi->shift ?? '')) === 'MALAM') ? 'MALAM' : 'PAGI';
             $labelHasil = "HOT PRESS {$shift}";
 
             // 1. Calculate actual production by id_ukuran

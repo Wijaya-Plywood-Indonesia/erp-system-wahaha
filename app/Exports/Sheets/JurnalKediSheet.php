@@ -123,8 +123,8 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
 
         $hargaReguler = [
             'sengon' => [
-                'faceback' => ['basah' => 2700000, 'kering' => 2800000, 'jadi' => 4000000],
-                'core'     => ['basah' => 1700000, 'kering' => 1900000, 'jadi' => 2250000],
+                'faceback' => ['basah' => 2700000, 'kering' => 3050000, 'jadi' => 4000000],
+                'core'     => ['basah' => 1700000, 'kering' => 2000000, 'jadi' => 2250000],
             ],
             'meranti' => [
                 'faceback' => ['basah' => 8000000, 'kering' => 8500000, 'jadi' => 12500000],
@@ -301,9 +301,12 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
         $bongkarsAf      = array_filter($allBongkars, fn($d) =>  $this->isKwAf($d['kw'] ?? 0));
 
         $makeKey = function ($d) {
-            $dim       = $this->parseDimensi($d['ukuran'] ?? '');
+            $dim = $this->parseDimensi($d['ukuran'] ?? '');
             $jenisAsli = trim($d['jenis_kayu'] ?? '');
-            return $this->expandJenis($jenisAsli) . '_' . $dim['t'];
+            return $this->expandJenis($jenisAsli)
+                . '_' . $dim['p']
+                . '_' . $dim['l']
+                . '_' . $dim['t'];
         };
 
         $groupedBongkarsReguler = collect($bongkarsReguler)->groupBy($makeKey);
