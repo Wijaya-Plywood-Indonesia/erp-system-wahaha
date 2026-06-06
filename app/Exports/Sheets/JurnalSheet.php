@@ -253,7 +253,10 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles,
             $hasilsReguler = array_filter($allHasils, fn($d) => !$this->isKwAf($d['kw'] ?? 0));
             $hasilsAf      = array_filter($allHasils, fn($d) =>  $this->isKwAf($d['kw'] ?? 0));
 
-            $makeKey = fn($d) => $this->expandJenis(trim($d['jenis_kayu'] ?? '')) . '_' . (float)($d['ukuran']['t'] ?? 0);
+            $makeKey = fn($d) => $this->expandJenis(trim($d['jenis_kayu'] ?? ''))
+                . '_' . (float)($d['ukuran']['p'] ?? $d['ukuran']['panjang'] ?? 0)
+                . '_' . (float)($d['ukuran']['l'] ?? $d['ukuran']['lebar']   ?? 0)
+                . '_' . (float)($d['ukuran']['t'] ?? $d['ukuran']['tebal']   ?? 0);
 
             $groupedHasilsReguler = collect($hasilsReguler)->groupBy($makeKey);
             $groupedHasilsAf      = collect($hasilsAf)->groupBy($makeKey);

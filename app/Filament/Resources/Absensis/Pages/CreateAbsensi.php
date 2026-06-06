@@ -18,116 +18,117 @@ class CreateAbsensi extends CreateRecord
 
     protected function afterCreate(): void
     {
-        $record = $this->record;
+        $record     = $this->record;
         $targetDate = Carbon::parse($record->tanggal)->format('Y-m-d');
-        $nextDate = Carbon::parse($record->tanggal)->addDay()->format('Y-m-d');
+        $nextDate   = Carbon::parse($record->tanggal)->addDay()->format('Y-m-d');
 
         $files = $record->file_path;
         if (empty($files) || !is_array($files)) return;
 
-        $rawLogs = [];
+        // Kumpulkan semua tap per pegawai
+        // Struktur: $rawLogs['9199'] = [ ['date'=>..., 'time'=>..., 'full'=>...], ... ]
+        $rawLogs       = [];
         $totalProcessed = 0;
 
-        // 1. Parsing SEMUA data finger (Tanpa kecuali)
+        // ================================================
+        // STEP 1: PARSING — Kumpulkan semua tap
+        // ================================================
         foreach ($files as $file) {
             if (!Storage::disk('public')->exists($file)) continue;
+
             $fileContent = Storage::disk('public')->get($file);
             $lines = explode("\n", str_replace(["\r\n", "\r"], "\n", $fileContent));
 
             foreach ($lines as $line) {
                 $trimmedLine = trim($line);
                 if (empty($trimmedLine)) continue;
+
                 $parts = preg_split('/\s+/', $trimmedLine);
 
-                foreach ($parts as $index => $value) {
-                    if (preg_match('/^\d{2,4}[\/\-]\d{1,2}[\/\-]\d{2,4}$/', $value)) {
-                        try {
-                            $dateInFile = Carbon::parse(str_replace('/', '-', $value))->format('Y-m-d');
-                            $timeInFile = $parts[$index + 1] ?? null;
-                            $empCode = ltrim($parts[2] ?? '', '0');
-
-                            if ($empCode && $timeInFile && ($dateInFile === $targetDate || $dateInFile === $nextDate)) {
-                                $rawLogs[$empCode][] = [
-                                    'date' => $dateInFile,
-                                    'time' => $timeInFile,
-                                    'full' => Carbon::parse("$dateInFile $timeInFile")
-                                ];
-                            }
-                        } catch (\Exception $e) {
-                            continue;
-                        }
+                // Cari posisi kolom tanggal (YYYY/MM/DD atau YYYY-MM-DD)
+                $dateIndex = null;
+                foreach ($parts as $i => $value) {
+                    if (preg_match('/^\d{4}[\/\-]\d{2}[\/\-]\d{2}$/', $value)) {
+                        $dateIndex = $i;
                         break;
                     }
+                }
+                if ($dateIndex === null) continue;
+
+                try {
+                    $dateStr   = Carbon::parse(str_replace('/', '-', $parts[$dateIndex]))->format('Y-m-d');
+                    $timeStr   = $parts[$dateIndex + 1] ?? null;
+                    $empCode   = ltrim($parts[2] ?? '', '0'); // EnNo selalu di index 2
+
+                    if (!$empCode || !$timeStr) continue;
+
+                    // Hanya ambil data tanggal target dan nextDate saja
+                    if (!in_array($dateStr, [$targetDate, $nextDate])) continue;
+
+                    $rawLogs[$empCode][] = [
+                        'date' => $dateStr,
+                        'time' => $timeStr,
+                        'full' => Carbon::parse("$dateStr $timeStr"),
+                    ];
+                } catch (\Exception $e) {
+                    continue;
                 }
             }
         }
 
-        // 2. Olah Data: Gunakan Log Finger sebagai Driver, Produksi sebagai Filter Shift
-        foreach ($rawLogs as $empCode => $logEntries) {
-            $sortedLogs = collect($logEntries)->sortBy('full');
+        // ================================================
+        // STEP 2: PROSES — Tentukan masuk & pulang per orang
+        // ================================================
+        foreach ($rawLogs as $empCode => $entries) {
+            // Urutkan semua tap dari yang paling awal
+            $sorted = collect($entries)->sortBy('full');
 
-            // Pastikan ada tap di hari target
-            $firstLogToday = $sortedLogs->filter(fn($l) => $l['date'] === $targetDate)->first();
-            if (!$firstLogToday) continue;
+            // Tap pertama di hari target = jam masuk
+            $firstTap = $sorted->filter(fn($l) => $l['date'] === $targetDate)->first();
+            if (!$firstTap) continue; // Tidak ada tap di hari target, skip
 
-            // Ambil Data Pegawai untuk Relasi
-            $pegawaiMaster = \App\Models\Pegawai::where('kode_pegawai', $empCode)->first();
+            $jamMasuk   = $firstTap['time'];
+            $jamMasukDt = Carbon::parse($firstTap['full']);
 
-            $shift = 'PAGI'; // Default
-            $divisiName = 'UMUM';
+            // ⭐ DETEKSI SHIFT DARI JAM MASUK
+            // Shift Malam: tap masuk antara jam 14:00 - 23:59
+            $isShiftMalam = $jamMasukDt->hour >= 14;
 
-            if ($pegawaiMaster) {
-                // Cek Produksi DRYER (Kolom: tanggal_produksi)
-                $detailDryer = \App\Models\DetailPegawai::where('id_pegawai', $pegawaiMaster->id)
-                    ->whereHas('produksi', fn($q) => $q->where('tanggal_produksi', $targetDate))->first();
-
-                if ($detailDryer) {
-                    $divisiName = 'DRYER';
-                    $shift = strtoupper($detailDryer->produksi->shift ?? 'PAGI');
-                } else {
-                    // Cek Produksi SANDING (Kolom: tanggal)
-                    $detailSanding = \App\Models\PegawaiSanding::where('id_pegawai', $pegawaiMaster->id)
-                        ->whereHas('produksiSanding', fn($q) => $q->where('tanggal', $targetDate))->first();
-
-                    if ($detailSanding) {
-                        $divisiName = 'SANDING';
-                        $shift = strtoupper($detailSanding->produksiSanding->shift ?? 'PAGI');
-                    }
-                }
-            }
-
-            // --- LOGIKA SWITCH BERDASARKAN FILTER SHIFT ---
-            if ($shift === 'MALAM') {
-                // Jika SHIFT MALAM: Jam Masuk harus sore (>= 15:00), Jam Pulang besok pagi
-                $inLog = $sortedLogs->filter(fn($l) => $l['date'] === $targetDate && Carbon::parse($l['time'])->hour >= 15)->first();
-                $jamMasuk = $inLog ? $inLog['time'] : $firstLogToday['time'];
-
-                $outLog = $sortedLogs->filter(fn($l) => $l['date'] === $nextDate && Carbon::parse($l['time'])->hour <= 10)->last();
-                $jamPulang = $outLog ? $outLog['time'] : null;
+            if ($isShiftMalam) {
+                // Shift Malam: cari tap pulang di nextDate (jam 00:00 - 10:00)
+                $lastTap = $sorted
+                    ->filter(fn($l) => $l['date'] === $nextDate
+                        && Carbon::parse($l['full'])->hour <= 10)
+                    ->last();
             } else {
-                // Jika SHIFT PAGI: Normal (Semua di hari yang sama)
-                $jamMasuk = $firstLogToday['time'];
-                $lastLogToday = $sortedLogs->filter(fn($l) => $l['date'] === $targetDate && Carbon::parse($l['time'])->gt(Carbon::parse($jamMasuk)))->last();
-                $jamPulang = $lastLogToday['time'] ?? null;
+                // Shift Pagi: cari tap pulang di hari yang sama, setelah jam masuk
+                $lastTap = $sorted
+                    ->filter(fn($l) => $l['date'] === $targetDate
+                        && Carbon::parse($l['full'])->gt($jamMasukDt))
+                    ->last();
             }
 
-            // 3. Simpan ke Database
-            \App\Models\DetailAbsensi::updateOrCreate(
+            $jamPulang = $lastTap['time'] ?? null;
+
+            // ================================================
+            // STEP 3: SIMPAN ke database
+            // ================================================
+            DetailAbsensi::updateOrCreate(
                 ['kode_pegawai' => $empCode, 'tanggal' => $targetDate],
                 [
                     'id_absensi' => $record->id,
                     'jam_masuk'  => $jamMasuk,
                     'jam_pulang' => $jamPulang,
-                    'keterangan' => "$divisiName $shift"
                 ]
             );
+
             $totalProcessed++;
         }
 
         Notification::make()
             ->success()
-            ->title('Sinkronisasi Berhasil')
-            ->body("Memproses $totalProcessed data pegawai dengan filter shift produksi.")
+            ->title('Import Berhasil')
+            ->body("Berhasil memproses $totalProcessed data pegawai.")
             ->send();
     }
 
