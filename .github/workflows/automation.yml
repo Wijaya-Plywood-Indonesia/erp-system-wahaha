@@ -61,93 +61,10 @@ jobs:
         run: php artisan test
 
   # ------------------------------------------------------------
-  # JOB 2: DEPLOY PRARELEASE - TIDAK ADA PERUBAHAN
-  # ------------------------------------------------------------
-  deploy-prarelease:
-    name: Deploy to prarelease.wijayaplywoods.com
-    needs: laravel-tests
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Setup PHP for Production
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: "8.4"
-      - name: Install Composer Dependencies (Prod)
-        env:
-          BROADCAST_CONNECTION: log # Ubah sementara ke log saat build agar tidak butuh key
-          REVERB_APP_KEY: "dummy-key"
-          REVERB_APP_SECRET: "dummy-secret"
-          REVERB_APP_ID: "123456"
-        run: composer install --no-dev --optimize-autoloader --prefer-dist --no-interaction
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-      - name: Install NPM Dependencies
-        run: npm ci
-      - name: Build Frontend Assets
-        run: npm run build
-      - name: Create ZIP package
-        run: |
-          set -euo pipefail
-          BUILD_DIR=./build_deploy
-          rm -rf "$BUILD_DIR"
-          mkdir -p "$BUILD_DIR"
-          rsync -a --delete \
-            --exclude '.git/' \
-            --exclude '.github/' \
-            --exclude 'node_modules/' \
-            --exclude 'tests/' \
-            --exclude '.env' \
-            --exclude 'storage/' \
-            --exclude 'build_deploy/' \
-            ./ "$BUILD_DIR/" || [ $? -eq 24 ]
-          (cd "$BUILD_DIR" && zip -r ../deploy.zip . -q)
-      - name: Setup SSH Key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
-      - name: Upload ZIP to Server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          port: ${{ secrets.SSH_PORT }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "deploy.zip"
-          target: "/home/${{ secrets.SSH_USERNAME }}"
-      - name: Execute Remote SSH Commands
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          port: ${{ secrets.SSH_PORT }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd /home/${{ secrets.SSH_USERNAME }}/prarelease.wijayaplywoods.com
-            php artisan down || true
-            find . -mindepth 1 -maxdepth 1 ! -name 'storage' ! -name '.env' -exec rm -rf {} \;
-            unzip -oq ../deploy.zip -d .
-            php artisan optimize:clear
-            php artisan config:cache
-            php artisan route:cache
-            php artisan view:cache
-            php artisan migrate --force
-            php artisan shield:generate --all
-            php artisan up
-            echo "🚀 Prarelease Deployment Success!"
-
-  # ------------------------------------------------------------
   # JOB 3: DEPLOY PRODUCTION (MULTI-SITE)
   # ------------------------------------------------------------
   deploy-production:
-    name: Deploy to All Production Sites
+    name: Deploy to kayu.wijayaplywoods.com
     needs: laravel-tests
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
