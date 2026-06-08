@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Exports\Sheets\LaporanProduksiHotPressJurnalSheet;
 use App\Models\ProduksiHp;
 use App\Models\BahanPenolongHp;
 use App\Models\BahanPenolongProduksi;
@@ -27,11 +28,13 @@ class LaporanProduksiHotPressExport implements WithMultipleSheets
 {
     protected $tanggal;
     protected $data;
+    protected $domain; // Tambahan variabel domain
 
-    public function __construct($data, $tanggal)
+    public function __construct($data, $tanggal, $domain = '')
     {
         $this->data = $data;
         $this->tanggal = $tanggal;
+        $this->domain = $domain; // Simpan domain
     }
 
     public function sheets(): array
@@ -40,6 +43,8 @@ class LaporanProduksiHotPressExport implements WithMultipleSheets
             new LaporanProduksiHotPressSheetPekerja($this->tanggal),
             new LaporanProduksiHotPressRekapSheet($this->tanggal),
             new LaporanProduksiHotPressDetailSheet($this->data),
+            // TAMBAHKAN SHEET JURNAL DI SINI
+            new LaporanProduksiHotPressJurnalSheet($this->tanggal, $this->domain),
         ];
     }
 }
