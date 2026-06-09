@@ -89,9 +89,6 @@
             <div class="space-y-3">
                 <div class="font-bold text-lg text-gray-900 dark:text-gray-100">
                     <span>Progress Target Produksi Hot Press (Global)</span>
-                    <div class="text-xs font-normal text-gray-500 dark:text-gray-400 mt-0.5">
-                        Formula: Progress = &sum; (Aktual<sub>i</sub> / Target<sub>i</sub>) &times; 100%
-                    </div>
                 </div>
 
                 @php
