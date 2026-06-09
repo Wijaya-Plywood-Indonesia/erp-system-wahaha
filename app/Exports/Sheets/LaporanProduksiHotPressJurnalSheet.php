@@ -92,20 +92,45 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
         $kayuSingkat = str_contains(strtolower($jenisKayu), 'sengon') ? 's' : 'm';
         $tebalBulat  = (int) $tebal;
 
+        // Suffix nama akun mengikuti domain
+        $sfx = $this->isWhn() ? 'MTH' : 'WJY';
+
         if ($tipeStr === 'platform') {
-            $namaAkun = "platform {$tebalBulat} {$gradeStr} MTH";
+            $namaAkun = "platform {$tebalBulat} {$gradeStr} {$sfx}";
         } else {
-            $namaAkun = "{$tebalBulat}{$kayuSingkat} {$gradeStr} MTH";
+            $namaAkun = "{$tebalBulat}{$kayuSingkat} {$gradeStr} {$sfx}";
         }
 
         $daftarAkun = [
-            '12m better mth'     => '1506.05',
-            '15s aj mth'         => '1506.14',
-            '15s uty lokal mth'  => '1506.13',
-            '18s aj mth'         => '1506.19',
-            '3m uty lokal mth'   => '1506.21',
-            '5s uty lokal mth'   => '1506.26',
-            'platform 18 aj mth' => '1506.51',
+            // === WHN (MTH) ===
+            '12m better mth'           => '1506.05',
+            '15s aj mth'               => '1506.14',
+            '15s uty lokal mth'        => '1506.13',
+            '18s aj mth'               => '1506.19',
+            '3m uty lokal mth'         => '1506.21',
+            '5s uty lokal mth'         => '1506.26',
+            'platform 18 aj mth'       => '1506.51',
+            // Platform FM / UTY WHN
+            'platform 12 fm mth'       => '1506.72',
+            'platform 11 fm mth'       => '1506.73',
+            'platform 15 fm mth'       => '1506.74',
+            'platform 18 uty lokal mth'=> '1506.75',
+            'platform 12 uty lokal mth'=> '1506.76',
+            'platform 3 uty mth'       => '1506.77',
+            // === WJY ===
+            '12m better wjy'           => '1506.05',
+            '15s aj wjy'               => '1506.14',
+            '15s uty lokal wjy'        => '1506.13',
+            '18s aj wjy'               => '1506.19',
+            '3m uty lokal wjy'         => '1506.21',
+            '5s uty lokal wjy'         => '1506.26',
+            'platform 18 aj wjy'       => '1506.51',
+            'platform 12 fm wjy'       => '1506.72',
+            'platform 11 fm wjy'       => '1506.73',
+            'platform 15 fm wjy'       => '1506.74',
+            'platform 18 uty lokal wjy'=> '1506.75',
+            'platform 12 uty lokal wjy'=> '1506.76',
+            'platform 3 uty wjy'       => '1506.77',
         ];
 
         $key = strtolower($namaAkun);
@@ -182,6 +207,10 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
             // Lem Aruki — dengan dan tanpa underscore
             'lem_aruki'      => ['nama' => 'Lem Aruki',          'no' => '1507.20'],
             'lem aruki'      => ['nama' => 'Lem Aruki',          'no' => '1507.20'],
+            // Lem Dover (Wijaya)
+            'lem_dover'      => ['nama' => 'Lem Dover',          'no' => '1507.20'],
+            'lem dover'      => ['nama' => 'Lem Dover',          'no' => '1507.20'],
+            'dover'          => ['nama' => 'Lem Dover',          'no' => '1507.20'],
             // Lem HQ
             'lem_hq'         => ['nama' => 'Lem HQ',             'no' => '1507.57'],
             'lem hq'         => ['nama' => 'Lem HQ',             'no' => '1507.57'],
@@ -376,7 +405,10 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
         if ($produksis->isEmpty()) return $rows;
 
         $tglStr             = Carbon::parse($this->tanggal)->format('d-m-Y');
-        $hargaPegawaiMaster = HargaPegawai::first()->harga ?? 150000;
+        // Harga gaji default berbeda per domain
+        // WHN (Wahana) → 150,000 | WJY (Wijaya) → 115,000
+        $defaultGaji        = $this->isWhn() ? 150000 : 115000;
+        $hargaPegawaiMaster = HargaPegawai::first()->harga ?? $defaultGaji;
 
         foreach ($produksis as $prod) {
             $shiftStr    = $prod->shift ?? 'pagi';
@@ -389,14 +421,21 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
                 $hasilByMesin[$p->id_mesin][] = ['tipe' => 'platform', 'data' => $p];
             }
 
-            // Tentukan HP3
+            // Tentukan HP3:
+            // - Wahana (3 mesin): cari mesin yang namanya mengandung '3'
+            // - Wijaya (1 mesin): satu-satunya mesin langsung jadi "HP3"
+            //   sehingga bahan + penolong + gaji + hpp penyeimbang ditulis di sana
+            $jumlahMesin = count($hasilByMesin);
             $hp3Id = null;
-            foreach ($hasilByMesin as $mId => $items) {
-                $namaMesin = strtolower($items[0]['data']->mesin->nama_mesin ?? '');
-                if (str_contains($namaMesin, '3')) { $hp3Id = $mId; break; }
-            }
-            if (!$hp3Id && count($hasilByMesin) > 0) {
-                $hp3Id = array_key_last($hasilByMesin);
+            if ($jumlahMesin === 1) {
+                // HP tunggal (Wijaya): mesin pertama = HP3
+                $hp3Id = array_key_first($hasilByMesin);
+            } else {
+                foreach ($hasilByMesin as $mId => $items) {
+                    $namaMesin = strtolower($items[0]['data']->mesin->nama_mesin ?? '');
+                    if (str_contains($namaMesin, '3')) { $hp3Id = $mId; break; }
+                }
+                if (!$hp3Id) $hp3Id = array_key_last($hasilByMesin);
             }
 
             $jumlahPekerja = $prod->detailPegawaiHp->count();
