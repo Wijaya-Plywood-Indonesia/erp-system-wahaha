@@ -300,14 +300,15 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
         $bongkarsReguler = array_filter($allBongkars, fn($d) => !$this->isKwAf($d['kw'] ?? 0));
         $bongkarsAf      = array_filter($allBongkars, fn($d) =>  $this->isKwAf($d['kw'] ?? 0));
 
-        $makeKey = function ($d) {
-            $dim = $this->parseDimensi($d['ukuran'] ?? '');
-            $jenisAsli = trim($d['jenis_kayu'] ?? '');
-            return $this->expandJenis($jenisAsli)
-                . '_' . $dim['p']
-                . '_' . $dim['l']
-                . '_' . $dim['t'];
-        };
+
+        $makeKey = function($d) {
+    $dim = $this->parseDimensi($d['ukuran'] ?? '');
+    $jenisAsli = trim($d['jenis_kayu'] ?? '');
+    return $this->expandJenis($jenisAsli) 
+        . '_' . $dim['p'] 
+        . '_' . $dim['l'] 
+        . '_' . $dim['t'];
+};
 
         $groupedBongkarsReguler = collect($bongkarsReguler)->groupBy($makeKey);
         $groupedBongkarsAf      = collect($bongkarsAf)->groupBy($makeKey);
