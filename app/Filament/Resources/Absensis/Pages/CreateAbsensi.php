@@ -84,7 +84,7 @@ class CreateAbsensi extends CreateRecord
         Notification::make()
             ->success()
             ->title('Import Berhasil')
-            ->body("Berhasil memproses $totalProcessed data pegawai. {$skippedLines} baris dilewati karena format tidak valid.")
+            ->body("Berhasil memproses $totalProcessed data pegawai, {$skippedLines} baris dilewati karena format tidak valid.")
             ->send();
     }
 

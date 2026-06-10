@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Storage;
 
 class AbsensiParsingService
 {
+    private const EMPLOYEE_CODE_PATTERN = '/^\d{4,10}$/';
+
     public function collectLogs(array $files, string $targetDate, string $nextDate): array
     {
         $rawLogs = [];
@@ -132,13 +134,13 @@ class AbsensiParsingService
     private function extractEmployeeCode(array $parts): ?string
     {
         $candidate = trim($parts[2] ?? '');
-        if (preg_match('/^\d{4,10}$/', $candidate) === 1) {
+        if (preg_match(self::EMPLOYEE_CODE_PATTERN, $candidate) === 1) {
             return $candidate;
         }
 
         foreach ($parts as $part) {
             $token = trim($part);
-            if (preg_match('/^\d{4,10}$/', $token) === 1) {
+            if (preg_match(self::EMPLOYEE_CODE_PATTERN, $token) === 1) {
                 return $token;
             }
         }
