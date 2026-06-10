@@ -125,10 +125,23 @@ class AbsensiParsingService
     private function splitLine(string $line, string $extension): array
     {
         if (($extension === 'txt' || $extension === 'dat') && str_contains($line, "\t")) {
-            return array_values(array_filter(array_map('trim', preg_split('/\t+/', $line))));
+            $tabSeparatedParts = preg_split('/\t+/', $line);
+
+            return $this->normalizeParts($tabSeparatedParts);
         }
 
-        return array_values(array_filter(preg_split('/\s+/', $line)));
+        $spaceSeparatedParts = preg_split('/\s+/', $line);
+
+        return $this->normalizeParts($spaceSeparatedParts);
+    }
+
+    private function normalizeParts(array|false $parts): array
+    {
+        if (!is_array($parts)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map('trim', $parts)));
     }
 
     private function extractEmployeeCode(array $parts): ?string
