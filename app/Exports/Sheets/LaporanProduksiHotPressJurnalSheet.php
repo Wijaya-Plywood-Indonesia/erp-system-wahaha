@@ -28,7 +28,7 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
         $this->domain  = $domain;
     }
 
-    public function title(): string { return 'Jurnal'; }
+    public function title(): string { return 'jurnal produksi'; }
 
     public function columnWidths(): array
     {

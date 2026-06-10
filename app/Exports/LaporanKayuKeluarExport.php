@@ -51,7 +51,7 @@ class LaporanKayuKeluarExport implements WithMultipleSheets
             }
         }
 
-        $isLunak = (str_contains($jenis, 'sengon') || str_contains($jenis, 'jabon') || str_contains($jenis, 'waru') || str_contains($jenis, 'lunak') || str_contains($jenis, 'albasia'));
+        $isLunak = (str_contains($jenis, 'sengon') || str_contains($jenis, 'lunak'));
         $isMeranti = str_contains($jenis, 'meranti');
         $isRijek = str_contains($jenis, 'rijek');
         $isLogCore = str_contains($jenis, 'log core') || str_contains($jenis, 'core');
@@ -770,7 +770,7 @@ class LaporanProduksiJurnalGabungSheet extends DefaultValueBinder implements Fro
 
     public function title(): string
     {
-        return 'Jurnal Gabung Permesin';
+        return 'jurnal produksi';
     }
 
     public function styles(Worksheet $sheet)
@@ -1738,7 +1738,7 @@ class LaporanProduksiKayuHabisSheet extends DefaultValueBinder implements FromCo
 
     public function title(): string
     {
-        return 'Kayu Keluar';
+        return 'jurnal produksi';
     }
 
     public function styles(Worksheet $sheet)

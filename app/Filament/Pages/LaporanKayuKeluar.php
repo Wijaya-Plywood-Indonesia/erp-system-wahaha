@@ -92,7 +92,7 @@ class LaporanKayuKeluar extends Page implements HasForms
             }
         }
 
-        $isLunak = (str_contains($jenis, 'sengon') || str_contains($jenis, 'jabon') || str_contains($jenis, 'waru') || str_contains($jenis, 'lunak') || str_contains($jenis, 'albasia'));
+        $isLunak = (str_contains($jenis, 'sengon') || str_contains($jenis, 'lunak'));
         $isMeranti = str_contains($jenis, 'meranti');
         $isRijek = str_contains($jenis, 'rijek');
         $isLogCore = str_contains($jenis, 'log core') || str_contains($jenis, 'core');
