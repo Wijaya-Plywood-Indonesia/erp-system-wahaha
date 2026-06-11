@@ -128,8 +128,8 @@ return new class extends Migration
             ],
         ];
 
-        // Hapus semua data targets terlebih dahulu agar hanya tersisa target hotpress di atas
-        DB::table('targets')->delete();
+        // Hapus semua data targets hotpress terlebih dahulu agar hanya tersisa target hotpress di atas
+        DB::table('targets')->whereIn('id_mesin', $hotpressMachineIds)->delete();
 
         foreach ($hotpressMachineIds as $machineId) {
             foreach ($targets as $data) {
