@@ -132,7 +132,21 @@ return new class extends Migration
         DB::table('targets')->whereIn('id_mesin', $hotpressMachineIds)->delete();
 
         foreach ($hotpressMachineIds as $machineId) {
+            // Pastikan mesin exist
+            $mesinExists = DB::table('mesins')->where('id', $machineId)->exists();
+            if (!$mesinExists) {
+                continue;
+            }
+
             foreach ($targets as $data) {
+                // Pastikan ukuran dan jenis kayu exist
+                $ukuranExists = DB::table('ukurans')->where('id', $data['id_ukuran'])->exists();
+                $jenisKayuExists = DB::table('jenis_kayus')->where('id', $data['id_jenis_kayu'])->exists();
+
+                if (!$ukuranExists || !$jenisKayuExists) {
+                    continue;
+                }
+
                 // Masukkan data baru
                 DB::table('targets')->insert([
                     'id_mesin' => $machineId,
