@@ -170,7 +170,7 @@ class Absen extends Page implements HasForms
             $listGrajiTriplek = GrajiTriplekWorkerMap::make(ProduksiGrajitriplek::with(['pegawaiGrajiTriplek.pegawaiGrajiTriplek'])->whereDate('tanggal_produksi', $tgl)->get());
             $listNyusup = NyusupWorkerMap::make(ProduksiNyusup::with(['pegawaiNyusup.pegawai'])->whereDate('tanggal_produksi', $tgl)->get());
             $listSanding = SandingWorkerMap::make(ProduksiSanding::with(['pegawaiSandings.pegawai'])->whereDate('tanggal', $tgl)->get());
-            $listPilihPlywood = PilihPlywoodWorkerMap::make(ProduksiPilihPlywood::with(['pegawaiPilihPlywood.pegawai'])->whereDate('tanggal_produksi', $tgl)->get());
+            $listPilihPlywood = PilihPlywoodWorkerMap::make(ProduksiPilihPlywood::with(['pegawaiPilihPlywood.pegawai', 'hasilPilihPlywood.barangSetengahJadiHp.ukuran', 'hasilPilihPlywood.barangSetengahJadiHp.jenisBarang', 'hasilPilihPlywood.barangSetengahJadiHp.grade.kategoriBarang'])->whereDate('tanggal_produksi', $tgl)->get());
             $listHotpress = HotpressWorkerMap::make(ProduksiHp::with(['detailPegawaiHp.pegawaiHp'])->whereDate('tanggal_produksi', $tgl)->get());
             $listPotSiku = PotSikuWorkerMap::make(ProduksiPotSiku::with(['pegawaiPotSiku.pegawai'])->whereDate('tanggal_produksi', $tgl)->get());
             $listPotJelek = PotJelekWorkerMap::make(ProduksiPotJelek::with(['pegawaiPotJelek.pegawai'])->whereDate('tanggal_produksi', $tgl)->get());

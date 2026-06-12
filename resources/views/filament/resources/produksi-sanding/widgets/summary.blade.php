@@ -37,6 +37,61 @@
 
         <hr class="border-gray-100 dark:border-gray-800">
 
+        {{-- ================= TARGET PROGRESS (SANDING) ================= --}}
+        @php
+            $target = (float) ($summary['target'] ?? 250);
+            $totalAll = (float) ($summary['totalAll'] ?? 0);
+            $globalProgressVal = (float) ($summary['globalProgress'] ?? 0);
+            $globalProgressPercent = min(100, max(0, $globalProgressVal));
+            $potonganPerOrang = (float) ($summary['potonganPerOrang'] ?? 0);
+        @endphp
+
+        <div class="space-y-4">
+            <div class="font-semibold text-lg text-gray-900 dark:text-gray-100">
+                Progress Target Sanding
+                <span class="text-sm font-normal text-gray-500 dark:text-gray-400">
+                    ( Target {{ number_format($target, 4) }} )
+                </span>
+            </div>
+
+            <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:bg-gray-800 dark:border-gray-700 space-y-2">
+                {{-- Nama & Nilai --}}
+                <div class="flex justify-between text-sm">
+                    <span class="font-medium text-gray-700 dark:text-gray-300">
+                        Mesin {{ $record->mesin?->nama_mesin ?? 'SANDING' }}
+                    </span>
+                    <span class="text-gray-600 dark:text-gray-400 font-bold">
+                        {{ number_format($totalAll) }} / {{ (float) $target }}
+                    </span>
+                </div>
+
+                {{-- Progress Bar --}}
+                <div class="w-full h-3 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                    <div
+                        class="h-full rounded-full transition-all duration-500"
+                        style="
+                            width: {{ $globalProgressPercent }}%;
+                            background-color:
+                                {{ $globalProgressPercent >= 100
+                                    ? '#16a34a'   /* green-600 */
+                                    : ($globalProgressPercent >= 75
+                                        ? '#2563eb' /* blue-600 */
+                                        : '#f59e0b' /* amber-500 */) }};
+                        ">
+                    </div>
+                </div>
+
+                {{-- Persentase --}}
+                <div class="text-xs text-right text-gray-500 dark:text-gray-400 font-bold">
+                    {{ number_format($globalProgressVal, 1) }}%
+                </div>
+
+
+            </div>
+        </div>
+
+        <hr class="border-gray-100 dark:border-gray-800">
+
         {{-- [SECTION 2] GLOBAL UKURAN + KW (DETAIL) --}}
         <div class="space-y-4">
             <div class="flex items-center gap-2 font-bold text-lg text-gray-800 dark:text-gray-100">
