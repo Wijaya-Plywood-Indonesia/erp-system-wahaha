@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\ProduksiGrajitriplek;
 // Pastikan Anda membuat export class ini nanti
-// use App\Exports\LaporanGrajiTriplekExport; 
+use App\Exports\LaporanGrajiTriplekExport; 
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use UnitEnum;
 
@@ -93,8 +93,9 @@ class LaporanGrajiTriplek extends Page
 
             $raw = ProduksiGrajitriplek::with([
                 'pegawaiGrajiTriplek.pegawai',
-                'hasilGrajiTriplek.ukuran',
-                'hasilGrajiTriplek.jenisKayu',
+                'hasilGrajiTriplek.barangSetengahJadiHp.ukuran',
+                'hasilGrajiTriplek.barangSetengahJadiHp.jenisBarang',
+                'hasilGrajiTriplek.barangSetengahJadiHp.grade.kategoriBarang',
             ])
                 ->whereDate('tanggal_produksi', $tanggal)
                 ->get();
@@ -123,16 +124,23 @@ class LaporanGrajiTriplek extends Page
             $tanggal = Carbon::parse($produksi->tanggal_produksi)->format('d/m/Y');
             $jumlahPekerja = $produksi->pegawaiGrajiTriplek->count();
 
-            // Grouping hasil berdasarkan ukuran + jenis kayu
+            // Grouping hasil berdasarkan ukuran + jenis + grade melalui barangSetengahJadiHp
             $hasilGroups = $produksi->hasilGrajiTriplek
-                ->groupBy(fn($h) => $h->id_ukuran . '|' . $h->id_jenis_kayu);
+                ->groupBy(function($h) {
+                    $b = $h->barangSetengahJadiHp;
+                    return ($b->id_ukuran ?? 0) . '|' . ($b->id_jenis_barang ?? 0) . '|' . ($b->id_grade ?? 0);
+                });
 
             foreach ($hasilGroups as $hasilItems) {
                 $firstHasil = $hasilItems->first();
-                $ukuran = $firstHasil->ukuran;
-                $jenis = $firstHasil->jenisKayu;
+                $b = $firstHasil->barangSetengahJadiHp;
+                if (!$b) continue;
 
-                $byk = (int) $hasilItems->sum('jumlah');
+                $ukuran = $b->ukuran;
+                $jenis = $b->jenisBarang;
+                $grade = $b->grade;
+
+                $byk = (int) $hasilItems->sum('isi');
                 $p = $ukuran->panjang ?? 0;
                 $l = $ukuran->lebar ?? 0;
                 $t = $ukuran->tebal ?? 0;
@@ -145,7 +153,8 @@ class LaporanGrajiTriplek extends Page
                     'p' => $p,
                     'l' => $l,
                     't' => $t,
-                    'jenis' => strtoupper($jenis->kode_kayu ?? $jenis->nama_kayu ?? '-'),
+                    'jenis' => strtoupper($jenis->nama_jenis_barang ?? '-'),
+                    'grade' => strtoupper($grade->nama_grade ?? '-'),
                     'byk' => $byk,
                     'm3' => round($m3, 4),
                     'ttl_pkj' => $jumlahPekerja,
@@ -165,7 +174,56 @@ class LaporanGrajiTriplek extends Page
 
     public function exportExcel()
     {
-        // Logika export Excel (Pastikan Export class sudah ada)
-        Notification::make()->info()->title('Fitur Export sedang disiapkan')->send();
+        try {
+            if (empty($this->laporan)) {
+                throw new Exception('Tidak ada data untuk diunduh.');
+            }
+
+            $detail = [];
+            $summary = [];
+
+            foreach ($this->laporan as $row) {
+                $detail[] = [
+                    'tanggal' => $row['tanggal'],
+                    'p' => $row['p'],
+                    'l' => $row['l'],
+                    't' => $row['t'],
+                    'jenis' => $row['jenis'],
+                    'grade' => $row['grade'],
+                    'byk' => $row['byk'],
+                ];
+            }
+
+            // Summary per shift/tanggal
+            $tanggal = $this->data['tanggal'] ?? now()->format('Y-m-d');
+            $raw = ProduksiGrajitriplek::with(['pegawaiGrajiTriplek'])
+                ->whereDate('tanggal_produksi', $tanggal)
+                ->get();
+
+            foreach ($raw as $prod) {
+                $summary[] = [
+                    'tanggal' => Carbon::parse($prod->tanggal_produksi)->format('d/m/Y'),
+                    'ttl_pkj' => $prod->pegawaiGrajiTriplek->count(),
+                ];
+            }
+
+            $reportData = [
+                'detail' => $detail,
+                'summary' => $summary,
+            ];
+
+            $tglFile = Carbon::parse($tanggal)->format('d-m-Y');
+
+            return Excel::download(
+                new LaporanGrajiTriplekExport($reportData, $tanggal),
+                "laporan-graji-triplek-{$tglFile}.xlsx"
+            );
+        } catch (Exception $e) {
+            Notification::make()
+                ->danger()
+                ->title('Gagal Export Excel')
+                ->body($e->getMessage())
+                ->send();
+        }
     }
 }
