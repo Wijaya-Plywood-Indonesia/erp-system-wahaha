@@ -81,76 +81,70 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
     }
 
     // =========================================================================
-    // MAPPING AKUN PRODUK
+    // MAPPING AKUN PRODUK (Pencocokan Clean Text)
     // =========================================================================
     private function getAkunProduk(string $tipe, float $tebal, string $jenisKayu, string $grade): array
     {
-        $tipeStr    = strtolower(trim($tipe));
-        // Normalisasi grade: underscore → spasi, lowercase, trim
-        // Agar "uty_lokal", "Uty Lokal", "uty lokal" semua jadi "uty lokal"
-        $gradeStr   = strtolower(str_replace('_', ' ', trim($grade)));
+        $tipeStr     = strtolower(trim($tipe));
+        $gradeStr    = strtolower(trim($grade));
         $kayuSingkat = str_contains(strtolower($jenisKayu), 'sengon') ? 's' : 'm';
-        $tebalBulat  = (int) $tebal;
-
-        // Suffix nama akun mengikuti domain
-        $sfx = $this->isWhn() ? 'MTH' : 'WJY';
+        
+        // Memastikan angka tebal berupa integer utuh (misal: 12.00 jadi 12)
+        $tebalVal = fmod($tebal, 1) == 0 ? (int)$tebal : $tebal;
+        $sfx      = $this->isWhn() ? 'MTH' : 'WJY';
 
         if ($tipeStr === 'platform') {
-            $namaAkun = "platform {$tebalBulat} {$gradeStr} {$sfx}";
+            $baseNama = "platform {$tebalVal} {$gradeStr}";
         } else {
-            $namaAkun = "{$tebalBulat}{$kayuSingkat} {$gradeStr} {$sfx}";
+            $baseNama = "{$tebalVal}{$kayuSingkat} {$gradeStr}";
         }
 
-        $daftarAkun = [
-            // === WHN (MTH) ===
-            '12m better mth'           => '1506.05',
-            '15s aj mth'               => '1506.14',
-            '15s uty lokal mth'        => '1506.13',
-            '18s aj mth'               => '1506.19',
-            '3m uty lokal mth'         => '1506.21',
-            '5s uty lokal mth'         => '1506.26',
-            'platform 18 aj mth'       => '1506.51',
-            // Platform FM / UTY WHN
-            'platform 12 fm mth'       => '1506.72',
-            'platform 11 fm mth'       => '1506.73',
-            'platform 15 fm mth'       => '1506.74',
-            'platform 18 uty lokal mth'=> '1506.75',
-            'platform 12 uty lokal mth'=> '1506.76',
-            'platform 3 uty mth'       => '1506.77',
-            // === WJY ===
-            '12m better wjy'           => '1506.05',
-            '15s aj wjy'               => '1506.14',
-            '15s uty lokal wjy'        => '1506.13',
-            '18s aj wjy'               => '1506.19',
-            '3m uty lokal wjy'         => '1506.21',
-            '5s uty lokal wjy'         => '1506.26',
-            'platform 18 aj wjy'       => '1506.51',
-            'platform 12 fm wjy'       => '1506.72',
-            'platform 11 fm wjy'       => '1506.73',
-            'platform 15 fm wjy'       => '1506.74',
-            'platform 18 uty lokal wjy'=> '1506.75',
-            'platform 12 uty lokal wjy'=> '1506.76',
-            'platform 3 uty wjy'       => '1506.77',
+        $namaAkun = "{$baseNama} {$sfx}";
+        
+        // Normalisasi total input teks: hilangkan spasi dan samakan variasi bahasa english/indo
+        $cleanInput = str_replace([' ', 'local', '_', '-'], ['', 'lokal', '', ''], strtolower($baseNama));
+
+        // DI SINI TEMPAT ANDA MENGGANTI NOMOR JIKA ADA YANG MELeset LAGI
+        $rawDaftarAkun = [
+            '1506.01' => '110x70x2 lp', '1506.02' => '110x70x3 lp', '1506.03' => '45x45x2 lp', '1506.04' => '12fm mentah',
+            '1506.05' => '12m better', '1506.06' => '12m better lokal', '1506.07' => '12m pg', '1506.08' => '62x51x2 lp',
+            '1506.09' => '15fm', '1506.10' => '15m better', '1506.11' => '15m better lokal', '1506.12' => '15m uty lokal',
+            '1506.13' => '15s uty lokal', '1506.14' => '15s aj', '1506.15' => '18fm', '1506.16' => '18m better',
+            '1506.17' => '18m better lokal', '1506.18' => '18m uty lokal', '1506.19' => '18s aj', '1506.20' => '3 flexi',
+            '1506.21' => '3m uty lokal', '1506.22' => '4m better', '1506.23' => '5m better', '1506.24' => '5m uty',
+            '1506.25' => '5m uty lokal', '1506.26' => '5s uty lokal', '1506.27' => '8fm', '1506.28' => '8m better',
+            '1506.29' => '8m better lokal', '1506.30' => '8m uty lokal', '1506.31' => '8s aj', '1506.32' => '9fm',
+            '1506.33' => '9m better', '1506.34' => '9m better lokal', '1506.35' => '9m uty lokal', '1506.36' => '9s aj',
+            '1506.37' => 'karet mentah', '1506.38' => 'log core afkir', '1506.40' => 'palet afkir/bs',
+            '1506.41' => 'papir uk 110x70x2', 
+            '1506.42' => 'platform 12 pg',  // <-- INI SUDAH SAYA PERBAIKI SESUAI INSTRUKSI ANDA
+            '1506.43' => 'papir uk 62x51x2',
+            '1506.44' => 'pinus mentah', '1506.45' => 'platform 11 fm', '1506.46' => 'platform 11 uty',
+            '1506.47' => 'platform 12 fm', '1506.48' => 'platform 12 uty', '1506.49' => 'platform 14 fm',
+            '1506.50' => 'platform 15 fm', '1506.51' => 'platform 18 aj', '1506.52' => 'platform 18 uty',
+            '1506.53' => 'platform 8 fm', '1506.54' => 'platform 8 uty', '1506.55' => 'platform 9 uty',
+            '1506.56' => 'poliester 110x70x2', '1506.57' => 'poliester 110x70x3', '1506.58' => 'poliester 45x45x2',
+            '1506.59' => 'poliester 62x51x2', '1506.60' => 'potongan bs', '1506.61' => 'semi mentah',
+            '1506.62' => '12m uty lokal', '1506.63' => '3m better', '1506.64' => '8m uty', '1506.65' => '9m uty',
+            '1506.66' => '12m uty', '1506.67' => '15m uty', '1506.68' => '18m uty', 
+            '1506.69' => 'papir uk 45x45x2', // <-- Bertukar dengan 1506.42
+            '1506.70' => '12s aj', '1506.71' => 'platform 11 pg', '1506.72' => '15s pg', '1506.73' => 'platform 8 pg',
+            '1506.74' => 'platform 15 pg', '1506.75' => 'platform 14 pg', '1506.76' => 'platform 15 uty',
+            '1506.77' => 'platform 18 pg', '1506.78' => '3m pg', '1506.79' => '5m pg', '1506.80' => '8m pg',
+            '1506.81' => '9m pg', '1506.82' => '15m pg', '1506.83' => '18m pg', '1506.84' => '5s aj',
+            '1506.85' => '8s uty lokal', '1506.86' => '9s uty lokal', '1506.87' => '12s uty lokal',
+            '1506.88' => '5s pg', '1506.89' => '8s pg', '1506.90' => '9s pg', '1506.91' => '12s pg',
+            '1506.92' => '18s pg', '1506.93' => 'platform 9 pg'
         ];
 
-        $key = strtolower($namaAkun);
-
-        // Exact match
-        if (isset($daftarAkun[$key])) {
-            return ['nama' => $namaAkun, 'no' => $daftarAkun[$key]];
-        }
-
-        // Fuzzy match — semua kata dari pattern harus ada di key
-        foreach ($daftarAkun as $pattern => $no) {
-            $patternWords = explode(' ', $pattern);
-            $allMatch     = true;
-            foreach ($patternWords as $word) {
-                if (!str_contains($key, $word)) { $allMatch = false; break; }
+        foreach ($rawDaftarAkun as $no => $namaMaster) {
+            $cleanMaster = str_replace([' ', 'local', '_', '-'], ['', 'lokal', '', ''], strtolower($namaMaster));
+            if ($cleanInput === $cleanMaster) {
+                return ['nama' => $namaAkun, 'no' => $no];
             }
-            if ($allMatch) return ['nama' => $namaAkun, 'no' => $no];
         }
 
-        return ['nama' => $namaAkun, 'no' => '1506.99'];
+        return ['nama' => $namaAkun, 'no' => ''];
     }
 
     // =========================================================================
@@ -162,7 +156,6 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
         $sf   = $this->isWhn() ? 'WHN' : 'WJY';
         $ext  = $this->isWhn() ? '01'  : '00';
 
-        // Cek PPC: 260 F/B (tebal < 1) sengon dengan grade bukan 1,2,3,4 (alias AF/afkir)
         $gradeStr = strtolower(trim($grade));
         $isPpc    = ($tebal < 1)
             && ($kayu === 'sengon')
@@ -197,43 +190,32 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
 
     // =========================================================================
     // MAPPING AKUN BAHAN PENOLONG
-    // FIX: Tambah variasi underscore (lem_aruki, dll) untuk handle nama DB
     // =========================================================================
     private function getAkunPenolong(string $namaBahan): array
     {
         $namaLower = strtolower(trim($namaBahan));
 
         $daftarPenolong = [
-            // Lem Aruki — dengan dan tanpa underscore
             'lem_aruki'      => ['nama' => 'Lem Aruki',          'no' => '1507.20'],
             'lem aruki'      => ['nama' => 'Lem Aruki',          'no' => '1507.20'],
-            // Lem Dover (Wijaya)
             'lem_dover'      => ['nama' => 'Lem Dover',          'no' => '1507.20'],
             'lem dover'      => ['nama' => 'Lem Dover',          'no' => '1507.20'],
             'dover'          => ['nama' => 'Lem Dover',          'no' => '1507.20'],
-            // Lem HQ
             'lem_hq'         => ['nama' => 'Lem HQ',             'no' => '1507.57'],
             'lem hq'         => ['nama' => 'Lem HQ',             'no' => '1507.57'],
-            // Tepung WJY harus dicek duluan (lebih spesifik)
             'tepung_wjy'     => ['nama' => 'Tepung',             'no' => '1507.62'],
             'tepung wjy'     => ['nama' => 'Tepung',             'no' => '1507.62'],
-            // Tepung biasa
             'tepung'         => ['nama' => 'Tepung',             'no' => '1507.16'],
-            // Hadner / Hardener
             'hadner'         => ['nama' => 'Hadner',             'no' => '1507.11'],
             'hardener'       => ['nama' => 'Hadner',             'no' => '1507.11'],
             'hdr'            => ['nama' => 'Hadner',             'no' => '1507.11'],
-            // Pewarna
             'pewarna'        => ['nama' => 'Pewarna',            'no' => '1507.49'],
-            // Isolasi coklat (cek duluan sebelum isolasi putih)
             'isolasi_coklat' => ['nama' => 'isolasi coklat WHN', 'no' => '1507.35'],
             'isolasi coklat' => ['nama' => 'isolasi coklat WHN', 'no' => '1507.35'],
-            // Isolasi putih
             'isolasi_putih'  => ['nama' => 'isolasi putih',      'no' => '1507.36'],
             'isolasi putih'  => ['nama' => 'isolasi putih',      'no' => '1507.36'],
             'solasi putih'   => ['nama' => 'isolasi putih',      'no' => '1507.36'],
             'solasi'         => ['nama' => 'isolasi putih',      'no' => '1507.36'],
-            // Isi Staples / Steples
             'isi_staples'    => ['nama' => 'Isi Staples',        'no' => '1507.13'],
             'isi_steples'    => ['nama' => 'Isi Staples',        'no' => '1507.13'],
             'isi staples'    => ['nama' => 'Isi Staples',        'no' => '1507.13'],
@@ -289,61 +271,38 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
         if (str_contains($kayu, 'sengon')) {
             if (str_contains($gr, 'better')) {
                 $p = [
-                    '4.7'  => 65400,
-                    '7.7'  => 96800,
-                    '9.1'  => 100800,
-                    '12.1' => 97400,
-                    '12.4' => 103300,
-                    '15.1' => 132300,
-                    '15.5' => 153800,
-                    '18.5' => 173800,
+                    '4.7'  => 65400,  '7.7'  => 96800,  '9.1'  => 100800,
+                    '12.1' => 97400,  '12.4' => 103300, '15.1' => 132300,
+                    '15.5' => 153800, '18.5' => 173800,
                 ];
                 return $p[$tbl] ?? 96800;
             } elseif (str_contains($gr, 'fm')) {
                 $p = ['9' => 156843, '12' => 207903, '15' => 258963, '18' => 291708];
                 return $p[(string) round($tebal)] ?? 207903;
             } else {
-                // HPP S UTY
                 $p = [
-                    '4.7'  => 47000,
-                    '7.7'  => 66400,
-                    '9.1'  => 47000,
-                    '12.1' => 107100,
-                    '12.4' => 106400,
-                    '15.1' => 122900,
-                    '15.5' => 125400,
-                    '18.5' => 135900,
+                    '4.7'  => 47000,  '7.7'  => 66400,  '9.1'  => 47000,
+                    '12.1' => 107100, '12.4' => 106400, '15.1' => 122900,
+                    '15.5' => 125400, '18.5' => 135900,
                 ];
                 return $p[$tbl] ?? 47000;
             }
         } else {
-            // Meranti
             if (str_contains($gr, 'better')) {
                 $p = ['5.1' => 70300, '8.2' => 78300, '8.7' => 94300];
                 return $p[$tbl] ?? 78300;
             } elseif (str_contains($gr, 'lokal')) {
                 $p = [
-                    '5.1'  => 70300,
-                    '8.2'  => 90800,
-                    '11.9' => 95800,
-                    '14.8' => 126300,
-                    '17.8' => 156800,
-                    '16.1' => 126300,
+                    '5.1'  => 70300,  '8.2'  => 90800,  '11.9' => 95800,
+                    '14.8' => 126300, '17.8' => 156800, '16.1' => 126300,
                     '19.1' => 177300,
                 ];
                 return $p[$tbl] ?? 90800;
             } else {
-                // HPP M UTY
                 $p = [
-                    '2.8'  => 40000,
-                    '5.1'  => 65500,
-                    '8.2'  => 79500,
-                    '8.7'  => 76500,
-                    '11.9' => 103500,
-                    '14.8' => 125500,
-                    '17.8' => 150300,
-                    '16.1' => 125500,
-                    '19.1' => 150300,
+                    '2.8'  => 40000,  '5.1'  => 65500,  '8.2'  => 79500,
+                    '8.7'  => 76500,  '11.9' => 103500, '14.8' => 125500,
+                    '17.8' => 150300, '16.1' => 125500, '19.1' => 150300,
                 ];
                 return $p[$tbl] ?? 79500;
             }
@@ -360,10 +319,8 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
         $kayu = str_contains(strtolower($jenisKayu), 'sengon') ? 'sengon' : 'meranti';
 
         if ($tebal >= 1) {
-            // 130 core
             return ($kayu === 'sengon') ? 2250000 : 2800000;
         } else {
-            // 260 F/B
             return ($kayu === 'sengon') ? 4000000 : 10000000;
         }
     }
@@ -405,13 +362,11 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
         if ($produksis->isEmpty()) return $rows;
 
         $tglStr             = Carbon::parse($this->tanggal)->format('d-m-Y');
-        // Harga gaji default berbeda per domain
-        // WHN (Wahana) → 150,000 | WJY (Wijaya) → 115,000
         $defaultGaji        = $this->isWhn() ? 150000 : 115000;
         $hargaPegawaiMaster = HargaPegawai::first()->harga ?? $defaultGaji;
 
         foreach ($produksis as $prod) {
-            $shiftStr    = $prod->shift ?? 'pagi';
+            $shiftStr     = $prod->shift ?? 'pagi';
             $hasilByMesin = [];
 
             foreach ($prod->triplekHasilHp as $t) {
@@ -421,14 +376,9 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
                 $hasilByMesin[$p->id_mesin][] = ['tipe' => 'platform', 'data' => $p];
             }
 
-            // Tentukan HP3:
-            // - Wahana (3 mesin): cari mesin yang namanya mengandung '3'
-            // - Wijaya (1 mesin): satu-satunya mesin langsung jadi "HP3"
-            //   sehingga bahan + penolong + gaji + hpp penyeimbang ditulis di sana
             $jumlahMesin = count($hasilByMesin);
             $hp3Id = null;
             if ($jumlahMesin === 1) {
-                // HP tunggal (Wijaya): mesin pertama = HP3
                 $hp3Id = array_key_first($hasilByMesin);
             } else {
                 foreach ($hasilByMesin as $mId => $items) {
@@ -447,9 +397,7 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
                 $totalHargaProdukHp3   = 0;
                 $totalHargaBahanGlobal = 0;
 
-                // =============================================================
-                // 1. JURNAL HASIL PRODUKSI (Debit produk, Kredit HPP non-HP3)
-                // =============================================================
+                // 1. JURNAL HASIL PRODUKSI
                 foreach ($items as $item) {
                     $tipe   = $item['tipe'];
                     $data   = $item['data'];
@@ -488,15 +436,9 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
                     }
                 }
 
-                // =============================================================
-                // 2. BIAYA & GAJI — hanya di HP3
-                // =============================================================
+                // 2. BIAYA & GAJI (HP3)
                 if ($mId == $hp3Id) {
 
-                    // ---------------------------------------------------------
-                    // FIX: Kumpulkan & GABUNG bahan veneer berdasarkan no akun
-                    // Solusi untuk masalah C: 260 F/B sengon terpecah 2 baris
-                    // ---------------------------------------------------------
                     $veneerMap = [];
 
                     foreach ($prod->bahanHotpress as $bahan) {
@@ -514,8 +456,6 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
                         $tipeVeneer = ($tebal < 1) ? '260 F/B' : '130 Core';
                         $ketVeneer  = "{$tipeVeneer} {$jkAsli} uk {$tebal}";
 
-                        // Gabung berdasarkan no akun + tebal (pisah per ukuran agar
-                        // misal meranti 0.5 dan 0.3 tidak ikut tergabung jadi 1 baris)
                         $groupKey = $akunVeneer['no'] . '_' . $tebal;
 
                         if (!isset($veneerMap[$groupKey])) {
@@ -531,7 +471,6 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
                         $veneerMap[$groupKey]['m3']     += $m3;
                     }
 
-                    // Tulis baris veneer yang sudah digabung
                     foreach ($veneerMap as $v) {
                         $m3Round = round($v['m3'], 4);
                         $totalHargaBahanGlobal += ($m3Round * $v['harga']);
@@ -544,9 +483,7 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
                         );
                     }
 
-                    // ---------------------------------------------------------
                     // Bahan Penolong (Kredit)
-                    // ---------------------------------------------------------
                     foreach ($prod->bahanPenolongHp as $penolong) {
                         $akunPenolong = $this->getAkunPenolong($penolong->nama_bahan);
                         $banyak       = $penolong->jumlah;
@@ -563,16 +500,11 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
                         );
                     }
 
-                    // ---------------------------------------------------------
-                    // FIX: Hutang Gaji (Kredit) + masukkan ke totalHargaBahanGlobal
-                    // Solusi untuk masalah D: selisih hpp ~4,500,000
-                    // Jurnal hanya 1 baris Hutang Gaji (debit Biaya Gaji di modul penggajian)
-                    // ---------------------------------------------------------
+                    // Hutang Gaji (Kredit)
                     if ($jumlahPekerja > 0) {
                         $akunGaji  = $this->getAkunGaji();
                         $totalGaji = $jumlahPekerja * $hargaPegawaiMaster;
 
-                        // Gaji masuk ke total bahan agar hpp penyeimbang akurat
                         $totalHargaBahanGlobal += $totalGaji;
 
                         $rows[] = $this->makeRow(
@@ -582,10 +514,7 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
                         );
                     }
 
-                    // ---------------------------------------------------------
                     // HPP Penyeimbang HP3 (Debit)
-                    // nilaiHppHp3 = total bahan − total nilai produk HP3
-                    // ---------------------------------------------------------
                     $nilaiHppHp3 = $totalHargaBahanGlobal - $totalHargaProdukHp3;
 
                     if ($nilaiHppHp3 != 0) {
@@ -599,7 +528,6 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
                 }
             }
 
-            // Baris kosong pemisah antar shift
             $rows[] = array_fill(0, 14, '');
         }
 
@@ -607,13 +535,12 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
     }
 
     // =========================================================================
-    // MAP: inject formula Excel di kolom Total (N)
+    // MAP: inject formula Excel
     // =========================================================================
     public function map($row): array
     {
         $this->rowIndex++;
 
-        // Header & baris kosong → langsung return
         if ($this->rowIndex === 1 || implode('', (array) $row) === '') {
             return $row;
         }
