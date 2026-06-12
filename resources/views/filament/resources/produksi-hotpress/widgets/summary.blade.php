@@ -132,8 +132,8 @@
                                     * Silakan atur target untuk ukuran-ukuran ini di menu target mesin HOTPRESS
                                 </span>
                             @else
-                                <span class="text-gray-400 dark:text-gray-500">
-                                    Pencapaian keseluruhan shift berdasarkan akumulasi persentase target masing-masing ukuran.
+                                <span class="text-gray-500 dark:text-gray-400 font-semibold">
+                                    Bebas potongan gaji jika target global mencapai 100% (tidak harus 100% per ukuran).
                                 </span>
                             @endif
                         </div>
@@ -182,10 +182,8 @@
                                     <td class="px-3 py-2.5 text-center font-mono font-bold {{ $sizeProgress >= 100 ? 'text-green-600 dark:text-green-500' : 'text-gray-900 dark:text-gray-100 font-medium' }}">
                                         @if (!$item['hasTarget'])
                                             -
-                                        @elseif ($sizeProgress >= 100)
-                                            Target Tercapai
                                         @else
-                                            {{ number_format($sizeProgress, 1) }}%
+                                            +{{ number_format($sizeProgress, 1) }}%
                                         @endif
                                     </td>
                                 </tr>
