@@ -29,6 +29,7 @@ class AbsensiParsingService
             );
 
             foreach ($result['raw_logs'] as $empCode => $entries) {
+                // Merge log dari semua file berdasarkan emp_code yang sama
                 $rawLogs[$empCode] = array_merge($rawLogs[$empCode] ?? [], $entries);
             }
 
@@ -36,7 +37,7 @@ class AbsensiParsingService
         }
 
         return [
-            'raw_logs' => $rawLogs,
+            'raw_logs'      => $rawLogs,
             'skipped_lines' => $skippedLines,
         ];
     }
@@ -53,9 +54,9 @@ class AbsensiParsingService
             if (!$parsedLine) {
                 if (trim($line) !== '') {
                     $skippedLines++;
-                    Log::warning('Baris absensi dilewati karena format tidak valid.', [
-                        'file' => $filePath,
-                        'line' => $lineNumber + 1,
+                    Log::debug('Baris absensi dilewati karena format tidak valid.', [
+                        'file'    => $filePath,
+                        'line'    => $lineNumber + 1,
                         'content' => trim($line),
                     ]);
                 }
@@ -74,7 +75,7 @@ class AbsensiParsingService
         }
 
         return [
-            'raw_logs' => $rawLogs,
+            'raw_logs'      => $rawLogs,
             'skipped_lines' => $skippedLines,
         ];
     }
@@ -91,6 +92,11 @@ class AbsensiParsingService
             return null;
         }
 
+        // Lewati baris header (token pertama bukan angka murni)
+        if ($this->isHeaderLine($parts)) {
+            return null;
+        }
+
         $empCode = $this->extractEmployeeCode($parts);
         if ($empCode === null) {
             return null;
@@ -101,9 +107,11 @@ class AbsensiParsingService
             return null;
         }
 
-        $timeToken = $this->extractTimeToken($parts, $dateData['index']);
-        $timeValue = $this->normalizeTime($timeToken);
+        // Jika tanggal & waktu digabung dalam satu token, gunakan time_override langsung
+        $timeToken = $dateData['time_override']
+            ?? $this->extractTimeToken($parts, $dateData['index']);
 
+        $timeValue = $this->normalizeTime($timeToken);
         if ($timeValue === null) {
             return null;
         }
@@ -117,22 +125,18 @@ class AbsensiParsingService
 
         return [
             'emp_code' => $empCode,
-            'date' => $date,
-            'time' => $timeValue,
+            'date'     => $date,
+            'time'     => $timeValue,
         ];
     }
 
     private function splitLine(string $line, string $extension): array
     {
         if (($extension === 'txt' || $extension === 'dat') && str_contains($line, "\t")) {
-            $tabSeparatedParts = preg_split('/\t+/', $line);
-
-            return $this->normalizeParts($tabSeparatedParts);
+            return $this->normalizeParts(preg_split('/\t+/', $line));
         }
 
-        $spaceSeparatedParts = preg_split('/\s+/', $line);
-
-        return $this->normalizeParts($spaceSeparatedParts);
+        return $this->normalizeParts(preg_split('/\s+/', $line));
     }
 
     private function normalizeParts(array|false $parts): array
@@ -144,17 +148,48 @@ class AbsensiParsingService
         return array_values(array_filter(array_map('trim', $parts)));
     }
 
+    /**
+     * Deteksi baris header pada file .txt (GLogData).
+     * Baris header token pertamanya bukan angka murni (mis: "No", "Mchn").
+     */
+    private function isHeaderLine(array $parts): bool
+    {
+        $firstToken = $parts[0] ?? '';
+        return !preg_match('/^\d+$/', $firstToken);
+    }
+
+    /**
+     * Hilangkan leading zeros dari kode pegawai.
+     *
+     * File .txt (GLogData) menyimpan kode dengan leading zeros: "000006117"
+     * File .dat (attlog)   menyimpan kode tanpa leading zeros : "6117"
+     *
+     * Keduanya dinormalisasi menjadi "6117" agar bisa di-merge dengan benar.
+     */
+    private function normalizeEmpCode(string $code): string
+    {
+        // Hilangkan leading zeros, pastikan minimal 1 karakter tersisa
+        return ltrim($code, '0') ?: $code;
+    }
+
     private function extractEmployeeCode(array $parts): ?string
     {
-        $candidate = trim($parts[2] ?? '');
-        if (preg_match(self::EMPLOYEE_CODE_PATTERN, $candidate) === 1) {
-            return $candidate;
+        // Format GLogData (.txt): emp_code ada di index 2 (kolom "EnNo")
+        // Format attlog (.dat)  : emp_code ada di index 0
+        $priorityIndexes = [2, 0];
+
+        foreach ($priorityIndexes as $idx) {
+            $candidate = trim($parts[$idx] ?? '');
+            if (preg_match(self::EMPLOYEE_CODE_PATTERN, $candidate) === 1) {
+                return $this->normalizeEmpCode($candidate);
+            }
         }
 
+        // Fallback: scan semua kolom
         foreach ($parts as $part) {
             $token = trim($part);
             if (preg_match(self::EMPLOYEE_CODE_PATTERN, $token) === 1) {
-                return $token;
+                return $this->normalizeEmpCode($token);
             }
         }
 
@@ -164,14 +199,26 @@ class AbsensiParsingService
     private function extractDate(array $parts): ?array
     {
         foreach ($parts as $index => $value) {
-            if (preg_match('/^\d{4}[\/\-]\d{2}[\/\-]\d{2}$/', $value) !== 1) {
-                continue;
+            $trimmed = trim($value);
+
+            // Format terpisah: "2026/05/25" atau "2026-05-25"
+            if (preg_match('/^\d{4}[\/\-]\d{2}[\/\-]\d{2}$/', $trimmed) === 1) {
+                return [
+                    'index'         => $index,
+                    'value'         => str_replace('/', '-', $trimmed),
+                    'time_override' => null,
+                ];
             }
 
-            return [
-                'index' => $index,
-                'value' => str_replace('/', '-', $value),
-            ];
+            // Format gabung: "2026/05/25  14:36:13" atau "2022-08-01 08:59:16"
+            // Menangani satu atau lebih spasi di antara tanggal dan waktu
+            if (preg_match('/^(\d{4}[\/\-]\d{2}[\/\-]\d{2})\s+(\d{2}:\d{2}(?::\d{2})?)$/', $trimmed, $matches) === 1) {
+                return [
+                    'index'         => $index,
+                    'value'         => str_replace('/', '-', $matches[1]),
+                    'time_override' => $matches[2],
+                ];
+            }
         }
 
         return null;
@@ -200,6 +247,8 @@ class AbsensiParsingService
         }
 
         $trimmedTime = trim($time);
+
+        // Normalisasi "HH:MM" → "HH:MM:SS"
         if (strlen($trimmedTime) === 5) {
             return "{$trimmedTime}:00";
         }

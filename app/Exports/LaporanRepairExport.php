@@ -527,7 +527,7 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles,
             $banyak === '' || $banyak === null ? '' : (float) $banyak,
             $m3 === '' || $m3 === null ? '' : (float) $m3,
             $harga === '' || $harga === null ? '' : (float) $harga,
-            '', 
+            '',
         ];
     }
 
@@ -648,7 +648,7 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles,
                     if ($jumlah > 0) {
                         $namaBahanRaw = $bahan->bahanPenolong->nama_bahan_penolong ?? 'Bahan';
                         $namaLower = strtolower(trim($namaBahanRaw));
-                        
+
                         $isWHN = false;
                         if (request()) {
                             $host = request()->getHost();
