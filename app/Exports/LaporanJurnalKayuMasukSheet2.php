@@ -207,7 +207,7 @@ class LaporanJurnalKayuMasukSheet2 extends DefaultValueBinder implements FromCol
                     $table['nama_supplier'],
                     $kodeLahan,
                     'd',
-                    'm',
+                    null,
                     $group['total_batang'],
                     $group['total_kubikasi'],
                     $hargaVal,
