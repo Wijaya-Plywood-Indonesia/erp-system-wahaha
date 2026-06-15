@@ -40,9 +40,13 @@ class CreateAbsensi extends CreateRecord
         // STEP 2: PROSES — Tentukan masuk & pulang per orang
         // ================================================
         foreach ($rawLogs as $empCode => $entries) {
+            $cleanCode = ltrim($empCode, '0');
             // Find previous day's attendance
             $prevDate = Carbon::parse($targetDate)->subDay()->format('Y-m-d');
-            $previousAbsen = DetailAbsensi::where('kode_pegawai', $empCode)
+            $previousAbsen = DetailAbsensi::where(function ($q) use ($empCode, $cleanCode) {
+                    $q->where('kode_pegawai', $cleanCode)
+                      ->orWhere('kode_pegawai', $empCode);
+                })
                 ->where('tanggal', $prevDate)
                 ->first();
 
@@ -51,7 +55,53 @@ class CreateAbsensi extends CreateRecord
                 $prevCheckout = Carbon::parse($prevDate . ' ' . $previousAbsen->jam_pulang);
             }
 
-            $paired = $pairingService->pairEmployeeLogs($entries, $targetDate, $nextDate, $prevCheckout);
+            // Find employee by code to check their scheduled shift
+            $pegawai = \App\Models\Pegawai::where('kode_pegawai', $cleanCode)
+                ->orWhere('kode_pegawai', '0' . $cleanCode)
+                ->orWhere('kode_pegawai', '00' . $cleanCode)
+                ->orWhere('kode_pegawai', '000' . $cleanCode)
+                ->orWhere('kode_pegawai', '0000' . $cleanCode)
+                ->first();
+
+            $forcedShift = null;
+            if ($pegawai) {
+                // Check all production tables with shift column on $targetDate for this employee
+                
+                // 1. Dryer
+                $dryerShift = \App\Models\ProduksiPressDryer::whereDate('tanggal_produksi', $targetDate)
+                    ->whereHas('detailPegawais', function ($q) use ($pegawai) {
+                        $q->where('id_pegawai', $pegawai->id);
+                    })
+                    ->value('shift');
+
+                // 2. Hot Press
+                $hpShift = \App\Models\ProduksiHp::whereDate('tanggal_produksi', $targetDate)
+                    ->whereHas('detailPegawaiHp', function ($q) use ($pegawai) {
+                        $q->where('id_pegawai', $pegawai->id);
+                    })
+                    ->value('shift');
+
+                // 3. Sanding
+                $sandingShift = \App\Models\ProduksiSanding::whereDate('tanggal', $targetDate)
+                    ->whereHas('pegawaiSandings', function ($q) use ($pegawai) {
+                        $q->where('id_pegawai', $pegawai->id);
+                    })
+                    ->value('shift');
+
+                // 4. Gergaji Triplek
+                $grajiShift = \App\Models\ProduksiGrajitriplek::whereDate('tanggal_produksi', $targetDate)
+                    ->whereHas('pegawaiGrajiTriplek', function ($q) use ($pegawai) {
+                        $q->where('id_pegawai', $pegawai->id);
+                    })
+                    ->value('shift');
+
+                $foundShift = $dryerShift ?? $hpShift ?? $sandingShift ?? $grajiShift;
+                if ($foundShift) {
+                    $forcedShift = strtoupper(trim($foundShift));
+                }
+            }
+
+            $paired = $pairingService->pairEmployeeLogs($entries, $targetDate, $nextDate, $prevCheckout, $forcedShift);
             if (!$paired) {
                 continue; // Tidak ada tap masuk di hari target, skip
             }
@@ -63,7 +113,7 @@ class CreateAbsensi extends CreateRecord
             // STEP 3: SIMPAN ke database
             // ================================================
             DetailAbsensi::updateOrCreate(
-                ['kode_pegawai' => $empCode, 'tanggal' => $targetDate],
+                ['kode_pegawai' => $cleanCode, 'tanggal' => $targetDate],
                 [
                     'id_absensi' => $record->id,
                     'jam_masuk'  => $jamMasuk,
