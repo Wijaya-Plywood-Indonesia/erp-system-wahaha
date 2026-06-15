@@ -7,18 +7,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class HasilTembeltriplek extends Model
 {
-    protected $table = 'hasil_tembel_tripleks';
+    protected $table = 'hasil_tembel_triplek';
 
     protected $fillable = [
         'id_produksi_tembel_triplek',
+        'id_pegawai_tembel_triplek', 
         'id_barang_setengah_jadi_hp',
         'modal',
         'hasil',
         'nomor_palet',
-        'jam_masuk',
-        'jam_pulang',
-        'ijin',
-        'keterangan'
     ];
 
     public function produksiTembeltriplek(): BelongsTo
@@ -48,7 +45,6 @@ class HasilTembeltriplek extends Model
 
     protected static function booted()
     {
-        // Menggunakan static::saved mencakup Created dan Updated
         static::saved(function ($model) {
             if ($model->id_produksi_tembel_triplek) {
                 \App\Events\ProductionUpdated::dispatch($model->id_produksi_tembel_triplek, 'tembel_triplek');

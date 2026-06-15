@@ -13,22 +13,22 @@ class ProduksiTembeltriplek extends Model
         'kendala',
     ];
 
-    public function pegawaiTembeltripleks()
+    public function pegawaiTembeltriplek()
     {
         return $this->hasMany(PegawaiTembeltriplek::class, 'id_produksi_tembel_triplek');
     }
 
-    public function detailTembeltripleks()
+    public function detailTembeltriplek()
     {
         return $this->hasMany(HasilTembeltriplek::class, 'id_produksi_tembel_triplek');
     }
 
-    public function validasiTembeltripleks()
+    public function validasiTembeltriplek()
     {
-        return $this->hasMany(ValidasiTembelTriplek::class, 'id_produksi_tembel_triplek');
+        return $this->hasMany(ValidasiTembeltriplek::class, 'id_produksi_tembel_triplek');
     }
 
-    public function bahanPenolongTembeltripleks()
+    public function bahanPenolongTembeltriplek()
     {
         return $this->hasMany(BahanPenolongTembeltriplek::class, 'id_produksi_tembel_triplek');
     }
