@@ -307,9 +307,6 @@ class LaporanRepairSummarySheet implements FromCollection, WithHeadings, WithTit
 // ============================================================
 // SHEET 3: JURNAL — REPAIR TEMPLATE (MENIRU STRUKTUR JOIN)
 // ============================================================
-// ============================================================
-// SHEET 3: JURNAL — REPAIR TEMPLATE (MENIRU STRUKTUR JOIN)
-// ============================================================
 class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles, WithColumnFormatting
 {
     public function __construct(protected $rawCollection) {}
