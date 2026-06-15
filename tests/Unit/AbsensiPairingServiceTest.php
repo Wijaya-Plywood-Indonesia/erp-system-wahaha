@@ -251,4 +251,45 @@ class AbsensiPairingServiceTest extends TestCase
         $this->assertSame('20:30:00', $paired['jam_masuk']);
         $this->assertSame('02:30:00', $paired['jam_pulang']);
     }
+
+    public function test_forced_night_shift_corrects_reversed_taps(): void
+    {
+        $targetDate = '2024-07-08';
+        $nextDate = '2024-07-09';
+
+        // Employee has a morning checkout (06:00) on targetDate from previous night shift,
+        // and check-in (16:00) on targetDate for the current night shift.
+        // Then morning checkout (06:00) on nextDate.
+        $entries = [
+            [
+                'date' => $targetDate,
+                'time' => '06:00:00',
+                'full' => Carbon::parse("{$targetDate} 06:00:00"),
+            ],
+            [
+                'date' => $targetDate,
+                'time' => '16:00:00',
+                'full' => Carbon::parse("{$targetDate} 16:00:00"),
+            ],
+            [
+                'date' => $nextDate,
+                'time' => '06:00:00',
+                'full' => Carbon::parse("{$nextDate} 06:00:00"),
+            ],
+        ];
+
+        // 1. Without forcedShift:
+        // System defaults to first tap (06:00:00) as jam_masuk, and targetDate evening tap (16:00:00) as jam_pulang.
+        $pairedDefault = $this->pairingService->pairEmployeeLogs($entries, $targetDate, $nextDate);
+        $this->assertNotNull($pairedDefault);
+        $this->assertSame('06:00:00', $pairedDefault['jam_masuk']);
+        $this->assertSame('16:00:00', $pairedDefault['jam_pulang']);
+
+        // 2. With forcedShift = 'MALAM':
+        // System ignores the 06:00 tap on targetDate, picks 16:00 as jam_masuk, and 06:00 on nextDate as jam_pulang.
+        $pairedForced = $this->pairingService->pairEmployeeLogs($entries, $targetDate, $nextDate, null, 'MALAM');
+        $this->assertNotNull($pairedForced);
+        $this->assertSame('16:00:00', $pairedForced['jam_masuk']);
+        $this->assertSame('06:00:00', $pairedForced['jam_pulang']);
+    }
 }
