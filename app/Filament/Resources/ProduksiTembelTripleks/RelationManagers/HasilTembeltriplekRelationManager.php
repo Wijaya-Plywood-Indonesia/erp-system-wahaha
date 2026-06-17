@@ -110,22 +110,32 @@ class HasilTembeltriplekRelationManager extends RelationManager
                 TextInput::make('nomor_palet')
                     ->numeric(),
 
-                Select::make('id_pegawai_tembel_triplek')
+                // 👇 INI BAGIAN PENTING: MENGGUNAKAN RELASI PIVOT PEGAWAIS
+                Select::make('pegawais')
                     ->label('Dikerjakan Oleh (Pegawai)')
-                    ->required()
-                    ->searchable()
-                    ->preload()
-                    ->options(function ($livewire) {
-                        $produksiId = $livewire->ownerRecord?->id;
-                        if (!$produksiId) return [];
+                    ->relationship(
+                        name: 'pegawais',
+                        titleAttribute: 'nama_pegawai',
+                        modifyQueryUsing: function (Builder $query, $livewire) {
+                            $produksiId = $livewire->ownerRecord?->id ?? null;
 
-                        return PegawaiTembeltriplek::with('pegawai')
-                            ->where('id_produksi_tembel_triplek', $produksiId)
-                            ->get()
-                            ->mapWithKeys(fn($pt) => [
-                                $pt->id => $pt->pegawai?->nama_pegawai ?? 'Unknown'
-                            ]);
-                    }),
+                            if ($produksiId) {
+                                // HANYA ambil Pegawai yang sudah didaftarkan di tab Pegawai Tembel Triplek
+                                $pegawaiIds = \App\Models\PegawaiTembeltriplek::query()
+                                    ->where('id_produksi_tembel_triplek', $produksiId)
+                                    ->pluck('id_pegawai')
+                                    ->toArray();
+
+                                return $query->whereIn('pegawais.id', $pegawaiIds);
+                            }
+
+                            return $query;
+                        }
+                    )
+                    ->multiple()
+                    ->required()
+                    ->preload()
+                    ->searchable(),
             ]);
     }
 
@@ -135,22 +145,20 @@ class HasilTembeltriplekRelationManager extends RelationManager
             ->modifyQueryUsing(
                 fn(Builder $query) =>
                 $query->with([
-                    'pegawaiTembeltriplek.pegawai',
+                    'pegawais', // <--- Ganti dengan relasi pegawais yang baru
                     'barangSetengahJadi.ukuran',
                     'barangSetengahJadi.jenisBarang',
                     'barangSetengahJadi.grade.kategoriBarang',
                 ])
             )
-            ->groups([
-                Group::make('id_pegawai_tembel_triplek')
-                    ->label('Pegawai')
-                    ->getTitleFromRecordUsing(function ($record) {
-                        return 'Pegawai: ' . ($record->pegawaiTembeltriplek?->pegawai?->nama_pegawai ?? '-');
-                    })
-                    ->collapsible(),
-            ])
-            ->defaultGroup('id_pegawai_tembel_triplek')
+            // 👇 GROUPING DIHAPUS, karena satu barang sekarang bisa dimiliki banyak pegawai
+            // 👇 DIGANTI dengan TextColumn 'pegawais.nama_pegawai' di dalam array columns
             ->columns([
+                TextColumn::make('pegawais.nama_pegawai') // <--- Menampilkan daftar pegawai pivot
+                    ->label('Dikerjakan Oleh')
+                    ->badge() // Membuat tampilannya seperti tag pil
+                    ->wrap(),
+
                 TextColumn::make('barang')
                     ->label('Barang')
                     ->getStateUsing(function ($record) {

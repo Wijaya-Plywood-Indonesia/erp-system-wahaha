@@ -18,7 +18,7 @@ class ProduksiTembeltriplek extends Model
         return $this->hasMany(PegawaiTembeltriplek::class, 'id_produksi_tembel_triplek');
     }
 
-    public function detailTembeltriplek()
+    public function hasilTembeltriplek()
     {
         return $this->hasMany(HasilTembeltriplek::class, 'id_produksi_tembel_triplek');
     }
