@@ -379,8 +379,14 @@ class LaporanProduksiJurnalSheet extends DefaultValueBinder implements FromColle
 
         // Preload harga veneer kering
         $hargaVeneerMap = [];
-        foreach (\App\Models\HargaVeneer::all() as $hv) {
-            $hargaVeneerMap[$hv->id_jenis_kayu][strtolower($hv->ukuran)] = (float) $hv->harga_kering;
+        $referensiHargaKering = \App\Models\ReferensiHargaProduksi::where('jenis_barang', 'Veneer Kering')->get();
+        foreach ($referensiHargaKering as $rhp) {
+            $ukKey = strtolower(trim($rhp->kw ?? ''));
+            if (str_starts_with($ukKey, 'kw 1 - ')) {
+                $ukKey = substr($ukKey, 7);
+            }
+            $ukKey = str_replace(' ', '_', $ukKey);
+            $hargaVeneerMap[$rhp->id_jenis_kayu][$ukKey] = (float) $rhp->harga;
         }
 
         foreach ($payload['jurnal_items'] as $item) {
@@ -895,10 +901,15 @@ class LaporanProduksiJurnalSheet extends DefaultValueBinder implements FromColle
             ? ($jns === 'Sengon' ? ['faceback'] : ['face', 'back'])
             : ['core'];
 
-        $hargaVeneer = \App\Models\HargaVeneer::where('id_jenis_kayu', $jenisKayu->id)
-            ->whereIn('ukuran', $ukuranOptions)
+        $kwOptions = array_map(function($opt) {
+            return 'KW 1 - ' . ucfirst(str_replace('_', ' ', $opt));
+        }, $ukuranOptions);
+
+        $hargaVeneer = \App\Models\ReferensiHargaProduksi::where('id_jenis_kayu', $jenisKayu->id)
+            ->where('jenis_barang', 'Veneer Basah')
+            ->whereIn('kw', $kwOptions)
             ->first();
 
-        return (float) ($hargaVeneer->harga_basah ?? 0.0);
+        return (float) ($hargaVeneer->harga ?? 0.0);
     }
 }

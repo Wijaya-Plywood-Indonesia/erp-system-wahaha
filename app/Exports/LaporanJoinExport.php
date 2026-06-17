@@ -489,21 +489,27 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles,
             ? ($jns === 'Sengon' ? ['faceback'] : ['face', 'back'])
             : ($kelompok === 'ppc_faceback' ? ['ppc_faceback'] : [$kelompok]);
 
-        $hargaVeneer = \App\Models\HargaVeneer::where('id_jenis_kayu', $jenisKayu->id)
-            ->whereIn('ukuran', $ukuranOptions)
+        $kwOptions = array_map(function($opt) {
+            return 'KW 1 - ' . ucfirst(str_replace('_', ' ', $opt));
+        }, $ukuranOptions);
+
+        $tipeKualitasMap = [
+            'basah' => 'Veneer Basah',
+            'kering' => 'Veneer Kering',
+            'jadi' => 'Veneer Jadi',
+        ];
+        $jenisBarang = $tipeKualitasMap[strtolower($tipeKualitas)] ?? 'Veneer Jadi';
+
+        $hargaVeneer = \App\Models\ReferensiHargaProduksi::where('id_jenis_kayu', $jenisKayu->id)
+            ->where('jenis_barang', $jenisBarang)
+            ->whereIn('kw', $kwOptions)
             ->first();
 
         if (!$hargaVeneer) {
             return 0;
         }
 
-        if ($tipeKualitas === 'basah') {
-            return (int) $hargaVeneer->harga_basah;
-        } elseif ($tipeKualitas === 'kering') {
-            return (int) $hargaVeneer->harga_kering;
-        } else {
-            return (int) $hargaVeneer->harga_jadi;
-        }
+        return (int) $hargaVeneer->harga;
     }
 
     private function makeRow($namaAkun, $tgl, $noAkun, $keterangan, $map, $banyak, $m3, $harga, $total, $hitKbk = 'm'): array

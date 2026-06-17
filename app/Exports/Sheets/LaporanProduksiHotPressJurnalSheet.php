@@ -314,14 +314,41 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
     // =========================================================================
     private function getHargaVeneer(float $tebal, string $jenisKayu, bool $isPpc = false): float
     {
-        if ($isPpc) return 1700000;
+        $jns = str_contains(strtolower(trim($jenisKayu)), 'sengon') ? 'Sengon' : 'Meranti';
+        $jenisKayuObj = \App\Models\JenisKayu::where('nama_kayu', $jns)->first();
+        if (!$jenisKayuObj) {
+            return 0.0;
+        }
 
-        $kayu = str_contains(strtolower($jenisKayu), 'sengon') ? 'sengon' : 'meranti';
-
-        if ($tebal >= 1) {
-            return ($kayu === 'sengon') ? 2250000 : 2800000;
+        if ($isPpc) {
+            $kelompok = ($tebal < 1) ? 'ppc_faceback' : 'ppc_core';
         } else {
-            return ($kayu === 'sengon') ? 4000000 : 10000000;
+            $kelompok = ($tebal < 1) ? 'faceback' : 'core';
+        }
+
+        $ukuranOptions = $kelompok === 'faceback'
+            ? ($jns === 'Sengon' ? ['faceback'] : ['face', 'back'])
+            : ($kelompok === 'ppc_faceback' ? ['ppc_faceback'] : [$kelompok]);
+
+        $kwOptions = array_map(function($opt) {
+            return 'KW 1 - ' . ucfirst(str_replace('_', ' ', $opt));
+        }, $ukuranOptions);
+
+        $hargaVeneer = \App\Models\ReferensiHargaProduksi::where('id_jenis_kayu', $jenisKayuObj->id)
+            ->where('jenis_barang', 'Veneer Jadi')
+            ->whereIn('kw', $kwOptions)
+            ->first();
+
+        if ($hargaVeneer) {
+            return (float) $hargaVeneer->harga;
+        }
+
+        // Fallback legacy hardcoded
+        if ($isPpc) return 1700000;
+        if ($tebal >= 1) {
+            return ($jns === 'Sengon') ? 2250000 : 2800000;
+        } else {
+            return ($jns === 'Sengon') ? 4000000 : 10000000;
         }
     }
 
