@@ -58,11 +58,13 @@ use App\Filament\Pages\Absen\Transformers\HotpressWorkerMap;
 use App\Filament\Pages\Absen\Transformers\PilihVeneerWorkerMap;
 use App\Filament\Pages\Absen\Transformers\PotSikuWorkerMap;
 use App\Filament\Pages\Absen\Transformers\PotJelekWorkerMap;
+use App\Filament\Pages\Absen\Transformers\TembelTriplekWorkerMap;
 use App\Filament\Pages\Absen\Transformers\TurunKayuWorkerMap;
 use App\Models\GrajiStik;
 use App\Models\produksi_guellotine;
 use App\Models\ProduksiGrajiBalken;
 use App\Models\ProduksiPilihVeneer;
+use App\Models\ProduksiTembeltriplek;
 use Illuminate\Support\Facades\Http;
 
 use BackedEnum;
@@ -179,6 +181,7 @@ class Absen extends Page implements HasForms
             $listGuellotine = GuellotineWorkerMap::make(produksi_guellotine::with(['pegawaiGuellotine.pegawai'])->whereDate('tanggal_produksi', $tgl)->get());
             $listGrajiBalken = GrajiBalkenWorkerMap::make(ProduksiGrajiBalken::with(['pegawaiGrajiBalken.pegawai'])->whereDate('tanggal_produksi', $tgl)->get());
             $listGrajiStik = GrajiStikWorkerMap::make(GrajiStik::with(['pegawaiGrajiStik.pegawai'])->whereDate('tanggal', $tgl)->get());
+            $listTembelTriplek = TembelTriplekWorkerMap::make(ProduksiTembeltriplek::with(['pegawaiTembeltriplek.pegawai', 'hasilTembeltriplek.barangSetengahJadi'])->whereDate('tanggal', $tgl)->get());
 
             $pegawaiBekerjaRaw = array_merge(
                 $listRotary,
@@ -202,7 +205,8 @@ class Absen extends Page implements HasForms
                 $listPilihVeneer,
                 $listGuellotine,
                 $listGrajiBalken,
-                $listGrajiStik
+                $listGrajiStik,
+                $listTembelTriplek,
             );
 
             // 4. Gabungkan Produksi dengan Log Finger
@@ -267,43 +271,35 @@ class Absen extends Page implements HasForms
                     ];
                 }
             }
-
-            // Gabungkan hasil untuk tabel utama (Terdaftar)
             $finalMerge = array_merge($pegawaiBekerja->values()->all(), $listLibur);
-            // usort($finalMerge, function ($a, $b) {
-            //     $kodeA = (string)($a['kodep'] ?? '');
-            //     $kodeB = (string)($b['kodep'] ?? '');
-
-            //     // Fungsi pembantu untuk menentukan prioritas (semakin kecil angka, semakin di atas)
-            //     $getPriority = function ($kode) {
-            //         if (str_starts_with($kode, '8') || str_starts_with($kode, '9')) {
-            //             return 1; // Prioritas tertinggi (paling atas)
-            //         }
-            //         if (str_starts_with($kode, '7')) {
-            //             return 3; // Prioritas terendah (paling bawah)
-            //         }
-            //         return 2; // Untuk kode kepala 1-6 atau lainnya (di tengah)
-            //     };
-
-            //     $prioA = $getPriority($kodeA);
-            //     $prioB = $getPriority($kodeB);
-
-            //     // Jika prioritas berbeda (misal 8 vs 7), urutkan berdasarkan prioritas
-            //     if ($prioA !== $prioB) {
-            //         return $prioA <=> $prioB;
-            //     }
-
-            //     // Jika di dalam grup yang sama (misal sama-sama kepala 8), gunakan urutan angka alami
-            //     return strnatcasecmp($kodeA, $kodeB);
-            // });
-
             usort($finalMerge, function ($a, $b) {
-                // Pastikan kode diubah ke integer untuk pengurutan numerik yang benar
-                // Contoh: '1' akan muncul sebelum '10', bukan sesudahnya
-                $kodeA = (int)($a['kodep'] ?? 0);
-                $kodeB = (int)($b['kodep'] ?? 0);
+                $kodeA = trim((string)($a['kodep'] ?? ''));
+                $kodeB = trim((string)($b['kodep'] ?? ''));
 
-                return $kodeA <=> $kodeB;
+                // Fungsi pembantu untuk menentukan pembagian grup prioritas
+                $getPriority = function ($kode) {
+                    // Prioritas 1: Kode berawalan angka 8 atau 9 (Paling atas)
+                    if (str_starts_with($kode, '8') || str_starts_with($kode, '9')) {
+                        return 1;
+                    }
+                    // Prioritas 3: Kode berawalan angka 7 (Paling bawah)
+                    if (str_starts_with($kode, '7')) {
+                        return 3;
+                    }
+                    // Prioritas 2: Kode berawalan lainnya (1-6, dll.) diletakkan di tengah
+                    return 2;
+                };
+
+                $prioA = $getPriority($kodeA);
+                $prioB = $getPriority($kodeB);
+
+                // Jika grup prioritasnya berbeda, urutkan berdasarkan nilai prioritas (1 -> 2 -> 3)
+                if ($prioA !== $prioB) {
+                    return $prioA <=> $prioB;
+                }
+
+                // Jika berada di dalam grup prioritas yang sama, urutkan secara numerik menaik (1 -> 2 -> 10)
+                return (int)$kodeA <=> (int)$kodeB;
             });
 
             $this->listAbsensi = array_values($finalMerge);

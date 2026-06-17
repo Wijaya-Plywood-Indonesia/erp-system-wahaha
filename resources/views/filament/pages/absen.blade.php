@@ -170,6 +170,9 @@
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-indigo-100 text-indigo-800 ring-1 ring-indigo-500/30 uppercase">
                                                     GRAJI STIK
                                                 </span>
+                                                @elseif(str_contains($divisi, 'TEMBEL TRIPLEK'))
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 ring-1 ring-emerald-500/30 uppercase">TEMBEL TRIPLEK</span>
+
                                                 @elseif(str_contains($divisi, 'Sync Error'))
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-red-600 text-white animate-pulse">KODE TIDAK TERDAFTAR</span>
                                                 @elseif(str_contains($divisi, 'Finger tanpa produksi'))
