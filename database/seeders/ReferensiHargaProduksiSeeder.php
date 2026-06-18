@@ -67,27 +67,13 @@ class ReferensiHargaProduksiSeeder extends Seeder
             ];
         }
 
-        // Ambil atau buat data ukuran 0x0x0
-        $ukuran0 = Ukuran::where('panjang', 0)
-            ->where('lebar', 0)
-            ->where('tebal', 0)
-            ->first();
-
-        if (!$ukuran0) {
-            $ukuran0 = Ukuran::create([
-                'panjang' => 0,
-                'lebar' => 0,
-                'tebal' => 0
-            ]);
-        }
-
         foreach ($items as $hv) {
             $idJenisKayu = $hv['id_jenis_kayu'];
             $jenisKayu = JenisKayu::find($idJenisKayu);
             $woodName = strtolower($jenisKayu ? $jenisKayu->nama_kayu : '');
             
-            // Tentukan Ukuran (pakai 0x0x0 karena ini referensi harga awal)
-            $idUkuran = $ukuran0->id;
+            // Tentukan Ukuran (pakai null karena ini referensi harga awal)
+            $idUkuran = null;
 
             // Kata kunci posisi
             $posTerm = match($hv['ukuran']) {

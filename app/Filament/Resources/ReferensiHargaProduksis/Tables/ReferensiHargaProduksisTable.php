@@ -18,9 +18,11 @@ class ReferensiHargaProduksisTable
                 TextColumn::make('ukuran')
                     ->label('Ukuran')
                     ->state(function ($record) {
-                        return optional($record->ukuran)->panjang . 'mm x ' .
-                            optional($record->ukuran)->lebar . 'mm x ' .
-                            optional($record->ukuran)->tebal . 'mm';
+                        return $record->ukuran ? (
+                            $record->ukuran->panjang . 'mm x ' .
+                            $record->ukuran->lebar . 'mm x ' .
+                            $record->ukuran->tebal . 'mm'
+                        ) : '-';
                     })
                     ->searchable(query: function ($query, string $search) {
                         $query->whereHas('ukuran', function ($q) use ($search) {

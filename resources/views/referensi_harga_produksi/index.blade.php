@@ -171,7 +171,11 @@
                         @forelse($data as $item)
                         <tr class="hover:bg-indigo-50/30 transition-colors group">
                             <td class="py-4 px-6 font-medium text-slate-900">
-                                {{ optional($item->ukuran)->panjang }}mm x {{ optional($item->ukuran)->lebar }}mm x {{ optional($item->ukuran)->tebal }}mm
+                                @if($item->ukuran)
+                                    {{ $item->ukuran->panjang }}mm x {{ $item->ukuran->lebar }}mm x {{ $item->ukuran->tebal }}mm
+                                @else
+                                    -
+                                @endif
                             </td>
                             <td class="py-4 px-6">
                                 <span class="bg-slate-100 text-slate-700 text-xs px-2.5 py-1 rounded-lg font-medium">
