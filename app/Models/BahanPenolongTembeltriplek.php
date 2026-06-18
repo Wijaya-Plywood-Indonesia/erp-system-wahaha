@@ -18,4 +18,9 @@ class BahanPenolongTembeltriplek extends Model
     {
         return $this->belongsTo(ProduksiTembeltriplek::class, 'id_produksi_tembel_triplek');
     }
+
+    public function bahanPenolong()
+    {
+        return $this->belongsTo(BahanPenolongProduksi::class, 'id_bahan_penolong');
+    }
 }
