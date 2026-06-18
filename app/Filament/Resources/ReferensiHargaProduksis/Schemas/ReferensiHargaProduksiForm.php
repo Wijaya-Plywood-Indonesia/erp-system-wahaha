@@ -15,6 +15,11 @@ class ReferensiHargaProduksiForm
     {
         return $schema
             ->components([
+                TextInput::make('nama')
+                    ->label('Nama')
+                    ->maxLength(255)
+                    ->placeholder('Masukkan nama referensi (opsional)'),
+
                 Select::make('id_ukuran')
                     ->label('Ukuran')
                     ->options(

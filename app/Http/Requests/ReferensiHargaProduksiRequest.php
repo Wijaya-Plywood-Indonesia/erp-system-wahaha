@@ -35,6 +35,11 @@ class ReferensiHargaProduksiRequest extends FormRequest
         }
 
         return [
+            'nama' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
             'id_ukuran' => [
                 'nullable',
                 'exists:ukurans,id',

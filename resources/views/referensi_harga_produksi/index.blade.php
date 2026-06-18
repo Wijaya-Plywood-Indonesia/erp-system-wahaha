@@ -105,6 +105,16 @@
                     <thead>
                         <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                             <th class="py-4 px-6">
+                                <a href="{{ request()->fullUrlWithQuery(['sort' => 'nama', 'order' => request('sort') == 'nama' && request('order') == 'asc' ? 'desc' : 'asc']) }}" class="flex items-center gap-1.5 hover:text-indigo-600 transition-colors">
+                                    Nama
+                                    @if(request('sort') == 'nama')
+                                        <i class="fa-solid {{ request('order') == 'asc' ? 'fa-sort-up' : 'fa-sort-down' }} text-indigo-600"></i>
+                                    @else
+                                        <i class="fa-solid fa-sort text-slate-300"></i>
+                                    @endif
+                                </a>
+                            </th>
+                            <th class="py-4 px-6">
                                 <a href="{{ request()->fullUrlWithQuery(['sort' => 'ukuran', 'order' => request('sort') == 'ukuran' && request('order') == 'asc' ? 'desc' : 'asc']) }}" class="flex items-center gap-1.5 hover:text-indigo-600 transition-colors">
                                     Ukuran
                                     @if(request('sort') == 'ukuran')
@@ -171,6 +181,9 @@
                         @forelse($data as $item)
                         <tr class="hover:bg-indigo-50/30 transition-colors group">
                             <td class="py-4 px-6 font-medium text-slate-900">
+                                {{ $item->nama ?? '-' }}
+                            </td>
+                            <td class="py-4 px-6 font-medium text-slate-900">
                                 @if($item->ukuran)
                                     {{ $item->ukuran->panjang }}mm x {{ $item->ukuran->lebar }}mm x {{ $item->ukuran->tebal }}mm
                                 @else
@@ -228,7 +241,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="7" class="py-12 px-6 text-center text-slate-400">
+                            <td colspan="8" class="py-12 px-6 text-center text-slate-400">
                                 <div class="flex flex-col items-center justify-center gap-2">
                                     <i class="fa-solid fa-inbox text-4xl mb-2 text-slate-300"></i>
                                     <p class="text-base font-semibold">Tidak Ada Data</p>

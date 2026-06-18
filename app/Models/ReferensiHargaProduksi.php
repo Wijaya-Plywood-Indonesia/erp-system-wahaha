@@ -13,6 +13,7 @@ class ReferensiHargaProduksi extends Model
     protected $table = 'referensi_harga_produksi';
 
     protected $fillable = [
+        'nama',
         'id_ukuran',
         'id_jenis_kayu',
         'id_sub_anak_akun',
