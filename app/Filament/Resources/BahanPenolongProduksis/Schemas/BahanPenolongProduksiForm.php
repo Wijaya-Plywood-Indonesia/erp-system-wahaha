@@ -30,6 +30,7 @@ class BahanPenolongProduksiForm
             'dempul'=>'Dempul',
             'graji_triplek'=>'Graji Triplek',
             'nyusup'=>'Nyusup',
+            'tembel_triplek'=>'Tembel Triplek',
         ];
     }
     public static function configure(Schema $schema): Schema
