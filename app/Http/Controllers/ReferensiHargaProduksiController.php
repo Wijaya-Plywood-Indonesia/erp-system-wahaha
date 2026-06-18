@@ -21,7 +21,8 @@ class ReferensiHargaProduksiController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('jenis_barang', 'like', "%{$search}%")
+                $q->where('nama', 'like', "%{$search}%")
+                    ->orWhere('jenis_barang', 'like', "%{$search}%")
                     ->orWhere('kw', 'like', "%{$search}%")
                     ->orWhere('harga', 'like', "%{$search}%")
                     ->orWhereHas('ukuran', function ($qu) use ($search) {
@@ -44,7 +45,7 @@ class ReferensiHargaProduksiController extends Controller
         $sortField = $request->get('sort', 'created_at');
         $sortOrder = $request->get('order', 'desc');
 
-        if (in_array($sortField, ['jenis_barang', 'kw', 'harga', 'created_at'])) {
+        if (in_array($sortField, ['nama', 'jenis_barang', 'kw', 'harga', 'created_at'])) {
             $query->orderBy($sortField, $sortOrder);
         } elseif ($sortField === 'ukuran') {
             $query->join('ukurans', 'referensi_harga_produksi.id_ukuran', '=', 'ukurans.id')

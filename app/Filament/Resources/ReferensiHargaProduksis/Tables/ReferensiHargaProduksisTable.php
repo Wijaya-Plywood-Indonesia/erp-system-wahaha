@@ -15,6 +15,12 @@ class ReferensiHargaProduksisTable
     {
         return $table
             ->columns([
+                TextColumn::make('nama')
+                    ->label('Nama')
+                    ->searchable()
+                    ->sortable()
+                    ->default('-'),
+
                 TextColumn::make('ukuran')
                     ->label('Ukuran')
                     ->state(function ($record) {
