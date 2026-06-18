@@ -30,11 +30,8 @@ return new class extends Migration
             });
         }
 
-        // Run Seeder
-        \Illuminate\Support\Facades\Artisan::call('db:seed', [
-            '--class' => 'Database\\Seeders\\ReferensiHargaProduksiSeeder',
-            '--force' => true,
-        ]);
+        // Silakan jalankan seeder secara manual dari terminal jika diperlukan:
+        // php artisan db:seed --class=ReferensiHargaProduksiSeeder
     }
 
     /**
