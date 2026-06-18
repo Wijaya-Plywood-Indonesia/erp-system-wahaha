@@ -50,7 +50,7 @@ class TembelTriplekWorkerMap
                         'hasil' => $labelHasil,
                         'ijin' => $pg->ijin ?? '-',
                         'potongan_targ' => 0,
-                        'keterangan' => $pg->keterangan ?? $produksi->kendala ?? '',
+                        'keterangan' => $pg->keterangan ?? '-',
                     ];
                 }
             }

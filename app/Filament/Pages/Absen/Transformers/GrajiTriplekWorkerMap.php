@@ -55,7 +55,7 @@ class GrajiTriplekWorkerMap
                         'hasil' => $labelHasil,
                         'ijin' => $pg->ijin ?? '-',
                         'potongan_targ' => 0,
-                        'keterangan' => $pg->ket ?? $produksi->kendala ?? '',
+                        'keterangan' => $pg->ket ?? '',
                     ];
                 }
             }

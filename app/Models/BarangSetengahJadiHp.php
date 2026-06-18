@@ -38,4 +38,21 @@ class BarangSetengahJadiHp extends Model
     {
         return $this->hasMany(DetailDempul::class, 'id_barang_setengah_jadi_hp');
     }
+    // ✅ Accessor baru — wajib ditambahkan
+    public function getNamaLengkapAttribute(): string
+    {
+        $jenis = $this->jenisBarang->nama_jenis_barang ?? 'Tanpa Jenis';
+        $grade = $this->grade->nama_grade ?? 'Tanpa Grade';
+        $kategori = $this->grade->kategoriBarang->nama_kategori ?? 'Tanpa Kategori';
+
+        $ukuranStr = 'Tanpa Ukuran';
+        if ($this->ukuran) {
+            $p = rtrim(rtrim(number_format($this->ukuran->panjang, 2), '0'), '.');
+            $l = rtrim(rtrim(number_format($this->ukuran->lebar, 2), '0'), '.');
+            $t = rtrim(rtrim(number_format($this->ukuran->tebal, 2), '0'), '.');
+            $ukuranStr = "{$p}x{$l}x{$t}";
+        }
+
+        return "{$kategori} - {$jenis} - {$ukuranStr} - {$grade}";
+    }
 }

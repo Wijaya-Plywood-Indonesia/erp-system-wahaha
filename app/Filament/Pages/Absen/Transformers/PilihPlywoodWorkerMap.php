@@ -52,7 +52,7 @@ class PilihPlywoodWorkerMap
                         'hasil' => $labelHasil,
                         'ijin' => $pp->ijin ?? '-',
                         'potongan_targ' => 0,
-                        'keterangan' => $pp->ket ?? $produksi->kendala ?? '',
+                        'keterangan' => $pp->ket ?? '-',
                     ];
                 }
             }

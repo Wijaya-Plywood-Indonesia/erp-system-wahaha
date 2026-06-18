@@ -47,7 +47,7 @@ class PotJelekWorkerMap
                     'hasil' => $labelHasil,
                     'ijin' => $pj->ijin ?? '',
                     'potongan_targ' => 0,
-                    'keterangan' => $pj->ket ?? '',
+                    'keterangan' => $pj->keterangan ?? '',
                 ];
             }
         }

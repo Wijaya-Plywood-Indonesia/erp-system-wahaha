@@ -28,6 +28,7 @@ class PegawaiTembeltriplek extends Model
         return $this->belongsTo(ProduksiTembeltriplek::class, 'id_produksi_tembel_triplek');
     }
 
+
     protected static function booted()
     {
         // Menggunakan static::saved mencakup Created dan Updated
