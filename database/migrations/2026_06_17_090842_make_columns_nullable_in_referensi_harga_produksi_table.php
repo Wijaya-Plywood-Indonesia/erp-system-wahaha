@@ -29,6 +29,12 @@ return new class extends Migration
                 $table->foreign('id_jenis_kayu')->references('id')->on('jenis_kayus')->cascadeOnDelete();
             });
         }
+
+        // Run Seeder
+        \Illuminate\Support\Facades\Artisan::call('db:seed', [
+            '--class' => 'Database\\Seeders\\ReferensiHargaProduksiSeeder',
+            '--force' => true,
+        ]);
     }
 
     /**

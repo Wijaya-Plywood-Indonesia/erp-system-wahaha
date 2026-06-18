@@ -629,7 +629,7 @@ class LaporanProduksiJurnalSheet extends DefaultValueBinder implements FromColle
 
                 $rowTotal = 0.0;
                 if ($g['has_vol'] && $g['volume'] !== null && $g['volume'] > 0) {
-                    $rowTotal = (float)$g['volume'] * $rowHarga;
+                    $rowTotal = round((float)$g['volume'], 4) * $rowHarga;
                 } elseif ($g['has_qty'] && $g['banyak'] !== null && $g['banyak'] > 0) {
                     $rowTotal = (float)$g['banyak'] * $rowHarga;
                 } else {
@@ -772,7 +772,7 @@ class LaporanProduksiJurnalSheet extends DefaultValueBinder implements FromColle
                     $g['dk'],                                           // 9. map
                     $hitKbkVal,                                         // 10. hit kbk
                     $g['has_qty'] ? $g['banyak'] : null,                // 11. Banyak
-                    $g['has_vol'] ? $g['volume'] : null,                // 12. M3
+                    $g['has_vol'] ? round($g['volume'], 4) : null,      // 12. M3
                     $hargaVal,                                          // 13. Harga
                     $totalVal                                           // 14. Total
                 ]);
