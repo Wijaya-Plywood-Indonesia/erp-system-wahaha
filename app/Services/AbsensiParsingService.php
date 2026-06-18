@@ -133,7 +133,7 @@ class AbsensiParsingService
                 if ($trimmed === '') {
                     continue;
                 }
-                
+
                 // If this part contains a date followed by spaces (like "2026/06/01  06:01:57")
                 if (preg_match('/\d{4}[\/\-]\d{2}[\/\-]\d{2}\s+/', $trimmed)) {
                     $subParts = preg_split('/\s+/', $trimmed);

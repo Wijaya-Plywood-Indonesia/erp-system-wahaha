@@ -174,6 +174,78 @@ class DetailTurusanKayusTable
                     ]))
                     ->modalSubmitAction(false)
                     ->modalCancelAction(false),
+
+                Action::make('sinkron_semua_harga')
+                    ->label('Sinkron Semua Harga')
+                    ->icon('heroicon-m-arrow-path')
+                    ->color('info')
+                    ->requiresConfirmation()
+                    ->modalHeading('Sinkronisasi Semua Harga')
+                    ->modalDescription('Sistem akan memperbarui harga SEMUA batang kayu pada data ini berdasarkan harga master yang sudah disetujui.')
+                    ->visible($canPerformAction)
+                    ->action(function () use ($ownerRecord, $findHargaKayu) {
+                        // Jika tidak ada ownerRecord, hentikan
+                        if (!$ownerRecord) {
+                            Notification::make()
+                                ->title('Gagal')
+                                ->body('Data induk tidak ditemukan.')
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+
+                        /**
+                         * Ambil SEMUA detail kayu milik KayuMasuk ini.
+                         * Kita eager load jenisKayu supaya tidak N+1 query
+                         * (bayangkan 500 batang kayu → 500 query ke DB, sangat lambat!).
+                         * Dengan with('jenisKayu'), cukup 2 query saja.
+                         */
+                        $allRecords = DetailTurusanKayu::where('id_kayu_masuk', $ownerRecord->id)
+                            ->with('jenisKayu')
+                            ->get();
+
+                        $berhasil = 0;
+                        $gagal    = 0;
+                        $tidakAda = [];
+
+                        foreach ($allRecords as $record) {
+                            $hargaMaster = $findHargaKayu(
+                                (int) $record->jenis_kayu_id,
+                                (int) $record->panjang,
+                                $record->grade,
+                                (int) $record->diameter,
+                            );
+
+                            if ($hargaMaster) {
+                                $record->update(['harga' => $hargaMaster->harga_beli]);
+                                $berhasil++;
+                            } else {
+                                $namaKayu = $record->jenisKayu?->nama_kayu ?? "ID:{$record->jenis_kayu_id}";
+                                $tidakAda[] = "No.{$record->nomer_urut} {$namaKayu} D:{$record->diameter}";
+                                $gagal++;
+                            }
+                        }
+
+                        // Laporan hasil
+                        if ($berhasil > 0) {
+                            Notification::make()
+                                ->title("Sinkronisasi Selesai: {$berhasil} batang diperbarui")
+                                ->body(
+                                    $gagal > 0
+                                        ? "{$gagal} tidak ditemukan harganya: " . implode(', ', array_slice($tidakAda, 0, 5)) . ($gagal > 5 ? '...' : '')
+                                        : 'Semua harga berhasil diperbarui dari master.'
+                                )
+                                ->success()
+                                ->send();
+                        } else {
+                            Notification::make()
+                                ->title('Tidak Ada Harga yang Diperbarui')
+                                ->body('Tidak ada harga master yang cocok dan sudah disetujui.')
+                                ->warning()
+                                ->send();
+                        }
+                    }),
+
             ])
             ->recordActions([
                 EditAction::make()->visible($canPerformAction),
