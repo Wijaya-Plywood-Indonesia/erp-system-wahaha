@@ -178,9 +178,9 @@
                 <span class="text-gray-600 dark:text-gray-400">
                   {{ number_format($item['total_produksi'] ?? 0) }}
                   /
-                  @if(($item['target'] ?? 0) > 0)
-                    {{ number_format($item['target_saat_ini'] ?? 0) }}
-                    ({{ number_format($item['target'] ?? 0) }})
+                  @if($item['target'] > 0)
+                    {{-- {{ number_format($item['target_saat_ini']) }} --}}
+                    ({{ number_format($item['target']) }})
                   @else
                     0
                   @endif
