@@ -178,7 +178,7 @@
                   {{ number_format($item['total_produksi']) }}
                   /
                   @if($item['target'] > 0)
-                    {{ number_format($item['target_saat_ini']) }}
+                    {{-- {{ number_format($item['target_saat_ini']) }} --}}
                     ({{ number_format($item['target']) }})
                   @else
                     0
