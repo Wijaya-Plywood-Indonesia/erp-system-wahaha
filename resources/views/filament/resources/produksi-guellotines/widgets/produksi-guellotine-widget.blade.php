@@ -27,6 +27,7 @@
         </div>
 
         {{-- ================= GLOBAL UKURAN + KAYU ================= --}}
+        @if(false)
         <div class="space-y-4">
             <div class="font-semibold text-lg text-gray-900 dark:text-gray-100">
                 Global Ukuran + Kayu
@@ -50,6 +51,7 @@
                 @endforeach
             </div>
         </div>
+        @endif
 
         {{-- ================= GLOBAL UKURAN (SEMUA KAYU) ================= --}}
         <div class="space-y-4" style="margin-top: 4px;">
@@ -77,7 +79,7 @@
         @if (!empty($summary['globalJenisKayuUkuran']) && count($summary['globalJenisKayuUkuran']) > 0)
         <div class="space-y-4 pt-6 border-t border-gray-100 dark:border-gray-800">
             <div class="font-semibold text-lg text-gray-900 dark:text-gray-100 uppercase tracking-tight">
-                Ringkasan Penggunaan Kayu & Ukuran Hasil
+                Ringkasan Penggunaan Veneer & Ukuran Hasil
             </div>
 
             <div class="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">

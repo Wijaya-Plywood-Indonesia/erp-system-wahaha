@@ -106,6 +106,7 @@
         <hr class="border-gray-100 dark:border-gray-800">
 
         {{-- ================= SECTION 2: REKAP JENIS & GRADE ================= --}}
+        @if(false)
         <div class="space-y-3">
             <div class="font-semibold text-lg text-gray-900 dark:text-gray-100">Rekap Grade</div>
 
@@ -127,6 +128,7 @@
                 @endif
             </div>
         </div>
+        @endif
 
         {{-- ================= SECTION 3: RINCIAN PER UKURAN ================= --}}
         <div class="space-y-3">
@@ -181,7 +183,7 @@
         @if (!empty($summary['globalJenisKayuUkuran']) && count($summary['globalJenisKayuUkuran']) > 0)
         <div class="space-y-4 pt-6 border-t border-gray-100 dark:border-gray-800">
             <div class="font-semibold text-lg text-gray-900 dark:text-gray-100">
-                Ringkasan Penggunaan Kayu & Ukuran Hasil
+                Ringkasan Penggunaan Veneer & Ukuran Hasil
             </div>
 
             <div class="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
