@@ -27,6 +27,7 @@
         </div>
 
         {{-- ================= GLOBAL UKURAN + GRADE ================= --}}
+        @if(false)
         <div class="space-y-4">
             <div class="font-semibold text-lg text-gray-900 dark:text-gray-100">
                 Global Ukuran + Grade
@@ -34,20 +35,22 @@
 
             <div class="grid grid-cols-1 gap-3">
                 @foreach ($summary['globalUkuranGrade'] as $row)
-                    <div class="flex justify-between rounded-xl border p-4 dark:border-gray-700">
-                        <div>
-                            {{ $row->ukuran }}
-                            <span class="text-xs text-gray-500">• Grade {{ $row->kw }}</span>
-                        </div>
-                        <div class="font-bold">
-                            {{ number_format($row->total) }}
-                        </div>
+                <div class="flex justify-between rounded-xl border p-4 dark:border-gray-700">
+                    <div>
+                        {{ $row->ukuran }}
+                        <span class="text-xs text-gray-500">• Grade {{ $row->kw }}</span>
                     </div>
+                    <div class="font-bold">
+                        {{ number_format($row->total) }}
+                    </div>
+                </div>
                 @endforeach
             </div>
         </div>
+        @endif
 
         {{-- ================= GLOBAL UKURAN ================= --}}
+        @if(false)
         <div class="space-y-4">
             <div class="font-semibold text-lg text-gray-900 dark:text-gray-100">
                 Global Ukuran (Semua Grade)
@@ -55,21 +58,22 @@
 
             <div class="grid grid-cols-1 gap-3">
                 @foreach ($summary['globalUkuran'] as $row)
-                    <div class="flex justify-between rounded-xl border p-4 dark:border-gray-700">
-                        <div>{{ $row->ukuran }}</div>
-                        <div class="font-bold text-primary-600">
-                            {{ number_format($row->total) }}
-                        </div>
+                <div class="flex justify-between rounded-xl border p-4 dark:border-gray-700">
+                    <div>{{ $row->ukuran }}</div>
+                    <div class="font-bold text-primary-600">
+                        {{ number_format($row->total) }}
                     </div>
+                </div>
                 @endforeach
             </div>
         </div>
+        @endif
 
         {{-- ================= RINGKASAN JENIS KAYU & UKURAN ================= --}}
         @if (!empty($summary['globalJenisKayuUkuran']) && count($summary['globalJenisKayuUkuran']) > 0)
         <div class="space-y-4 pt-6 border-t border-gray-100 dark:border-gray-800">
             <div class="font-semibold text-lg text-gray-900 dark:text-gray-100">
-                Ringkasan Penggunaan Kayu & Ukuran Hasil
+                Ringkasan Penggunaan Veneer & Ukuran Hasil
             </div>
 
             <div class="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
@@ -85,13 +89,13 @@
                     <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                         @php $grandTotal = 0; @endphp
                         @foreach (($summary['globalJenisKayuUkuran'] ?? []) as $row)
-                            @php $grandTotal += $row->total; @endphp
-                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                                <td class="px-4 py-3">{{ $row->jenis_kayu }}</td>
-                                <td class="px-4 py-3">{{ $row->ukuran }}</td>
-                                <td class="px-4 py-3">{{ $row->kw }}</td>
-                                <td class="px-4 py-3 text-right font-medium">{{ number_format($row->total) }}</td>
-                            </tr>
+                        @php $grandTotal += $row->total; @endphp
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                            <td class="px-4 py-3">{{ $row->jenis_kayu }}</td>
+                            <td class="px-4 py-3">{{ $row->ukuran }}</td>
+                            <td class="px-4 py-3">{{ $row->kw }}</td>
+                            <td class="px-4 py-3 text-right font-medium">{{ number_format($row->total) }}</td>
+                        </tr>
                         @endforeach
                     </tbody>
                     <tfoot class="bg-gray-50 dark:bg-gray-900/50 text-gray-900 dark:text-white font-bold">

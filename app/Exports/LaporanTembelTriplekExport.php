@@ -304,15 +304,28 @@ class OngkosTembelTriplekSheet implements FromArray, WithTitle, WithStyles, With
             'Solasi Putih',
         ];
 
-        // Map jumlah bahan dari produksi tembel
+        // Map jumlah bahan dari produksi tembel (exact match dari nama yang tersimpan di DB)
         $jumlahMap = [];
         foreach ($bahan as $b) {
             $jumlahMap[$b['nama_bahan']] = $b['jumlah'];
         }
 
+        // --- PRE-PROCESSING JUMLAH (SAMAKAN LOGIKA DENGAN HARGA) ---
+        // Sama seperti harga, kita siapkan kamus "pintar" supaya pencocokan nama
+        // tidak gagal hanya karena beda kapitalisasi / spasi / isi kurung.
+        $smartJumlahMap = [];
+        foreach ($jumlahMap as $namaDb => $jml) {
+            $smartJumlahMap[strtolower(trim($namaDb))] = $jml;
+            $cleanNameJml = strtolower(trim(preg_replace('/\s*\([^)]*\)/', '', $namaDb)));
+            $smartJumlahMap[$cleanNameJml] = $jml;
+        }
+
         // --- PRE-PROCESSING HARGA MASTER (OPTIMASI) ---
         // Alih-alih melakukan preg_replace berulang kali di dalam loop, kita siapkan kamus datanya di awal
-        $hargaMasterMap = BahanPenolongProduksi::pluck('harga', 'nama_bahan_penolong')->toArray();
+        $hargaMasterMap = BahanPenolongProduksi::where('kategori_produksi', 'tembel_triplek')
+            ->pluck('harga', 'nama_bahan_penolong')
+            ->toArray();
+
         $smartHargaMap = [];
         foreach ($hargaMasterMap as $dbName => $dbHarga) {
             // Simpan format lowercase penuh
@@ -339,8 +352,22 @@ class OngkosTembelTriplekSheet implements FromArray, WithTitle, WithStyles, With
                 $namaBahan = $bahanList[$i];
                 $colB = $namaBahan;
 
-                // Gunakan blank ('') jika jumlah 0 agar Excel rapi seperti gambar
-                $colC = !empty($jumlahMap[$namaBahan]) ? $jumlahMap[$namaBahan] : '';
+                // --- PENCOCOKAN JUMLAH PINTAR (SAMA SEPERTI HARGA) ---
+                $jumlah = $jumlahMap[$namaBahan] ?? null; // Coba exact match dulu
+
+                if ($jumlah === null) {
+                    $searchNameJml = strtolower(trim($namaBahan));
+                    $jumlah = $smartJumlahMap[$searchNameJml] ?? null; // Coba case-insensitive match
+
+                    if ($jumlah === null) {
+                        // Coba pencocokan tanpa teks dalam kurung
+                        $cleanSearchNameJml = strtolower(trim(preg_replace('/\s*\([^)]*\)/', '', $namaBahan)));
+                        $jumlah = $smartJumlahMap[$cleanSearchNameJml] ?? null;
+                    }
+                }
+
+                // Gunakan blank ('') jika jumlah 0/null agar Excel rapi seperti gambar
+                $colC = !empty($jumlah) ? $jumlah : '';
 
                 // --- PENCOCOKAN HARGA PINTAR YANG SUDAH DIOPTIMASI ---
                 $harga = $hargaMasterMap[$namaBahan] ?? null; // Coba exact match dulu
@@ -357,29 +384,29 @@ class OngkosTembelTriplekSheet implements FromArray, WithTitle, WithStyles, With
                 }
 
                 $colD = $harga ?: '';
-                $colE = ($colC !== '' && $colD !== '') ? "=IFERROR(C{$currentRow}*D{$currentRow}, 0)" : '';
             } elseif ($i == 9) { // Baris 10: Penyusutan
                 $colB = 'Penyusutan';
                 $colC = '';
                 $colD = '';
-                $colE = '';
             } elseif ($i == 10) { // Baris 11: Bulanan
                 $colB = 'Bulanan';
                 $colC = '';
                 $colD = '';
-                $colE = '';
             } elseif ($i == 11) { // Baris 12: Pekerja
                 $colB = 'Pekerja';
                 $colC = $jumlahPekerja ?: '';
                 $colD = $hargaPegawai;
-                $colE = ($colC !== '') ? "=IFERROR(C{$currentRow}*D{$currentRow}, 0)" : '';
             } else {
                 // Sisa baris kosong jika data produksi lebih dari 12
                 $colB = '';
                 $colC = '';
                 $colD = '';
-                $colE = '';
             }
+
+            // --- TOTAL: SELALU PAKAI FORMULA EXCEL, BIAR EXCEL YANG MENGHITUNG ---
+            // Tidak lagi dicek kosong di PHP. Kalau C atau D kosong, Excel akan
+            // menganggapnya 0 saat dikalikan, sehingga hasilnya 0 (bukan blank).
+            $colE = "=IFERROR(C{$currentRow}*D{$currentRow}, 0)";
 
             $colA = ($i === 0) ? $tanggalCell : '';
 
@@ -451,7 +478,7 @@ class OngkosTembelTriplekSheet implements FromArray, WithTitle, WithStyles, With
             '', // D
             "=SUM(E{$blokStart}:E{$endSumRow})", // E
             '', // F (Spacer)
-            '',
+            '-- rekap produksi --',
             '',
             '',
             '', // G, H, I, J
