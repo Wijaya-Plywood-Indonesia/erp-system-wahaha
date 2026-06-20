@@ -2,10 +2,10 @@
 
 namespace App\Filament\Resources\ProduksiTembelTripleks;
 
-use App\Filament\Resources\ProduksiTembelTriplekResource\RelationManagers\PegawaiTembeltriplekRelationManager;
-use App\Filament\Resources\ProduksiTembelTriplekResource\RelationManagers\HasilTembeltriplekRelationManager;
-use App\Filament\Resources\ProduksiTembelTriplekResource\RelationManagers\BahanPenolongTembeltriplekRelationManager;
-use App\Filament\Resources\ProduksiTembelTriplekResource\RelationManagers\ValidasiTembeltriplekRelationManager;
+use App\Filament\Resources\ProduksiTembelTripleks\RelationManagers\PegawaiTembeltriplekRelationManager;
+use App\Filament\Resources\ProduksiTembelTripleks\RelationManagers\HasilTembeltriplekRelationManager;
+use App\Filament\Resources\ProduksiTembelTripleks\RelationManagers\BahanPenolongTembeltriplekRelationManager;
+use App\Filament\Resources\ProduksiTembelTripleks\RelationManagers\ValidasiTembeltriplekRelationManager;
 use App\Filament\Resources\ProduksiTembelTripleks\Pages\CreateProduksiTembelTriplek;
 use App\Filament\Resources\ProduksiTembelTripleks\Pages\EditProduksiTembelTriplek;
 use App\Filament\Resources\ProduksiTembelTripleks\Pages\ListProduksiTembelTripleks;

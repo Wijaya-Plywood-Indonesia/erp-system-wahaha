@@ -48,7 +48,7 @@ class AdminPanelProvider extends PanelProvider
             ->login()
             ->globalSearch(false)
             ->viteTheme('resources/css/app.css')
-            ->assets([
+            ->assets(app()->runningInConsole() ? [] : [
                 // Gunakan Vite::asset agar Filament tahu file mana yang harus dimuat
                 Js::make('app-js', Vite::asset('resources/js/app.js'))->module(),
             ])

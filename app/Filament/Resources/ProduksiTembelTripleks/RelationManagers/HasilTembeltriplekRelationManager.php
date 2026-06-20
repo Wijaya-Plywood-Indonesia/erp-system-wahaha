@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\ProduksiTembelTriplekResource\RelationManagers;
+namespace App\Filament\Resources\ProduksiTembelTripleks\RelationManagers;
 
 use App\Models\BarangSetengahJadiHp;
 use App\Models\Grade;

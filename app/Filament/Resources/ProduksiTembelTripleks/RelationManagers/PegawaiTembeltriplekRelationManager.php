@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\ProduksiTembelTriplekResource\RelationManagers;
+namespace App\Filament\Resources\ProduksiTembelTripleks\RelationManagers;
 
 use App\Models\Pegawai;
 use App\Models\PegawaiTembeltriplek;
