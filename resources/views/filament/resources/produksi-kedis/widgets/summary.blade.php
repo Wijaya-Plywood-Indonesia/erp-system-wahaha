@@ -29,7 +29,7 @@
                     {{ number_format($summary['totalMasuk'] ?? 0) }}
                 </div>
                 <div class="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
-                    Total Kayu Masuk
+                    Total Veneer Masuk
                 </div>
             </div>
             @endif
@@ -55,7 +55,7 @@
                         {{ number_format($summary['selisih'] ?? 0) }}
                 </div>
                 <div class="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
-                    Sisa Dalam Kedi (WIP)
+                    Sisa Dalam Kedi
                 </div>
             </div>
             @endif
@@ -81,7 +81,7 @@
             <div class="space-y-4">
                 <div class="flex items-center gap-2 font-bold text-sm text-gray-800 dark:text-gray-200 uppercase tracking-tighter">
                     <span class="w-2 h-4 bg-emerald-500 rounded-sm"></span>
-                    Rincian Kayu Masuk
+                    Rincian Veneer Masuk
                 </div>
 
                 <div class="space-y-2">
@@ -105,7 +105,7 @@
            <div class="space-y-4 mt-6">
                 <div class="flex items-center gap-2 font-bold text-sm text-gray-800 dark:text-gray-200 uppercase tracking-tighter">
                     <span class="w-2 h-4 bg-emerald-500 rounded-sm"></span>
-                    Ringkasan Kayu & Ukuran Masuk
+                    Ringkasan Veneer & Ukuran Masuk
                 </div>
 
                 <div class="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
@@ -171,7 +171,7 @@
             <div class="space-y-4 mt-6">
                 <div class="flex items-center gap-2 font-bold text-sm text-gray-800 dark:text-gray-200 uppercase tracking-tighter">
                     <span class="w-2 h-4 bg-primary-500 rounded-sm"></span>
-                    Ringkasan Kayu & Ukuran Hasil Bongkar
+                    Ringkasan Veneer & Ukuran Hasil Bongkar
                 </div>
 
                 <div class="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
