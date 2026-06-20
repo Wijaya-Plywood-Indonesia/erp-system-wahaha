@@ -87,53 +87,70 @@ jobs:
     needs: laravel-tests
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
-
+  
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
+  
+      # --- Setup PHP
       - name: Setup PHP for Production
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
-
+          extensions: mbstring, dom, fileinfo, mysql, pdo_mysql, bcmath, ctype, json, tokenizer, xml, curl, zip
+  
+      # --- Buat .env sementara untuk keperluan composer
       - name: Create temporary .env
         run: |
           echo "APP_KEY=base64:dummykeydummykeydummykeydummykey=" > .env
+          echo "APP_ENV=production" >> .env
+          echo "APP_DEBUG=false" >> .env
+          echo "APP_URL=https://wahana.wijayaplywoods.com" >> .env
           echo "BROADCAST_CONNECTION=log" >> .env
+          echo "CACHE_DRIVER=file" >> .env
+          echo "QUEUE_CONNECTION=sync" >> .env
+          echo "SESSION_DRIVER=file" >> .env
+          echo "SESSION_LIFETIME=120" >> .env
           echo "PUSHER_APP_KEY=dummy" >> .env
           echo "PUSHER_APP_SECRET=dummy" >> .env
           echo "PUSHER_APP_ID=dummy" >> .env
           echo "PUSHER_APP_CLUSTER=ap1" >> .env
-
+          echo "VITE_PUSHER_APP_KEY=dummy" >> .env
+          echo "VITE_PUSHER_HOST=localhost" >> .env
+          echo "VITE_PUSHER_PORT=6001" >> .env
+  
+      # --- Install Composer Dependencies
       - name: Install Composer Dependencies (Prod)
-        run: composer install --no-dev --optimize-autoloader --prefer-dist --no-interaction --no-scripts
-
-      - name: Run package discover
-        run: php artisan package:discover --ansi
-
-      # --- Build Frontend (Disederhanakan)
+        run: |
+          composer install --no-dev --optimize-autoloader --prefer-dist --no-interaction --no-scripts --no-progress
+  
+      # --- Setup Node.js dan Build Frontend (DIPINDAHKAN SEBELUM package:discover)
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-
-      - name: Install NPM & Build Assets
+          cache: 'npm'
+          cache-dependency-path: 'package-lock.json'
+  
+      - name: Install NPM Dependencies
+        run: npm ci --no-audit --no-fund
+  
+      - name: Build Frontend Assets
+        run: npm run build
+  
+      # ✅ SEKARANG MANIFEST.JSON SUDAH ADA - Jalankan package:discover
+      - name: Run package discover
+        run: php artisan package:discover --ansi
+  
+      # --- Generate optimized cache (opsional, bisa di server)
+      - name: Generate Laravel caches
         run: |
-          npm ci
-          npm run build
-
-      # --- Validasi Build
-      - name: Verify build assets exist
-        run: |
-          if [ -f "public/build/manifest.json" ]; then
-            echo "✅ Manifest.json ditemukan!"
-          else
-            echo "❌ ERROR: public/build/manifest.json tidak ditemukan setelah build!"
-            exit 1
-          fi
-
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
+          php artisan event:cache
+  
       # --- Create ZIP (Build Once)
       - name: Create ZIP package
         run: |
@@ -141,29 +158,51 @@ jobs:
           BUILD_DIR=./build_deploy
           rm -rf "$BUILD_DIR"
           mkdir -p "$BUILD_DIR"
-          # Pastikan public/build TIDAK masuk daftar exclude
+          
+          # Copy semua file kecuali yang tidak diperlukan
           rsync -a --delete \
-          --exclude '.git/' \
-          --exclude '.github/' \
-          --exclude 'node_modules/' \
-          --exclude 'tests/' \
-          --exclude '.env' \
-          --exclude 'storage/' \
-          --exclude 'build_deploy/' \
-          --exclude 'deploy.zip' \
-          ./ "$BUILD_DIR/"
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude 'node_modules/' \
+            --exclude 'tests/' \
+            --exclude 'vendor/' \
+            --exclude '.env' \
+            --exclude '.env.*' \
+            --exclude '.gitignore' \
+            --exclude '.gitattributes' \
+            --exclude 'phpunit.xml' \
+            --exclude 'docker-compose.yml' \
+            --exclude 'Dockerfile' \
+            --exclude 'README.md' \
+            --exclude 'storage/' \
+            --exclude 'build_deploy/' \
+            --exclude 'deploy.zip' \
+            ./ "$BUILD_DIR/" || [ $? -eq 24 ]
+          
+          # Tapi kita perlu vendor dan public/build
+          # Vendor sudah ada, public/build sudah di-build
+          # Kita copy storage skeleton (tapi kosongkan isinya)
+          mkdir -p "$BUILD_DIR/storage"
+          mkdir -p "$BUILD_DIR/storage/app"
+          mkdir -p "$BUILD_DIR/storage/framework"
+          mkdir -p "$BUILD_DIR/storage/logs"
+          touch "$BUILD_DIR/storage/.gitkeep"
           
           (cd "$BUILD_DIR" && zip -r ../deploy.zip . -q)
           
+          # Tampilkan ukuran file untuk debugging
+          ls -lh deploy.zip
+  
       # --- Setup SSH
       - name: Setup SSH Key
         run: |
           mkdir -p $HOME/.ssh
+          chmod 700 $HOME/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > $HOME/.ssh/id_ed25519
           chmod 600 $HOME/.ssh/id_ed25519
           ssh-keyscan -p ${{ secrets.SSH_PORT }} -H ${{ secrets.SSH_HOST }} >> $HOME/.ssh/known_hosts
-
-      # --- Upload & Deploy
+  
+      # --- Upload ZIP ke Server
       - name: Upload ZIP to Server
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -173,7 +212,9 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "deploy.zip"
           target: "/home/${{ secrets.SSH_USERNAME }}"
-
+          strip_components: 0
+  
+      # --- Multi-Site Deployment (Looping)
       - name: Execute Remote SSH Commands
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -182,19 +223,93 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            # Definisikan direktori target
             TARGET_DIR="/home/${{ secrets.SSH_USERNAME }}/wahana.wijayaplywoods.com"
+            BACKUP_DIR="/home/${{ secrets.SSH_USERNAME }}/backups/wahana_$(date +%Y%m%d_%H%M%S)"
+            
+            echo "=========================================="
+            echo "🚀 Starting deployment for: wahana.wijayaplywoods.com"
+            echo "📂 Target Directory: $TARGET_DIR"
+            echo "📦 Backup Directory: $BACKUP_DIR"
+            echo "=========================================="
+            
+            # Pastikan folder target ada
+            if [ ! -d "$TARGET_DIR" ]; then
+              echo "❌ Directory $TARGET_DIR does not exist. Deployment aborted."
+              exit 1
+            fi
+            
+            # 1. Backup folder yang penting (opsional)
+            echo "📦 Creating backup..."
+            mkdir -p "$BACKUP_DIR"
+            if [ -d "$TARGET_DIR/.env" ]; then
+              cp "$TARGET_DIR/.env" "$BACKUP_DIR/.env"
+            fi
+            if [ -d "$TARGET_DIR/storage" ]; then
+              cp -r "$TARGET_DIR/storage" "$BACKUP_DIR/storage"
+            fi
+            
+            # 2. Masuk ke target directory
             cd "$TARGET_DIR"
-            php artisan down || true
             
-            # Hapus file lama kecuali storage dan .env
-            find . -mindepth 1 -maxdepth 1 ! -name 'storage' ! -name '.env' -exec rm -rf {} \;
+            # 3. Putar maintenance mode ON
+            echo "🔧 Enabling maintenance mode..."
+            php artisan down --retry=60 || true
             
-            unzip -oq ../deploy.zip -d .
+            # 4. Hapus semua file kecuali storage, .env, dan file penting
+            echo "🗑️  Cleaning old files..."
+            find . -mindepth 1 -maxdepth 1 \
+              ! -name 'storage' \
+              ! -name '.env' \
+              ! -name '.htaccess' \
+              -exec rm -rf {} \;
             
-            # Optimasi
+            # 5. Extract ZIP
+            echo "📦 Extracting deployment package..."
+            unzip -oq /home/${{ secrets.SSH_USERNAME }}/deploy.zip -d .
+            
+            # 6. Setup permissions
+            echo "🔐 Setting permissions..."
+            chmod -R 755 storage
+            chmod -R 755 bootstrap/cache
+            chmod -R 755 public
+            chown -R ${{ secrets.SSH_USERNAME }}:${{ secrets.SSH_USERNAME }} .
+            
+            # 7. Restore .env jika diperlukan
+            if [ -f "$BACKUP_DIR/.env" ]; then
+              cp "$BACKUP_DIR/.env" .env
+              echo "✅ .env restored from backup"
+            fi
+            
+            # 8. Run Laravel optimizations
+            echo "⚡ Running Laravel optimizations..."
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            php artisan event:cache
+            
+            # 9. Clear temporary caches
             php artisan optimize:clear
-            php artisan migrate --force
+            
+            # 10. Run migrations (jika ada)
+            echo "🔄 Running migrations..."
+            php artisan migrate --force --no-interaction
+            
+            # 11. Maintenance mode OFF
+            echo "🔓 Disabling maintenance mode..."
             php artisan up
             
-            rm /home/${{ secrets.SSH_USERNAME }}/deploy.zip
+            # 12. Cleanup
+            echo "🧹 Cleaning up..."
+            rm -f /home/${{ secrets.SSH_USERNAME }}/deploy.zip
+            
+            # 13. Hapus backup lama (simpan 5 backup terakhir)
+            echo "🗑️  Removing old backups..."
+            cd /home/${{ secrets.SSH_USERNAME }}/backups
+            ls -t | tail -n +6 | xargs -r rm -rf
+            
+            echo "=========================================="
             echo "✅ Deployment Success!"
+            echo "📂 Deployed to: $TARGET_DIR"
+            echo "📦 Backup saved: $BACKUP_DIR"
+            echo "=========================================="
