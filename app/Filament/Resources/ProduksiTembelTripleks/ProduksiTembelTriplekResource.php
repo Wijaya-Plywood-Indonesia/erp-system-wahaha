@@ -11,7 +11,7 @@ use App\Filament\Resources\ProduksiTembelTripleks\Pages\EditProduksiTembelTriple
 use App\Filament\Resources\ProduksiTembelTripleks\Pages\ListProduksiTembelTripleks;
 use App\Filament\Resources\ProduksiTembelTripleks\Schemas\ProduksiTembelTriplekForm;
 use App\Filament\Resources\ProduksiTembelTripleks\Tables\ProduksiTembelTripleksTable;
-use App\Models\ProduksiTembelTriplek;
+use App\Models\ProduksiTembeltriplek;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -21,7 +21,7 @@ use UnitEnum;
 
 class ProduksiTembelTriplekResource extends Resource
 {
-    protected static ?string $model = ProduksiTembelTriplek::class;
+    protected static ?string $model = ProduksiTembeltriplek::class;
     protected static ?string $modelLabel = 'Produksi Tembel Triplek';
     protected static ?string $pluralModelLabel = 'Produksi Tembel Triplek';
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
