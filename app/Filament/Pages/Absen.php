@@ -217,7 +217,14 @@ class Absen extends Page implements HasForms
 
                     $isMalam = false;
                     foreach ($allDivisi as $divisi) {
-                        if (str_contains(strtoupper($divisi), 'MALAM')) {
+                        if (is_array($divisi)) {
+                            foreach ($divisi as $subDivisi) {
+                                if (is_string($subDivisi) && stripos($subDivisi, 'malam') !== false) {
+                                    $isMalam = true;
+                                    break 2;
+                                }
+                            }
+                        } elseif (is_string($divisi) && stripos($divisi, 'malam') !== false) {
                             $isMalam = true;
                             break;
                         }
