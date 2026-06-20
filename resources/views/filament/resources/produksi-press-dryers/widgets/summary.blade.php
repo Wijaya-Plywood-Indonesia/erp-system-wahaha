@@ -5,46 +5,46 @@
         <div class="space-y-3 text-center py-4">
 
             @php
-                $isDryer = false;
-                $firstMesin = $record->detailMesins->first();
-                if ($firstMesin) {
-                    $namaMesin = $firstMesin->mesin->nama_mesin
-                        ?? $firstMesin->kategoriMesin->nama_kategori_mesin
-                        ?? '';
-                    $isDryer = stripos($namaMesin, 'DRYER') !== false;
-                }
+            $isDryer = false;
+            $firstMesin = $record->detailMesins->first();
+            if ($firstMesin) {
+            $namaMesin = $firstMesin->mesin->nama_mesin
+            ?? $firstMesin->kategoriMesin->nama_kategori_mesin
+            ?? '';
+            $isDryer = stripos($namaMesin, 'DRYER') !== false;
+            }
             @endphp
 
             @if ($isDryer)
-                {{-- TOTAL PRODUKSI (KUBIKASI) --}}
-                <div>
-                    <div class="text-4xl font-extrabold text-primary-600 dark:text-primary-500">
-                        {{ number_format($summary['totalKubikasi'] ?? 0, 4, ',', '.') }} m³
-                    </div>
-                    <div class="text-sm font-medium text-gray-500 dark:text-gray-400">
-                        Total Produksi (Kubikasi)
-                    </div>
+            {{-- TOTAL PRODUKSI (KUBIKASI) --}}
+            <div>
+                <div class="text-4xl font-extrabold text-primary-600 dark:text-primary-500">
+                    {{ number_format($summary['totalKubikasi'] ?? 0, 4, ',', '.') }} m³
                 </div>
+                <div class="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Total Produksi (Kubikasi)
+                </div>
+            </div>
 
-                {{-- TOTAL LEMBAR --}}
-                <div style="margin-top: 1.5rem;">
-                    <div class="text-3xl font-extrabold text-amber-600 dark:text-amber-500">
-                        {{ number_format($summary['totalAll'] ?? 0) }} Lembar
-                    </div>
-                    <div class="text-sm font-medium text-gray-500 dark:text-gray-400">
-                        Total Lembar Produksi
-                    </div>
+            {{-- TOTAL LEMBAR --}}
+            <div style="margin-top: 1.5rem;">
+                <div class="text-3xl font-extrabold text-amber-600 dark:text-amber-500">
+                    {{ number_format($summary['totalAll'] ?? 0) }} Lembar
                 </div>
+                <div class="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Total Lembar Produksi
+                </div>
+            </div>
             @else
-                {{-- TOTAL PRODUKSI (LEMBAR) --}}
-                <div>
-                    <div class="text-4xl font-extrabold text-primary-600 dark:text-primary-500">
-                        {{ number_format($summary['totalAll'] ?? 0) }} Lembar
-                    </div>
-                    <div class="text-sm font-medium text-gray-500 dark:text-gray-400">
-                        Total Produksi (Lembar)
-                    </div>
+            {{-- TOTAL PRODUKSI (LEMBAR) --}}
+            <div>
+                <div class="text-4xl font-extrabold text-primary-600 dark:text-primary-500">
+                    {{ number_format($summary['totalAll'] ?? 0) }} Lembar
                 </div>
+                <div class="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Total Produksi (Lembar)
+                </div>
+            </div>
             @endif
 
             {{-- TOTAL PEGAWAI --}}
@@ -62,9 +62,9 @@
         {{-- ================= TARGET PROGRESS ================= --}}
         @if ($summary['targetSummary']['hasTarget'])
         @php
-            $target = $summary['targetSummary'];
-            $progress = $target['progress'];
-            $isDryerUnit = $target['unit'] === 'm³';
+        $target = $summary['targetSummary'];
+        $progress = $target['progress'];
+        $isDryerUnit = $target['unit'] === 'm³';
         @endphp
         <div class="space-y-4 py-4 border-t dark:border-gray-700">
             <div class="font-semibold text-lg text-gray-900 dark:text-gray-100 flex items-center justify-between">
@@ -80,9 +80,9 @@
                         Pencapaian Aktual
                     </span>
                     <span class="font-mono text-gray-600 dark:text-gray-400 font-bold">
-                        {{ $isDryerUnit ? number_format($target['actualValue'], 4, ',', '.') : number_format($target['actualValue'], 0, ',', '.') }} 
-                        / 
-                        {{ $isDryerUnit ? number_format($target['targetValue'], 4, ',', '.') : number_format($target['targetValue'], 0, ',', '.') }} 
+                        {{ $isDryerUnit ? number_format($target['actualValue'], 4, ',', '.') : number_format($target['actualValue'], 0, ',', '.') }}
+                        /
+                        {{ $isDryerUnit ? number_format($target['targetValue'], 4, ',', '.') : number_format($target['targetValue'], 0, ',', '.') }}
                         {{ $target['unit'] }}
                     </span>
                 </div>
@@ -121,59 +121,61 @@
         @endif
 
         {{-- ================= GLOBAL UKURAN + KW ================= --}}
+        @if(false)
         <div class="space-y-4">
-    <div class="font-semibold text-lg text-gray-900 dark:text-gray-100">
-        Global Ukuran + KW
-    </div>
-
-    <div class="grid grid-cols-1 gap-3">
-        @foreach ($summary['globalUkuranKw'] as $row)
-        <div class="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:bg-gray-800 dark:border-gray-700">
-            <div class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {{ $row->ukuran }}
-                <span class="text-xs text-gray-500 dark:text-gray-400">• KW {{ $row->kw }}</span>
-                {{-- TAMBAHAN: Jenis Kayu --}}
-                <span class="ml-1 text-xs font-semibold text-blue-500 dark:text-blue-400">
-                    • {{ $row->jenis_kayu }}
-                </span>
+            <div class="font-semibold text-lg text-gray-900 dark:text-gray-100">
+                Global Ukuran + KW
             </div>
-            <div class="text-lg font-bold text-gray-900 dark:text-white">
-                {{ number_format($row->total) }}
+
+            <div class="grid grid-cols-1 gap-3">
+                @foreach ($summary['globalUkuranKw'] as $row)
+                <div class="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:bg-gray-800 dark:border-gray-700">
+                    <div class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {{ $row->ukuran }}
+                        <span class="text-xs text-gray-500 dark:text-gray-400">• KW {{ $row->kw }}</span>
+                        {{-- TAMBAHAN: Jenis Kayu --}}
+                        <span class="ml-1 text-xs font-semibold text-blue-500 dark:text-blue-400">
+                            • {{ $row->jenis_kayu }}
+                        </span>
+                    </div>
+                    <div class="text-lg font-bold text-gray-900 dark:text-white">
+                        {{ number_format($row->total) }}
+                    </div>
+                </div>
+                @endforeach
             </div>
         </div>
-        @endforeach
-    </div>
-</div>
+        @endif
 
         {{-- ================= GLOBAL UKURAN ================= --}}
         <div class="space-y-4">
-    <div class="font-semibold text-lg text-gray-900 dark:text-gray-100">
-        Global Ukuran (Semua KW)
-    </div>
-
-    <div class="grid grid-cols-1 gap-3">
-        @foreach ($summary['globalUkuran'] as $row)
-        <div class="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:bg-gray-800 dark:border-gray-700">
-            <div class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {{ $row->ukuran }}
-                {{-- TAMBAHAN: Jenis Kayu --}}
-                <span class="ml-1 text-xs font-semibold text-blue-500 dark:text-blue-400">
-                    • {{ $row->jenis_kayu }}
-                </span>
+            <div class="font-semibold text-lg text-gray-900 dark:text-gray-100">
+                Global Ukuran (Semua KW)
             </div>
-            <div class="text-lg font-bold text-primary-600 dark:text-primary-400">
-                {{ number_format($row->total) }}
+
+            <div class="grid grid-cols-1 gap-3">
+                @foreach ($summary['globalUkuran'] as $row)
+                <div class="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:bg-gray-800 dark:border-gray-700">
+                    <div class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {{ $row->ukuran }}
+                        {{-- TAMBAHAN: Jenis Kayu --}}
+                        <span class="ml-1 text-xs font-semibold text-blue-500 dark:text-blue-400">
+                            • {{ $row->jenis_kayu }}
+                        </span>
+                    </div>
+                    <div class="text-lg font-bold text-primary-600 dark:text-primary-400">
+                        {{ number_format($row->total) }}
+                    </div>
+                </div>
+                @endforeach
             </div>
         </div>
-        @endforeach
-    </div>
-</div>
 
         {{-- ================= RINGKASAN JENIS KAYU & UKURAN ================= --}}
         @if (!empty($summary['globalJenisKayuUkuran']) && count($summary['globalJenisKayuUkuran']) > 0)
         <div class="space-y-4 mt-6">
             <div class="font-semibold text-lg text-gray-900 dark:text-gray-100">
-                Ringkasan Penggunaan Kayu & Ukuran Hasil
+                Ringkasan Penggunaan Veneer & Ukuran Hasil
             </div>
 
             <div class="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
@@ -189,13 +191,13 @@
                     <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                         @php $grandTotal = 0; @endphp
                         @foreach (($summary['globalJenisKayuUkuran'] ?? []) as $row)
-                            @php $grandTotal += $row->total; @endphp
-                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                                <td class="px-4 py-3">{{ $row->jenis_kayu }}</td>
-                                <td class="px-4 py-3">{{ $row->ukuran }}</td>
-                                <td class="px-4 py-3">{{ $row->kw }}</td>
-                                <td class="px-4 py-3 text-right font-medium">{{ number_format($row->total) }}</td>
-                            </tr>
+                        @php $grandTotal += $row->total; @endphp
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                            <td class="px-4 py-3">{{ $row->jenis_kayu }}</td>
+                            <td class="px-4 py-3">{{ $row->ukuran }}</td>
+                            <td class="px-4 py-3">{{ $row->kw }}</td>
+                            <td class="px-4 py-3 text-right font-medium">{{ number_format($row->total) }}</td>
+                        </tr>
                         @endforeach
                     </tbody>
                     <tfoot class="bg-gray-50 dark:bg-gray-900/50 text-gray-900 dark:text-white font-bold">

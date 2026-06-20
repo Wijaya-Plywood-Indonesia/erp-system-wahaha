@@ -18,15 +18,24 @@ class ProduksiGrajiTriplekForm
                     ->default(fn() => now()->addDay())
                     ->displayFormat('d F Y')
                     ->required()
-
-                    // ✅ VALIDASI TANGGAL TIDAK BOLEH SAMA
                     ->rules([
-                        function () {
-                            return function (string $attribute, $value, $fail) {
-                                $exists = ProduksiGrajitriplek::whereDate('tanggal_produksi', $value)->exists();
+                        function ($get, $record) {
+                            return function (string $attribute, $value, $fail) use ($get, $record) {
+                                // Jika shift belum dipilih, tidak perlu validasi dulu
+                                if (! $get('shift')) {
+                                    return;
+                                }
 
-                                if ($exists) {
-                                    $fail('Tanggal ini sudah digunakan. Pilih tanggal lain.');
+                                $query = ProduksiGrajitriplek::whereDate('tanggal_produksi', $value)
+                                    ->where('shift', $get('shift'));
+
+                                // ⛔ Amankan fitur: skip pengecekan saat mode EDIT
+                                if ($record) {
+                                    $query->where('id', '!=', $record->id);
+                                }
+
+                                if ($query->exists()) {
+                                    $fail('Sesi produksi untuk tanggal dan shift ini sudah terdaftar.');
                                 }
                             };
                         },
@@ -51,8 +60,6 @@ class ProduksiGrajiTriplekForm
                     ])
                     ->required()
                     ->reactive(), // 🔥 penting
-
-
             ]);
     }
 }
