@@ -93,13 +93,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      # --- Build PHP
       - name: Setup PHP for Production
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
 
-      # ✅ BARU - Buat .env sementara sebelum composer install
       - name: Create temporary .env
         run: |
           echo "APP_KEY=base64:dummykeydummykeydummykeydummykey=" > .env
@@ -109,28 +107,32 @@ jobs:
           echo "PUSHER_APP_ID=dummy" >> .env
           echo "PUSHER_APP_CLUSTER=ap1" >> .env
 
-      # ✅ DIUBAH - Tambah --no-scripts
       - name: Install Composer Dependencies (Prod)
         run: composer install --no-dev --optimize-autoloader --prefer-dist --no-interaction --no-scripts
 
-      # ✅ BARU - Jalankan package:discover manual setelah .env ada
       - name: Run package discover
         run: php artisan package:discover --ansi
 
-      # --- Build Frontend
+      # --- Build Frontend (Disederhanakan)
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
-      - name: Install NPM Dependencies
-        run: npm ci
+      - name: Install NPM & Build Assets
+        run: |
+          npm ci
+          npm run build
 
-      - name: Install NPM dependencies
-        run: npm install
-
-      - name: Build Frontend Assets
-        run: npm run build
+      # --- Validasi Build
+      - name: Verify build assets exist
+        run: |
+          if [ -f "public/build/manifest.json" ]; then
+            echo "✅ Manifest.json ditemukan!"
+          else
+            echo "❌ ERROR: public/build/manifest.json tidak ditemukan setelah build!"
+            exit 1
+          fi
 
       # --- Create ZIP (Build Once)
       - name: Create ZIP package
@@ -139,6 +141,7 @@ jobs:
           BUILD_DIR=./build_deploy
           rm -rf "$BUILD_DIR"
           mkdir -p "$BUILD_DIR"
+          # Pastikan public/build TIDAK masuk daftar exclude
           rsync -a --delete \
           --exclude '.git/' \
           --exclude '.github/' \
@@ -147,20 +150,20 @@ jobs:
           --exclude '.env' \
           --exclude 'storage/' \
           --exclude 'build_deploy/' \
-          ./ "$BUILD_DIR/" || [ $? -eq 24 ]
+          --exclude 'deploy.zip' \
+          ./ "$BUILD_DIR/"
+          
           (cd "$BUILD_DIR" && zip -r ../deploy.zip . -q)
           
       # --- Setup SSH
       - name: Setup SSH Key
         run: |
           mkdir -p $HOME/.ssh
-          chmod 700 $HOME/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > $HOME/.ssh/id_ed25519
           chmod 600 $HOME/.ssh/id_ed25519
-          # Pastikan dikenal host-nya
           ssh-keyscan -p ${{ secrets.SSH_PORT }} -H ${{ secrets.SSH_HOST }} >> $HOME/.ssh/known_hosts
 
-      # --- Upload to Server (Upload Once)
+      # --- Upload & Deploy
       - name: Upload ZIP to Server
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -171,7 +174,6 @@ jobs:
           source: "deploy.zip"
           target: "/home/${{ secrets.SSH_USERNAME }}"
 
-      # --- Multi-Site Deployment (Looping)
       - name: Execute Remote SSH Commands
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -180,40 +182,19 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # 1. Definisikan langsung target direktori situs Anda
             TARGET_DIR="/home/${{ secrets.SSH_USERNAME }}/wahana.wijayaplywoods.com"
-      
-            echo "=========================================="
-            echo "🚀 Starting deployment for: kayu.wijayaplywoods.com"
-            echo "📂 Target Directory: $TARGET_DIR"
-            echo "=========================================="
-      
-            # 2. Pastikan folder target ada (Safety check)
-            if [ ! -d "$TARGET_DIR" ]; then
-              echo "❌ Directory $TARGET_DIR does not exist. Deployment aborted."
-              exit 1 # Gunakan exit 1 agar GitHub Actions tahu bahwa proses ini gagal
-            fi
-      
             cd "$TARGET_DIR"
             php artisan down || true
-            find . -mindepth 1 -maxdepth 1 \
-              ! -name 'storage' \
-              ! -name '.env' \
-              -exec rm -rf {} \;
-
+            
+            # Hapus file lama kecuali storage dan .env
+            find . -mindepth 1 -maxdepth 1 ! -name 'storage' ! -name '.env' -exec rm -rf {} \;
+            
             unzip -oq ../deploy.zip -d .
-      
-            # 6. Optimasi Cache Laravel
+            
+            # Optimasi
             php artisan optimize:clear
-            php artisan config:cache
-            php artisan route:cache
-            php artisan view:cache
-            
-            # 7. Selesai Maintenance Mode
+            php artisan migrate --force
             php artisan up
-      
-            # 8. Hapus file ZIP setelah semua selesai untuk hemat space
-            rm /home/${{ secrets.SSH_USERNAME }}/deploy.zip
             
-            echo "🧹 Cleaned up deployment artifacts."
+            rm /home/${{ secrets.SSH_USERNAME }}/deploy.zip
             echo "✅ Deployment Success!"
