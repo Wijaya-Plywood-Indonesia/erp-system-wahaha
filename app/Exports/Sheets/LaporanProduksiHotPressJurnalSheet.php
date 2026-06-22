@@ -250,8 +250,7 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
             'hutang' => ['nama' => 'Hutang Gaji',        'no' => '2231.00'],
         ];
     }
-
-    // =========================================================================
+// =========================================================================
     // HARGA HPP PRODUK (Pencarian Database Multi-Lapis)
     // =========================================================================
     private function getHargaHpp(string $tipe, float $tebal, string $jenisKayu, string $grade, ?int $idUkuran = null): float
