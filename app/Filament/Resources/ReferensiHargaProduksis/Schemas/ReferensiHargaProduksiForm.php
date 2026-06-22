@@ -22,15 +22,8 @@ class ReferensiHargaProduksiForm
 
                 Select::make('id_ukuran')
                     ->label('Ukuran')
-                    ->options(
-                        Ukuran::query()
-                            ->get()
-                            ->mapWithKeys(function ($ukuran) {
-                                return [
-                                    $ukuran->id => "{$ukuran->panjang}mm x {$ukuran->lebar}mm x {$ukuran->tebal}mm",
-                                ];
-                            })
-                    )
+                    ->relationship('ukuran', 'panjang')
+                    ->getOptionLabelFromRecordUsing(fn ($record) => "{$record->panjang}mm x {$record->lebar}mm x {$record->tebal}mm")
                     ->searchable()
                     ->preload()
                     ->native(false)
@@ -38,15 +31,8 @@ class ReferensiHargaProduksiForm
 
                 Select::make('id_jenis_kayu')
                     ->label('Jenis Kayu')
-                    ->options(
-                        JenisKayu::query()
-                            ->get()
-                            ->mapWithKeys(function ($jenisKayu) {
-                                return [
-                                    $jenisKayu->id => "{$jenisKayu->kode_kayu} - {$jenisKayu->nama_kayu}",
-                                ];
-                            })
-                    )
+                    ->relationship('jenisKayu', 'nama_kayu')
+                    ->getOptionLabelFromRecordUsing(fn ($record) => "{$record->kode_kayu} - {$record->nama_kayu}")
                     ->searchable()
                     ->preload()
                     ->native(false)
@@ -54,15 +40,8 @@ class ReferensiHargaProduksiForm
 
                 Select::make('id_sub_anak_akun')
                     ->label('Sub Anak Akun')
-                    ->options(
-                        \App\Models\SubAnakAkun::query()
-                            ->get()
-                            ->mapWithKeys(function ($subAkun) {
-                                return [
-                                    $subAkun->id => "{$subAkun->kode_sub_anak_akun} - {$subAkun->nama_sub_anak_akun}",
-                                ];
-                            })
-                    )
+                    ->relationship('subAnakAkun', 'nama_sub_anak_akun')
+                    ->getOptionLabelFromRecordUsing(fn ($record) => "{$record->kode_sub_anak_akun} - {$record->nama_sub_anak_akun}")
                     ->searchable()
                     ->preload()
                     ->native(false)
