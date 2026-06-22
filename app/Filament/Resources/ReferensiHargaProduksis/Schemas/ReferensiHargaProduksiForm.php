@@ -2,8 +2,7 @@
 
 namespace App\Filament\Resources\ReferensiHargaProduksis\Schemas;
 
-use App\Models\Ukuran;
-use App\Models\JenisKayu;
+use App\Models\ReferensiHargaProduksi;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
@@ -47,54 +46,43 @@ class ReferensiHargaProduksiForm
                     ->native(false)
                     ->placeholder('Pilih Sub Anak Akun'),
 
-                Select::make('jenis_barang')
+                TextInput::make('jenis_barang')
                     ->label('Jenis Barang')
-                    ->options(function () {
-                        $defaults = [
-                            'Afalan' => 'Afalan',
-                            'Veneer Basah' => 'Veneer Basah',
-                            'Veneer Kering' => 'Veneer Kering',
-                            'Veneer Jadi' => 'Veneer Jadi',
-                            'Platform' => 'Platform',
-                            'Lain-Lain' => 'Lain-Lain',
-                        ];
-                        $dbValues = \App\Models\ReferensiHargaProduksi::whereNotNull('jenis_barang')
-                            ->where('jenis_barang', '!=', '')
-                            ->distinct()
-                            ->pluck('jenis_barang', 'jenis_barang')
-                            ->toArray();
-                        return array_merge($defaults, $dbValues);
-                    })
-                    ->searchable()
-                    ->native(false)
-                    ->placeholder('Pilih atau buat baru')
-                    ->createOptionForm([
-                        TextInput::make('jenis_barang')
-                            ->label('Jenis Barang Baru')
-                            ->required()
-                            ->maxLength(100)
-                            ->placeholder('Contoh: Veneer Basah'),
-                    ])
-                    ->createOptionUsing(function (array $data): string {
-                        return $data['jenis_barang'];
-                    }),
+                    ->datalist(
+                        collect([
+                            'Afalan',
+                            'Veneer Basah',
+                            'Veneer Kering',
+                            'Veneer Jadi',
+                            'Platform',
+                            'Lain-Lain',
+                        ])
+                            ->merge(
+                                ReferensiHargaProduksi::query()
+                                    ->whereNotNull('jenis_barang')
+                                    ->where('jenis_barang', '!=', '')
+                                    ->distinct()
+                                    ->pluck('jenis_barang')
+                            )
+                            ->unique()
+                            ->values()
+                            ->toArray()
+                    )
+                    ->maxLength(100)
+                    ->placeholder('Pilih atau ketik jenis barang baru'),
 
-                Select::make('kw')
+                TextInput::make('kw')
                     ->label('KW')
-                    ->options(fn () => \App\Models\ReferensiHargaProduksi::whereNotNull('kw')->where('kw', '!=', '')->distinct()->pluck('kw', 'kw')->toArray())
-                    ->searchable()
-                    ->native(false)
-                    ->placeholder('Pilih atau buat baru')
-                    ->createOptionForm([
-                        TextInput::make('kw')
-                            ->label('KW Baru')
-                            ->required()
-                            ->maxLength(50)
-                            ->placeholder('Contoh: KW 1'),
-                    ])
-                    ->createOptionUsing(function (array $data): string {
-                        return $data['kw'];
-                    }),
+                    ->datalist(
+                        ReferensiHargaProduksi::query()
+                            ->whereNotNull('kw')
+                            ->where('kw', '!=', '')
+                            ->distinct()
+                            ->pluck('kw')
+                            ->toArray()
+                    )
+                    ->maxLength(50)
+                    ->placeholder('Pilih atau ketik KW baru'),
 
                 TextInput::make('harga')
                     ->label('Harga Produksi')
