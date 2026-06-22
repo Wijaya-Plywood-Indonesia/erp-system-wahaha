@@ -252,35 +252,61 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
     }
 
     // =========================================================================
-    // HARGA HPP PRODUK (Cek DB dulu, jika kosong Fallback ke Hardcode)
+    // HARGA HPP PRODUK (Pencarian Database Multi-Lapis)
     // =========================================================================
     private function getHargaHpp(string $tipe, float $tebal, string $jenisKayu, string $grade, ?int $idUkuran = null): float
     {
-        $jns = str_contains(strtolower(trim($jenisKayu)), 'sengon') ? 'Sengon' : 'Meranti';
-        $jenisKayuObj = \App\Models\JenisKayu::where('nama_kayu', $jns)->first();
+        // 1. Normalisasi Input (Menghindari huruf besar/kecil & typo "local")
+        $jns = str_contains(strtolower(trim($jenisKayu)), 'sengon') ? 'sengon' : 'meranti';
+        $tipeLower = strtolower(trim($tipe)); 
+        
+        $gradeClean = trim(str_replace(['local', 'LOCAL', 'Local'], 'lokal', strtolower(trim($grade))));
+        $tebalBulat = fmod($tebal, 1) == 0 ? (int)$tebal : $tebal;
+
+        // 2. Cari ID Jenis Kayu (Case Insensitive)
+        $jenisKayuObj = \App\Models\JenisKayu::whereRaw('LOWER(nama_kayu) = ?', [$jns])->first();
         $idJenisKayu = $jenisKayuObj ? $jenisKayuObj->id : null;
 
-        $jenisBarang = ucfirst(strtolower(trim($tipe))); 
-        
-        // 1. PRIORITAS UTAMA: Cek Database
+        // 3. PENCARIAN DATABASE MULTI-LAPIS
         if ($idJenisKayu) {
-            $ref = \App\Models\ReferensiHargaProduksi::findReferensi(
-                $idJenisKayu, 
-                $jenisBarang, 
-                $grade, 
-                $idUkuran
-            );
+            
+            // LAPIS 1: Pencarian Baku (jenis_barang & kw murni)
+            $queryStandar = \App\Models\ReferensiHargaProduksi::where('id_jenis_kayu', $idJenisKayu)
+                ->whereRaw('LOWER(jenis_barang) = ?', [$tipeLower])
+                ->whereRaw('LOWER(kw) = ?', [$gradeClean]);
 
-            // Jika database punya harga, gunakan itu. 
-            // Jika tidak, jangan return apa-apa dulu, biarkan lanjut ke bawah.
-            if ($ref && (float)$ref->harga > 0) {
-                return (float) $ref->harga;
+            if ($idUkuran) {
+                $refExact = (clone $queryStandar)->where('id_ukuran', $idUkuran)->first();
+                if ($refExact && $refExact->harga > 0) return (float) $refExact->harga;
             }
+
+            $refFallback = (clone $queryStandar)->whereNull('id_ukuran')->first();
+            if ($refFallback && $refFallback->harga > 0) return (float) $refFallback->harga;
+
+            // LAPIS 2: Pencarian KW Campuran (Misal KW di DB tertulis "9 better lokal")
+            $kwCampuran = $tebalBulat . ' ' . $gradeClean;
+            $refKwCampur = \App\Models\ReferensiHargaProduksi::where('id_jenis_kayu', $idJenisKayu)
+                ->whereRaw('LOWER(jenis_barang) = ?', [$tipeLower])
+                ->whereRaw('LOWER(kw) = ?', [$kwCampuran])
+                ->first();
+            if ($refKwCampur && $refKwCampur->harga > 0) return (float) $refKwCampur->harga;
+
+            // LAPIS 3: Pencarian Berdasarkan NAMA (Misal input murni di kolom nama: "platform 9 better lokal")
+            $namaCari = $tipeLower . ' ' . $tebalBulat . ' ' . $gradeClean; 
+            $refByName = \App\Models\ReferensiHargaProduksi::where('id_jenis_kayu', $idJenisKayu)
+                ->whereRaw('LOWER(nama) LIKE ?', ['%' . $namaCari . '%'])
+                ->first();
+            if ($refByName && $refByName->harga > 0) return (float) $refByName->harga;
+
+            // LAPIS 4: Pencarian NAMA tanpa spasi (Misal "platform 9better")
+            $namaCariRapat = $tipeLower . ' ' . $tebalBulat . $gradeClean; 
+            $refByNameRapat = \App\Models\ReferensiHargaProduksi::where('id_jenis_kayu', $idJenisKayu)
+                ->whereRaw('LOWER(nama) LIKE ?', ['%' . $namaCariRapat . '%'])
+                ->first();
+            if ($refByNameRapat && $refByNameRapat->harga > 0) return (float) $refByNameRapat->harga;
         }
 
-        // 2. FALLBACK: Hanya jika database tidak menemukan harga, gunakan logika hardcode
-        $tipeLower = strtolower(trim($tipe));
-        
+        // 4. FALLBACK HARDCODE (Hanya kepanggil jika 4 lapis DB di atas gagal semua)
         if ($tipeLower === 'platform') {
             return 2000000;
         }
@@ -289,7 +315,6 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
         $gr   = strtolower($grade);
         $tbl  = (string) round($tebal, 1);
 
-        // ... (sisanya logika hardcode lama Anda tetap sama di bawah ini)
         if (str_contains($kayu, 'sengon')) {
             if (str_contains($gr, 'better')) {
                 $p = ['4.7' => 65400, '7.7' => 96800, '9.1' => 100800, '12.1' => 97400, '12.4' => 103300, '15.1' => 132300, '15.5' => 153800, '18.5' => 173800];
