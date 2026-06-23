@@ -253,59 +253,59 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
 // =========================================================================
     // HARGA HPP PRODUK (Pencarian Database Multi-Lapis)
     // =========================================================================
+    // =========================================================================
+    // HARGA HPP PRODUK (Pencarian Database Cerdas Berbasis Nama)
+    // =========================================================================
     private function getHargaHpp(string $tipe, float $tebal, string $jenisKayu, string $grade, ?int $idUkuran = null): float
     {
-        // 1. Normalisasi Input (Menghindari huruf besar/kecil & typo "local")
         $jns = str_contains(strtolower(trim($jenisKayu)), 'sengon') ? 'sengon' : 'meranti';
+        $kayuSingkat = $jns === 'sengon' ? 's' : 'm';
         $tipeLower = strtolower(trim($tipe)); 
-        
+
+        // Bersihkan grade (ubah kata local jadi lokal agar seragam) dan pastikan ketebalan utuh
         $gradeClean = trim(str_replace(['local', 'LOCAL', 'Local'], 'lokal', strtolower(trim($grade))));
         $tebalBulat = fmod($tebal, 1) == 0 ? (int)$tebal : $tebal;
 
-        // 2. Cari ID Jenis Kayu (Case Insensitive)
-        $jenisKayuObj = \App\Models\JenisKayu::whereRaw('LOWER(nama_kayu) = ?', [$jns])->first();
-        $idJenisKayu = $jenisKayuObj ? $jenisKayuObj->id : null;
-
-        // 3. PENCARIAN DATABASE MULTI-LAPIS
-        if ($idJenisKayu) {
-            
-            // LAPIS 1: Pencarian Baku (jenis_barang & kw murni)
-            $queryStandar = \App\Models\ReferensiHargaProduksi::where('id_jenis_kayu', $idJenisKayu)
-                ->whereRaw('LOWER(jenis_barang) = ?', [$tipeLower])
-                ->whereRaw('LOWER(kw) = ?', [$gradeClean]);
-
-            if ($idUkuran) {
-                $refExact = (clone $queryStandar)->where('id_ukuran', $idUkuran)->first();
-                if ($refExact && $refExact->harga > 0) return (float) $refExact->harga;
-            }
-
-            $refFallback = (clone $queryStandar)->whereNull('id_ukuran')->first();
-            if ($refFallback && $refFallback->harga > 0) return (float) $refFallback->harga;
-
-            // LAPIS 2: Pencarian KW Campuran (Misal KW di DB tertulis "9 better lokal")
-            $kwCampuran = $tebalBulat . ' ' . $gradeClean;
-            $refKwCampur = \App\Models\ReferensiHargaProduksi::where('id_jenis_kayu', $idJenisKayu)
-                ->whereRaw('LOWER(jenis_barang) = ?', [$tipeLower])
-                ->whereRaw('LOWER(kw) = ?', [$kwCampuran])
-                ->first();
-            if ($refKwCampur && $refKwCampur->harga > 0) return (float) $refKwCampur->harga;
-
-            // LAPIS 3: Pencarian Berdasarkan NAMA (Misal input murni di kolom nama: "platform 9 better lokal")
-            $namaCari = $tipeLower . ' ' . $tebalBulat . ' ' . $gradeClean; 
-            $refByName = \App\Models\ReferensiHargaProduksi::where('id_jenis_kayu', $idJenisKayu)
-                ->whereRaw('LOWER(nama) LIKE ?', ['%' . $namaCari . '%'])
-                ->first();
-            if ($refByName && $refByName->harga > 0) return (float) $refByName->harga;
-
-            // LAPIS 4: Pencarian NAMA tanpa spasi (Misal "platform 9better")
-            $namaCariRapat = $tipeLower . ' ' . $tebalBulat . $gradeClean; 
-            $refByNameRapat = \App\Models\ReferensiHargaProduksi::where('id_jenis_kayu', $idJenisKayu)
-                ->whereRaw('LOWER(nama) LIKE ?', ['%' . $namaCariRapat . '%'])
-                ->first();
-            if ($refByNameRapat && $refByNameRapat->harga > 0) return (float) $refByNameRapat->harga;
+        // 1. KITA RAKIT KATA KUNCI PENCARIAN (Sesuai dengan gaya ketik di database)
+        if ($tipeLower === 'platform') {
+            // Akan menjadi: "platform 15 better lokal"
+            $kataKunci1 = "platform {$tebalBulat} {$gradeClean}"; 
+            // Akan menjadi: "platform 15 better local" (Berjaga-jaga jika di DB tertulis 'local')
+            $kataKunci2 = "platform {$tebalBulat} " . strtolower(trim($grade)); 
+        } else {
+            // Akan menjadi: "5s uty lokal" atau "18m better"
+            $kataKunci1 = "{$tebalBulat}{$kayuSingkat} {$gradeClean}"; 
+            // Akan menjadi: "triplek 5 uty lokal" (Alternatif jika nama di DB memakai kata 'triplek')
+            $kataKunci2 = "{$tipeLower} {$tebalBulat} {$gradeClean}"; 
         }
 
-        // 4. FALLBACK HARDCODE (Hanya kepanggil jika 4 lapis DB di atas gagal semua)
+        // 2. EKSEKUSI PENCARIAN KE DATABASE (Fokus pada kolom 'nama')
+        $refNama = \App\Models\ReferensiHargaProduksi::where(function($query) use ($kataKunci1, $kataKunci2) {
+            $query->whereRaw('LOWER(nama) LIKE ?', ['%' . $kataKunci1 . '%'])
+                  ->orWhereRaw('LOWER(nama) LIKE ?', ['%' . $kataKunci2 . '%']);
+        })->first();
+
+        // JIKA KETEMU DI DATABASE, LANGSUNG KEMBALIKAN HARGANYA!
+        if ($refNama && $refNama->harga > 0) {
+            return (float) $refNama->harga;
+        }
+
+        // 3. PENCARIAN ALTERNATIF (Mencari di kolom jenis_barang & kw jika kolom nama beda format)
+        $kwCari = "{$tebalBulat} {$gradeClean}"; // ex: "15 better lokal"
+        
+        $refKolom = \App\Models\ReferensiHargaProduksi::whereRaw('LOWER(jenis_barang) LIKE ?', ['%' . $tipeLower . '%'])
+            ->where(function($query) use ($kwCari, $gradeClean) {
+                $query->whereRaw('LOWER(kw) = ?', [$kwCari])
+                      ->orWhereRaw('LOWER(kw) = ?', [$gradeClean]);
+            })->first();
+
+        if ($refKolom && $refKolom->harga > 0) {
+            return (float) $refKolom->harga;
+        }
+
+        // =====================================================================
+        // FALLBACK HARDCODE (Hanya tersentuh jika database BENAR-BENAR kosong)
+        // =====================================================================
         if ($tipeLower === 'platform') {
             return 2000000;
         }
@@ -322,8 +322,9 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
                 $p = ['9' => 156843, '12' => 207903, '15' => 258963, '18' => 291708];
                 return $p[(string) round($tebal)] ?? 207903;
             } else {
+                // Di sinilah "5s uty local" nyangkut sebelumnya!
                 $p = ['4.7' => 47000, '7.7' => 66400, '9.1' => 47000, '12.1' => 107100, '12.4' => 106400, '15.1' => 122900, '15.5' => 125400, '18.5' => 135900];
-                return $p[$tbl] ?? 47000;
+                return $p[$tbl] ?? 47000; 
             }
         } else {
             if (str_contains($gr, 'better')) {
