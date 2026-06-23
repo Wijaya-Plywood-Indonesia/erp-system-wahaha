@@ -15,7 +15,6 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
 
 class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles, WithMapping
 {
@@ -250,9 +249,7 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
             'hutang' => ['nama' => 'Hutang Gaji',        'no' => '2231.00'],
         ];
     }
-// =========================================================================
-    // HARGA HPP PRODUK (Pencarian Database Multi-Lapis)
-    // =========================================================================
+
     // =========================================================================
     // HARGA HPP PRODUK (Pencarian Database Cerdas Berbasis Nama)
     // =========================================================================
@@ -262,36 +259,27 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
         $kayuSingkat = $jns === 'sengon' ? 's' : 'm';
         $tipeLower = strtolower(trim($tipe)); 
 
-        // Bersihkan grade (ubah kata local jadi lokal agar seragam) dan pastikan ketebalan utuh
         $gradeClean = trim(str_replace(['local', 'LOCAL', 'Local'], 'lokal', strtolower(trim($grade))));
         $tebalBulat = fmod($tebal, 1) == 0 ? (int)$tebal : $tebal;
 
-        // 1. KITA RAKIT KATA KUNCI PENCARIAN (Sesuai dengan gaya ketik di database)
         if ($tipeLower === 'platform') {
-            // Akan menjadi: "platform 15 better lokal"
             $kataKunci1 = "platform {$tebalBulat} {$gradeClean}"; 
-            // Akan menjadi: "platform 15 better local" (Berjaga-jaga jika di DB tertulis 'local')
             $kataKunci2 = "platform {$tebalBulat} " . strtolower(trim($grade)); 
         } else {
-            // Akan menjadi: "5s uty lokal" atau "18m better"
             $kataKunci1 = "{$tebalBulat}{$kayuSingkat} {$gradeClean}"; 
-            // Akan menjadi: "triplek 5 uty lokal" (Alternatif jika nama di DB memakai kata 'triplek')
             $kataKunci2 = "{$tipeLower} {$tebalBulat} {$gradeClean}"; 
         }
 
-        // 2. EKSEKUSI PENCARIAN KE DATABASE (Fokus pada kolom 'nama')
         $refNama = \App\Models\ReferensiHargaProduksi::where(function($query) use ($kataKunci1, $kataKunci2) {
             $query->whereRaw('LOWER(nama) LIKE ?', ['%' . $kataKunci1 . '%'])
                   ->orWhereRaw('LOWER(nama) LIKE ?', ['%' . $kataKunci2 . '%']);
         })->first();
 
-        // JIKA KETEMU DI DATABASE, LANGSUNG KEMBALIKAN HARGANYA!
         if ($refNama && $refNama->harga > 0) {
             return (float) $refNama->harga;
         }
 
-        // 3. PENCARIAN ALTERNATIF (Mencari di kolom jenis_barang & kw jika kolom nama beda format)
-        $kwCari = "{$tebalBulat} {$gradeClean}"; // ex: "15 better lokal"
+        $kwCari = "{$tebalBulat} {$gradeClean}"; 
         
         $refKolom = \App\Models\ReferensiHargaProduksi::whereRaw('LOWER(jenis_barang) LIKE ?', ['%' . $tipeLower . '%'])
             ->where(function($query) use ($kwCari, $gradeClean) {
@@ -303,9 +291,6 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
             return (float) $refKolom->harga;
         }
 
-        // =====================================================================
-        // FALLBACK HARDCODE (Hanya tersentuh jika database BENAR-BENAR kosong)
-        // =====================================================================
         if ($tipeLower === 'platform') {
             return 2000000;
         }
@@ -322,9 +307,8 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
                 $p = ['9' => 156843, '12' => 207903, '15' => 258963, '18' => 291708];
                 return $p[(string) round($tebal)] ?? 207903;
             } else {
-                // Di sinilah "5s uty local" nyangkut sebelumnya!
                 $p = ['4.7' => 47000, '7.7' => 66400, '9.1' => 47000, '12.1' => 107100, '12.4' => 106400, '15.1' => 122900, '15.5' => 125400, '18.5' => 135900];
-                return $p[$tbl] ?? 47000; 
+                return $p[$tbl] ?? 47000;
             }
         } else {
             if (str_contains($gr, 'better')) {
@@ -434,6 +418,16 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
                 $hasilByMesin[$p->id_mesin][] = ['tipe' => 'platform', 'data' => $p];
             }
 
+            // ====================================================================
+            // SORTING MESIN
+            // Mengurutkan array agar selalu tampil HP 1, lalu HP 2, dan HP 3
+            // ====================================================================
+            uasort($hasilByMesin, function ($a, $b) {
+                $namaA = strtolower($a[0]['data']->mesin->nama_mesin ?? '');
+                $namaB = strtolower($b[0]['data']->mesin->nama_mesin ?? '');
+                return strcmp($namaA, $namaB);
+            });
+
             $jumlahMesin = count($hasilByMesin);
             $hp3Id = null;
             if ($jumlahMesin === 1) {
@@ -454,7 +448,7 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
 
                 $totalHargaProdukHp3   = 0;
                 $totalHargaBahanGlobal = 0;
-                $totalProdHp1Hp2       = 0; // Akumulator HPP Global untuk Mesin 1 & 2
+                $totalProdHp1Hp2       = 0; 
 
                 // 1. JURNAL HASIL PRODUKSI
                 foreach ($items as $item) {
@@ -481,7 +475,7 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
                         $banyak, $m3Round, $hargaHpp
                     );
 
-                    $totalProdValue = round($banyak * $hargaHpp, 0); // Dibulatkan agar sinkron dengan excel
+                    $totalProdValue = round($banyak * $hargaHpp, 0); 
 
                     if ($mId != $hp3Id) {
                         $totalProdHp1Hp2 += $totalProdValue;
@@ -537,7 +531,7 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
 
                     foreach ($veneerMap as $v) {
                         $m3Round = round($v['m3'], 4);
-                        $totalHargaBahanGlobal += round($m3Round * $v['harga'], 0); // Dibulatkan
+                        $totalHargaBahanGlobal += round($m3Round * $v['harga'], 0); 
 
                         $rows[] = $this->makeRow(
                             $v['akun']['nama'], $v['akun']['no'],
@@ -555,7 +549,7 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
                         $masterPenolong = BahanPenolongProduksi::where('nama_bahan_penolong', $penolong->nama_bahan)->first();
                         $hargaPenolong  = $masterPenolong ? $masterPenolong->harga : 50000;
 
-                        $totalHargaBahanGlobal += round($banyak * $hargaPenolong, 0); // Dibulatkan
+                        $totalHargaBahanGlobal += round($banyak * $hargaPenolong, 0); 
 
                         $rows[] = $this->makeRow(
                             $akunPenolong['nama'], $akunPenolong['no'],
@@ -613,7 +607,6 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
         }
 
         $r        = $this->rowIndex;
-        // Formula Excel ikut dibulatkan penuh (0 desimal) untuk menjaga presisi akuntansi
         $row[13]  = "=ROUND(IF(J{$r}=\"m\", M{$r}*L{$r}, IF(J{$r}=\"b\", M{$r}*K{$r}, M{$r})), 0)";
 
         return $row;
