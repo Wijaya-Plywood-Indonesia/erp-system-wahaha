@@ -90,14 +90,17 @@ class LaporanPressDryer extends Page implements HasForms
             if ($state instanceof Carbon) {
                 $tanggal = $state->format('Y-m-d');
             } elseif (is_string($state) && $state !== '') {
-                $tanggal = Carbon::parse($state)->format('Y-m-d');
+                if (str_contains($state, '/')) {
+                    $tanggal = Carbon::createFromFormat('d/m/Y', $state)->format('Y-m-d');
+                } else {
+                    $tanggal = Carbon::parse($state)->format('Y-m-d');
+                }
             } else {
                 $tanggal = now()->format('Y-m-d');
             }
 
             $this->data['tanggal'] = $tanggal;
             $this->loadData();
-
         } catch (Exception $e) {
             Notification::make()
                 ->danger()
@@ -139,7 +142,6 @@ class LaporanPressDryer extends Page implements HasForms
                     ->body('Tidak ditemukan data produksi untuk tanggal ' . Carbon::parse($tanggal)->format('d/m/Y'))
                     ->send();
             }
-
         } catch (Exception $e) {
             Notification::make()
                 ->danger()
@@ -179,7 +181,7 @@ class LaporanPressDryer extends Page implements HasForms
                 ->label('Download Excel')
                 ->icon('heroicon-o-arrow-down-tray')
                 ->color('success')
-                ->action('exportToExcel'),  
+                ->action('exportToExcel'),
         ];
     }
 

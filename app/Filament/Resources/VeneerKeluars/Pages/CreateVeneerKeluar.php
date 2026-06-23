@@ -126,12 +126,12 @@ class CreateVeneerKeluar extends Page
         if ($this->item_tipe_veneer === 'basah') {
             $ids = HppVeneerBasahSummary::where('stok_lembar', '>', 0)
                 ->distinct()->pluck('id_jenis_kayu');
+            return JenisKayu::whereIn('id', $ids)->orderBy('nama_kayu')
+                ->pluck('nama_kayu', 'id')->toArray();
         } else {
-            $ids = StokVeneerKering::distinct()->pluck('id_jenis_kayu');
+            // TEMPORARY: show all jenis kayu for dry veneer
+            return JenisKayu::orderBy('nama_kayu')->pluck('nama_kayu', 'id')->toArray();
         }
-
-        return JenisKayu::whereIn('id', $ids)->orderBy('nama_kayu')
-            ->pluck('nama_kayu', 'id')->toArray();
     }
 
     #[Computed]
@@ -142,12 +142,16 @@ class CreateVeneerKeluar extends Page
         if ($this->item_tipe_veneer === 'basah') {
             $kws = HppVeneerBasahSummary::where('id_jenis_kayu', $this->item_id_jenis_kayu)
                 ->where('stok_lembar', '>', 0)->distinct()->orderBy('kw')->pluck('kw');
+            return $kws->mapWithKeys(fn($k) => [$k => "KW {$k}"])->toArray();
         } else {
-            $kws = StokVeneerKering::where('id_jenis_kayu', $this->item_id_jenis_kayu)
-                ->distinct()->orderBy('kw')->pluck('kw');
+            // TEMPORARY: show all kw for dry veneer
+            return [
+                '1' => 'KW 1',
+                '2' => 'KW 2',
+                '3' => 'KW 3',
+                '4' => 'KW 4',
+            ];
         }
-
-        return $kws->mapWithKeys(fn ($k) => [$k => "KW {$k}"])->toArray();
     }
 
     #[Computed]
@@ -168,10 +172,8 @@ class CreateVeneerKeluar extends Page
             }
             return $opts;
         } else {
-            $ids = StokVeneerKering::where('id_jenis_kayu', $this->item_id_jenis_kayu)
-                ->where('kw', $this->item_kw)->distinct()->pluck('id_ukuran');
-            return Ukuran::whereIn('id', $ids)->orderBy('panjang')
-                ->get()->pluck('dimensi', 'id')->toArray();
+            // TEMPORARY: show all sizes for dry veneer
+            return Ukuran::orderBy('panjang')->get()->pluck('dimensi', 'id')->toArray();
         }
     }
 
@@ -181,8 +183,10 @@ class CreateVeneerKeluar extends Page
 
     private function refreshStok(): void
     {
-        if (!$this->item_tipe_veneer || !$this->item_id_jenis_kayu
-            || !$this->item_kw || !$this->item_id_ukuran) {
+        if (
+            !$this->item_tipe_veneer || !$this->item_id_jenis_kayu
+            || !$this->item_kw || !$this->item_id_ukuran
+        ) {
             $this->stok_sistem = 0;
             return;
         }
@@ -201,7 +205,9 @@ class CreateVeneerKeluar extends Page
             $this->stok_sistem = $s ? (int) $s->stok_lembar : 0;
         } else {
             $this->stok_sistem = StokVeneerKering::saldoLembarTerakhir(
-                $this->item_id_ukuran, $this->item_id_jenis_kayu, $this->item_kw
+                $this->item_id_ukuran,
+                $this->item_id_jenis_kayu,
+                $this->item_kw
             );
         }
     }

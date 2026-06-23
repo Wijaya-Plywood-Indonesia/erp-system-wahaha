@@ -1,0 +1,215 @@
+name: Laravel 12 CI/CD Full Automation
+
+on:
+  push:
+    branches: ["main"]
+  create:
+    tags: ["v*"]
+
+jobs:
+  # ------------------------------------------------------------
+  # JOB 1: TESTING (CI) - TIDAK ADA PERUBAHAN
+  # ------------------------------------------------------------
+  laravel-tests:
+      name: Run Tests (CI)
+      runs-on: ubuntu-latest
+      services:
+        mariadb:
+          image: mariadb:10.6
+          env:
+            MARIADB_ROOT_PASSWORD: password
+            MARIADB_DATABASE: laravel_testing
+          ports:
+            - 3306:3306
+          options: >-
+            --health-cmd="healthcheck.sh --connect --innodb_initialized"
+            --health-interval=10s
+            --health-timeout=5s
+            --health-retries=3
+      steps:
+        - uses: actions/checkout@v4
+  
+        - name: Setup PHP 8.4
+          uses: shivammathur/setup-php@v2
+          with:
+            php-version: "8.4"
+            extensions: mbstring, dom, fileinfo, mysql, pdo_mysql
+  
+        # 1. Setup Node.js v20 (Direkomendasikan untuk stabilitas Vite)
+        - name: Setup Node.js
+          uses: actions/setup-node@v4
+          with:
+            node-version: 20
+  
+        - name: Copy .env
+          run: php -r "file_exists('.env') || copy('.env.example', '.env');"
+  
+        - name: Install Dependencies
+          run: composer install --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+  
+        # 2. Jalankan Build Vite sebelum perintah Artisan agar manifest.json terbentuk 👈
+        - name: Install NPM Dependencies & Build Assets
+          run: |
+            npm install
+            npm run build
+  
+        - name: Generate App Key
+          run: php artisan key:generate
+  
+        - name: Set Permissions
+          run: chmod -R 777 storage bootstrap/cache
+  
+        - name: Run Migrations (Testing)
+          env:
+            DB_CONNECTION: mysql
+            DB_HOST: 127.0.0.1
+            DB_PORT: 3306
+            DB_DATABASE: laravel_testing
+            DB_USERNAME: root
+            DB_PASSWORD: password
+          run: php artisan migrate
+  
+        - name: Run Tests
+          env:
+            DB_CONNECTION: mysql
+            DB_HOST: 127.0.0.1
+            DB_PORT: 3306
+            DB_DATABASE: laravel_testing
+            DB_USERNAME: root
+            DB_PASSWORD: password
+          run: php artisan test
+  # ------------------------------------------------------------
+  # JOB 3: DEPLOY PRODUCTION (MULTI-SITE)
+  # ------------------------------------------------------------
+  deploy-production:
+    name: Deploy to kayu.wijayaplywoods.com
+    needs: laravel-tests
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # --- Build PHP
+      - name: Setup PHP for Production
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+
+      # ✅ BARU - Buat .env sementara sebelum composer install
+      - name: Create temporary .env
+        run: |
+          echo "APP_KEY=base64:dummykeydummykeydummykeydummykey=" > .env
+          echo "BROADCAST_CONNECTION=log" >> .env
+          echo "PUSHER_APP_KEY=dummy" >> .env
+          echo "PUSHER_APP_SECRET=dummy" >> .env
+          echo "PUSHER_APP_ID=dummy" >> .env
+          echo "PUSHER_APP_CLUSTER=ap1" >> .env
+
+      # ✅ DIUBAH - Tambah --no-scripts
+      - name: Install Composer Dependencies (Prod)
+        run: composer install --no-dev --optimize-autoloader --prefer-dist --no-interaction --no-scripts
+
+      # ✅ BARU - Jalankan package:discover manual setelah .env ada
+      - name: Run package discover
+        run: php artisan package:discover --ansi
+
+      # --- Build Frontend
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install NPM Dependencies
+        run: npm ci
+
+      - name: Build Frontend Assets
+        run: npm run build
+
+      # --- Create ZIP (Build Once)
+      - name: Create ZIP package
+        run: |
+          set -euo pipefail
+          BUILD_DIR=./build_deploy
+          rm -rf "$BUILD_DIR"
+          mkdir -p "$BUILD_DIR"
+          rsync -a --delete \
+          --exclude '.git/' \
+          --exclude '.github/' \
+          --exclude 'node_modules/' \
+          --exclude 'tests/' \
+          --exclude '.env' \
+          --exclude 'storage/' \
+          --exclude 'build_deploy/' \
+          ./ "$BUILD_DIR/" || [ $? -eq 24 ]
+          (cd "$BUILD_DIR" && zip -r ../deploy.zip . -q)
+          
+      # --- Setup SSH
+      - name: Setup SSH Key
+        run: |
+          mkdir -p $HOME/.ssh
+          chmod 700 $HOME/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > $HOME/.ssh/id_ed25519
+          chmod 600 $HOME/.ssh/id_ed25519
+          # Pastikan dikenal host-nya
+          ssh-keyscan -p ${{ secrets.SSH_PORT }} -H ${{ secrets.SSH_HOST }} >> $HOME/.ssh/known_hosts
+
+      # --- Upload to Server (Upload Once)
+      - name: Upload ZIP to Server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          port: ${{ secrets.SSH_PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "deploy.zip"
+          target: "/home/${{ secrets.SSH_USERNAME }}"
+
+      # --- Multi-Site Deployment (Looping)
+      - name: Execute Remote SSH Commands
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          port: ${{ secrets.SSH_PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # 1. Definisikan langsung target direktori situs Anda
+            TARGET_DIR="/home/${{ secrets.SSH_USERNAME }}/kayu.wijayaplywoods.com"
+      
+            echo "=========================================="
+            echo "🚀 Starting deployment for: kayu.wijayaplywoods.com"
+            echo "📂 Target Directory: $TARGET_DIR"
+            echo "=========================================="
+      
+            # 2. Pastikan folder target ada (Safety check)
+            if [ ! -d "$TARGET_DIR" ]; then
+              echo "❌ Directory $TARGET_DIR does not exist. Deployment aborted."
+              exit 1 # Gunakan exit 1 agar GitHub Actions tahu bahwa proses ini gagal
+            fi
+      
+            cd "$TARGET_DIR"
+            php artisan down || true
+            find . -mindepth 1 -maxdepth 1 \
+              ! -name 'storage' \
+              ! -name '.env' \
+              -exec rm -rf {} \;
+
+            unzip -oq ../deploy.zip -d .
+      
+            # 6. Optimasi Cache Laravel
+            php artisan optimize:clear
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            
+            # 7. Selesai Maintenance Mode
+            php artisan up
+      
+            # 8. Hapus file ZIP setelah semua selesai untuk hemat space
+            rm /home/${{ secrets.SSH_USERNAME }}/deploy.zip
+            
+            echo "🧹 Cleaned up deployment artifacts."
+            echo "✅ Deployment Success!"

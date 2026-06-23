@@ -25,23 +25,23 @@ class VeneerKeluarForm
                     ->label('Tanggal')
                     ->default(now())
                     ->required()
-                    ->disabled(fn ($record) => $record && $record->notaBk?->divalidasi_oleh !== null),
+                    ->disabled(fn($record) => $record && $record->notaBk?->divalidasi_oleh !== null),
 
                 TextInput::make('no_nota')
                     ->label('No. Nota BK')
                     ->required()
-                    ->unique('nota_barang_keluar', 'no_nota', ignorable: fn ($record) => $record?->notaBk)
-                    ->disabled(fn ($record) => $record && $record->notaBk?->divalidasi_oleh !== null),
+                    ->unique('nota_barang_keluar', 'no_nota', ignorable: fn($record) => $record?->notaBk)
+                    ->disabled(fn($record) => $record && $record->notaBk?->divalidasi_oleh !== null),
 
                 TextInput::make('tujuan_nota')
                     ->label('Tujuan / Penerima')
                     ->required()
-                    ->disabled(fn ($record) => $record && $record->notaBk?->divalidasi_oleh !== null),
+                    ->disabled(fn($record) => $record && $record->notaBk?->divalidasi_oleh !== null),
 
                 Textarea::make('keterangan')
                     ->label('Keterangan')
                     ->columnSpanFull()
-                    ->disabled(fn ($record) => $record && $record->notaBk?->divalidasi_oleh !== null),
+                    ->disabled(fn($record) => $record && $record->notaBk?->divalidasi_oleh !== null),
 
                 Repeater::make('details')
                     ->label('Detail Barang Keluar')
@@ -62,7 +62,7 @@ class VeneerKeluarForm
                                 $set('id_ukuran', null);
                                 $set('stok_sistem', 0);
                             })
-                            ->disabled(fn ($record) => $record && $record->notaBk?->divalidasi_oleh !== null),
+                            ->disabled(fn($record) => $record && $record->notaBk?->divalidasi_oleh !== null),
 
                         // 2. Jenis Kayu – cascaded from tipe_veneer
                         Select::make('id_jenis_kayu')
@@ -75,14 +75,13 @@ class VeneerKeluarForm
                                     // Only jenis_kayu that have stock > 0
                                     $ids = HppVeneerBasahSummary::where('stok_lembar', '>', 0)
                                         ->distinct()->pluck('id_jenis_kayu');
+                                    return JenisKayu::whereIn('id', $ids)
+                                        ->orderBy('nama_kayu')
+                                        ->pluck('nama_kayu', 'id');
                                 } else {
-                                    // Jenis kayu that exist in kering ledger
-                                    $ids = StokVeneerKering::distinct()->pluck('id_jenis_kayu');
+                                    // TEMPORARY: show all jenis kayu for dry veneer
+                                    return JenisKayu::orderBy('nama_kayu')->pluck('nama_kayu', 'id');
                                 }
-
-                                return JenisKayu::whereIn('id', $ids)
-                                    ->orderBy('nama_kayu')
-                                    ->pluck('nama_kayu', 'id');
                             })
                             ->required()
                             ->searchable()
@@ -92,7 +91,7 @@ class VeneerKeluarForm
                                 $set('id_ukuran', null);
                                 $set('stok_sistem', 0);
                             })
-                            ->disabled(fn ($record) => $record && $record->notaBk?->divalidasi_oleh !== null),
+                            ->disabled(fn($record) => $record && $record->notaBk?->divalidasi_oleh !== null),
 
                         // 3. KW / Grade – cascaded from tipe_veneer + id_jenis_kayu
                         Select::make('kw')
@@ -108,15 +107,16 @@ class VeneerKeluarForm
                                         ->distinct()
                                         ->orderBy('kw')
                                         ->pluck('kw');
+                                    return $kws->mapWithKeys(fn($kw) => [$kw => "KW {$kw}"])->toArray();
                                 } else {
-                                    // For kering, get distinct kw values with any transactions
-                                    $kws = StokVeneerKering::where('id_jenis_kayu', $idJenisKayu)
-                                        ->distinct()
-                                        ->orderBy('kw')
-                                        ->pluck('kw');
+                                    // TEMPORARY: show all kw for dry veneer
+                                    return [
+                                        '1' => 'KW 1',
+                                        '2' => 'KW 2',
+                                        '3' => 'KW 3',
+                                        '4' => 'KW 4',
+                                    ];
                                 }
-
-                                return $kws->mapWithKeys(fn ($kw) => [$kw => "KW {$kw}"])->toArray();
                             })
                             ->required()
                             ->live()
@@ -124,7 +124,7 @@ class VeneerKeluarForm
                                 $set('id_ukuran', null);
                                 self::updateStokInfo($get, $set);
                             })
-                            ->disabled(fn ($record) => $record && $record->notaBk?->divalidasi_oleh !== null),
+                            ->disabled(fn($record) => $record && $record->notaBk?->divalidasi_oleh !== null),
 
                         // 4. Ukuran – cascaded from tipe_veneer + id_jenis_kayu + kw
                         Select::make('id_ukuran')
@@ -154,13 +154,8 @@ class VeneerKeluarForm
                                     }
                                     return $options;
                                 } else {
-                                    // Get ukuran IDs from kering ledger
-                                    $ukuranIds = StokVeneerKering::where('id_jenis_kayu', $idJenisKayu)
-                                        ->where('kw', $kw)
-                                        ->distinct()
-                                        ->pluck('id_ukuran');
-                                    return Ukuran::whereIn('id', $ukuranIds)
-                                        ->orderBy('panjang')->orderBy('lebar')->orderBy('tebal')
+                                    // TEMPORARY: show all sizes for dry veneer
+                                    return Ukuran::orderBy('panjang')->orderBy('lebar')->orderBy('tebal')
                                         ->get()
                                         ->pluck('dimensi', 'id')
                                         ->toArray();
@@ -169,8 +164,8 @@ class VeneerKeluarForm
                             ->searchable()
                             ->required()
                             ->live()
-                            ->afterStateUpdated(fn (Get $get, Set $set) => self::updateStokInfo($get, $set))
-                            ->disabled(fn ($record) => $record && $record->notaBk?->divalidasi_oleh !== null),
+                            ->afterStateUpdated(fn(Get $get, Set $set) => self::updateStokInfo($get, $set))
+                            ->disabled(fn($record) => $record && $record->notaBk?->divalidasi_oleh !== null),
 
                         // 5. Info stok (read-only)
                         TextInput::make('stok_sistem')
@@ -190,21 +185,21 @@ class VeneerKeluarForm
                             ->required()
                             ->suffix('Lembar')
                             ->rules([
-                                fn (Get $get): \Closure => function (string $attribute, $value, \Closure $fail) use ($get) {
+                                fn(Get $get): \Closure => function (string $attribute, $value, \Closure $fail) use ($get) {
                                     $stokSistem = (int) $get('stok_sistem');
                                     if ($value > $stokSistem) {
                                         $fail("Jumlah keluar ({$value} lbr) melebihi stok ({$stokSistem} lbr).");
                                     }
                                 },
                             ])
-                            ->disabled(fn ($record) => $record && $record->notaBk?->divalidasi_oleh !== null),
+                            ->disabled(fn($record) => $record && $record->notaBk?->divalidasi_oleh !== null),
                     ])
                     ->columns(2)
                     ->columnSpanFull()
                     ->addActionLabel('Tambah Barang')
-                    ->addable(fn ($record) => !$record || $record->notaBk?->divalidasi_oleh === null)
-                    ->deletable(fn ($record) => !$record || $record->notaBk?->divalidasi_oleh === null)
-                    ->reorderable(fn ($record) => !$record || $record->notaBk?->divalidasi_oleh === null),
+                    ->addable(fn($record) => !$record || $record->notaBk?->divalidasi_oleh === null)
+                    ->deletable(fn($record) => !$record || $record->notaBk?->divalidasi_oleh === null)
+                    ->reorderable(fn($record) => !$record || $record->notaBk?->divalidasi_oleh === null),
             ]);
     }
 

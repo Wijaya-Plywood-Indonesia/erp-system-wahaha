@@ -19,7 +19,7 @@
 
             <div class="p-4 overflow-x-auto">
                 <div class="flex flex-col lg:flex-row gap-8 min-w-[1200px]">
-                    
+
                     {{-- TABEL KIRI: DETAIL PRODUKSI --}}
                     <div class="flex-[2]">
                         <h3 class="text-sm font-bold mb-2 uppercase text-zinc-600 dark:text-zinc-400">Detail Produksi</h3>
@@ -54,9 +54,9 @@
                             </tbody>
                             <tfoot>
                                 @php
-                                    $totalBagus = collect($reportData['detail'])->sum('bagus');
-                                    $totalCacat = collect($reportData['detail'])->sum('cacat');
-                                    $totalTotal = collect($reportData['detail'])->sum('total');
+                                $totalBagus = collect($reportData['detail'])->sum('bagus');
+                                $totalCacat = collect($reportData['detail'])->sum('cacat');
+                                $totalTotal = collect($reportData['detail'])->sum('total');
                                 @endphp
                                 <tr class="bg-zinc-100 dark:bg-zinc-800 font-bold">
                                     <td colspan="5" class="p-2 text-right border border-zinc-300 dark:border-zinc-700">TOTAL:</td>
@@ -98,7 +98,7 @@
         </div>
         @else
         <div class="p-16 text-center bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700">
-            <x-heroicon-o-document-magnifying-glass class="w-12 h-12 mx-auto text-zinc-400 mb-4"/>
+            <x-heroicon-o-document-magnifying-glass class="w-12 h-12 mx-auto text-zinc-400 mb-4" />
             <p class="text-zinc-500 italic text-lg">
                 Tidak ada data produksi Pilih Plywood untuk tanggal ini.
             </p>

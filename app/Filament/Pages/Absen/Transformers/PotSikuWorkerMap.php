@@ -49,7 +49,7 @@ class PotSikuWorkerMap
                     'hasil' => $labelHasil,
                     'ijin' => $pp->ijin ?? '',
                     'potongan_targ' => 0, // Pot Siku biasanya belum ada potongan target otomatis jika tidak diminta
-                    'keterangan' => $pp->keterangan ?? '',
+                    'keterangan' => $pp->ket ?? '',
                 ];
             }
         }

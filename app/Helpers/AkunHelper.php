@@ -7,9 +7,9 @@ use App\Models\AnakAkun;
 class AkunHelper
 {
     public static function all(): array
-{
-    return self::accountsByIndukRange(1000, 6000);
-}
+    {
+        return self::accountsByIndukRange(1000, 6000);
+    }
 
     public static function debitAccounts(): array
     {
@@ -40,7 +40,7 @@ class AkunHelper
             }
 
             foreach ($anak->subAnakAkuns as $sub) {
-                $kode = "{$anak->kode_anak_akun}.{$sub->kode_sub_anak_akun}";
+                $kode = $sub->kode_sub_anak_akun;
                 $options[$kode] = "{$kode} — {$sub->nama_sub_anak_akun}";
             }
         }

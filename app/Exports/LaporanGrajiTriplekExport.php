@@ -33,7 +33,7 @@ class LaporanGrajiTriplekExport implements FromCollection, WithHeadings, WithSty
 
         for ($i = 0; $i < $max; $i++) {
             $row = [];
-            
+
             // Left side (Detail)
             if ($i < count($detailProduksi)) {
                 $d = $detailProduksi[$i];
@@ -44,22 +44,22 @@ class LaporanGrajiTriplekExport implements FromCollection, WithHeadings, WithSty
                 $row['d_jenis'] = $d['jenis'];
                 $row['d_grade'] = $d['grade'];
                 $row['d_byk'] = $d['byk'];
-                $row['d_m3'] = ''; 
+                $row['d_m3'] = '';
             } else {
                 $row['d_tgl'] = $row['d_p'] = $row['d_l'] = $row['d_t'] = $row['d_jenis'] = $row['d_grade'] = $row['d_byk'] = $row['d_m3'] = '';
             }
 
-            $row['spacer'] = ''; 
+            $row['spacer'] = '';
 
             // Right side (Summary)
             if ($i < count($summaryProduksi)) {
                 $s = $summaryProduksi[$i];
                 $row['s_tgl'] = $s['tanggal'];
                 $row['s_ttl_pkj'] = $s['ttl_pkj'];
-                $row['s_harga'] = ''; 
-                $row['s_total_m3'] = ''; 
-                $row['s_ongkos_m3'] = ''; 
-                $row['s_ongkos_lb'] = ''; 
+                $row['s_harga'] = '';
+                $row['s_total_m3'] = '';
+                $row['s_ongkos_m3'] = '';
+                $row['s_ongkos_lb'] = '';
             } else {
                 $row['s_tgl'] = $row['s_ttl_pkj'] = $row['s_harga'] = $row['s_total_m3'] = $row['s_ongkos_m3'] = $row['s_ongkos_lb'] = '';
             }
@@ -73,9 +73,21 @@ class LaporanGrajiTriplekExport implements FromCollection, WithHeadings, WithSty
     public function headings(): array
     {
         return [
-            'Tanggal', 'p', 'l', 't', 'jenis', 'grade', 'byk', 'm3',
-            '', 
-            'Tanggal', 'TTL PKJ', 'HARGA', 'Total m3', 'ONGKOS PER M3', 'ONGKOS PER LB'
+            'Tanggal',
+            'p',
+            'l',
+            't',
+            'jenis',
+            'grade',
+            'byk',
+            'm3',
+            '',
+            'Tanggal',
+            'TTL PKJ',
+            'HARGA',
+            'Total m3',
+            'ONGKOS PER M3',
+            'ONGKOS PER LB'
         ];
     }
 
@@ -111,7 +123,7 @@ class LaporanGrajiTriplekExport implements FromCollection, WithHeadings, WithSty
                 $sheet->getColumnDimension('F')->setWidth(10);
                 $sheet->getColumnDimension('G')->setWidth(8);
                 $sheet->getColumnDimension('H')->setWidth(10);
-                $sheet->getColumnDimension('I')->setWidth(3); 
+                $sheet->getColumnDimension('I')->setWidth(3);
                 $sheet->getColumnDimension('J')->setWidth(15);
                 $sheet->getColumnDimension('K')->setWidth(10);
                 $sheet->getColumnDimension('L')->setWidth(15);

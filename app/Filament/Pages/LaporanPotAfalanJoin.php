@@ -100,14 +100,17 @@ class LaporanPotAfalanJoin extends Page
             if ($state instanceof Carbon) {
                 $tanggal = $state->format('Y-m-d');
             } elseif (is_string($state) && $state !== '') {
-                $tanggal = Carbon::parse($state)->format('Y-m-d');
+                if (str_contains($state, '/')) {
+                    $tanggal = Carbon::createFromFormat('d/m/Y', $state)->format('Y-m-d');
+                } else {
+                    $tanggal = Carbon::parse($state)->format('Y-m-d');
+                }
             } else {
                 $tanggal = now()->format('Y-m-d');
             }
 
             $this->data['tanggal'] = $tanggal;
             $this->loadData();
-
         } catch (Exception $e) {
             Log::error('Error parsing date Potong Afalan: ' . $e->getMessage());
 
@@ -150,7 +153,6 @@ class LaporanPotAfalanJoin extends Page
                     ->body('Tidak ditemukan data produksi potong afalan untuk tanggal ' . Carbon::parse($tanggal)->format('d/m/Y'))
                     ->send();
             }
-
         } catch (Exception $e) {
             Log::error('Error loading potong afalan data: ' . $e->getMessage());
 
@@ -179,7 +181,6 @@ class LaporanPotAfalanJoin extends Page
                 new LaporanPotAfalanJoinExport($this->laporan),
                 "laporan-pot-afalan-{$tanggal}.xlsx"
             );
-
         } catch (Exception $e) {
             Notification::make()
                 ->danger()
