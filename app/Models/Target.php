@@ -20,6 +20,8 @@ class Target extends Model
         'target',
         'orang',
         'jam',
+        'jam_mulai',
+        'jam_selesai',
         'gaji',
         'status',
     ];
@@ -55,7 +57,6 @@ class Target extends Model
         $kodeKayu = $this->jenisKayu?->kode_kayu ?? '-';
 
         return "{$namaMesin} | {$ukuran} | {$kodeKayu}";
-
     }
 
     // Target Repair
@@ -86,5 +87,4 @@ class Target extends Model
     }
 
     protected $appends = ['deskripsi'];
-
 }

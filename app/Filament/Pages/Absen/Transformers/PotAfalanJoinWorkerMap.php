@@ -51,9 +51,9 @@ class PotAfalanJoinWorkerMap
                         'masuk' => $pj->masuk ? Carbon::parse($pj->masuk)->format('H:i:s') : '',
                         'pulang' => $pj->pulang ? Carbon::parse($pj->pulang)->format('H:i:s') : '',
                         'hasil' => 'POT AFALAN',
-                        'ijin' => $pj->pegawai->ijin ?? '',
+                        'ijin' => $pj->ijin ?? '',
                         'potongan_targ' => (int) ($pj->potongan ?? $potonganPerOrang),
-                        'keterangan' => $pj->pegawai->keterangan ?? '',
+                        'keterangan' => $pj->ket ?? '',
                     ];
                 }
             }

@@ -7,9 +7,9 @@ use App\Models\AnakAkun;
 class AkunHelper
 {
     public static function all(): array
-{
-    return self::accountsByIndukRange(1000, 6000);
-}
+    {
+        return self::accountsByIndukRange(1000, 6000);
+    }
 
     public static function debitAccounts(): array
     {

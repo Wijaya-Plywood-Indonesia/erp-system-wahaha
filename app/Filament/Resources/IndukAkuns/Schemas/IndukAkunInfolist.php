@@ -26,7 +26,7 @@ class IndukAkunInfolist
                             TextEntry::make('saldo_normal')
                                 ->label('Saldo Normal')
                                 ->badge()
-                                ->color(fn($state) => match($state) {
+                                ->color(fn($state) => match ($state) {
                                     'debet'  => 'success',
                                     'kredit' => 'danger',
                                     default  => 'gray',

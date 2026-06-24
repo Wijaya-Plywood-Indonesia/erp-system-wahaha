@@ -6,11 +6,13 @@ use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithMapping;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
+class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles, WithMapping
 {
     protected array $dataKedi;
+    protected int $rowIndex = 0;
 
     public function __construct($dataKedi)
     {
@@ -19,15 +21,26 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
 
     public function title(): string
     {
-        return 'Jurnal Kedi';
+        return 'jurnal produksi';
     }
 
     public function columnWidths(): array
     {
         return [
-            'A' => 45, 'B' => 20, 'C' => 15, 'D' => 12, 'E' => 8, 
-            'F' => 18, 'G' => 20, 'H' => 45, 'I' => 6,  'J' => 10, 
-            'K' => 10, 'L' => 15, 'M' => 15, 'N' => 15,
+            'A' => 45,
+            'B' => 20,
+            'C' => 15,
+            'D' => 12,
+            'E' => 8,
+            'F' => 18,
+            'G' => 20,
+            'H' => 45,
+            'I' => 6,
+            'J' => 10,
+            'K' => 10,
+            'L' => 15,
+            'M' => 15,
+            'N' => 15,
         ];
     }
 
@@ -103,10 +116,15 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
         $kelompok = ($tebal < 1) ? 'faceback' : 'core';
         $jns      = $this->normalizeJenis($jenis);
 
+        $dbHarga = $this->getHargaVeneerDb($jenis, $tebal, $tipeKualitas, $isPpc);
+        if ($dbHarga > 0) {
+            return $dbHarga;
+        }
+
         $hargaReguler = [
             'sengon' => [
-                'faceback' => ['basah' => 2700000, 'kering' => 2800000, 'jadi' => 4000000],
-                'core'     => ['basah' => 1700000, 'kering' => 1900000, 'jadi' => 2250000],
+                'faceback' => ['basah' => 2700000, 'kering' => 3050000, 'jadi' => 4000000],
+                'core'     => ['basah' => 1700000, 'kering' => 2000000, 'jadi' => 2250000],
             ],
             'meranti' => [
                 'faceback' => ['basah' => 8000000, 'kering' => 8500000, 'jadi' => 12500000],
@@ -127,6 +145,47 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
 
         $tabel = $isPpc ? $hargaPpc : $hargaReguler;
         return $tabel[$jns][$kelompok][$tipeKualitas] ?? 0;
+    }
+
+    private function getHargaVeneerDb(string $jenis, float $tebal, string $tipeKualitas, bool $isPpc = false): int
+    {
+        $jns = str_contains(strtolower(trim($jenis)), 'sengon') ? 'Sengon' : 'Meranti';
+        $jenisKayu = \App\Models\JenisKayu::where('nama_kayu', $jns)->first();
+        if (!$jenisKayu) {
+            return 0;
+        }
+
+        if ($isPpc) {
+            $kelompok = ($tebal < 1) ? 'ppc_faceback' : 'ppc_core';
+        } else {
+            $kelompok = ($tebal < 1) ? 'faceback' : 'core';
+        }
+
+        $ukuranOptions = $kelompok === 'faceback'
+            ? ($jns === 'Sengon' ? ['faceback'] : ['face', 'back'])
+            : ($kelompok === 'ppc_faceback' ? ['ppc_faceback'] : [$kelompok]);
+
+        $kwOptions = array_map(function ($opt) {
+            return 'KW 1 - ' . ucfirst(str_replace('_', ' ', $opt));
+        }, $ukuranOptions);
+
+        $tipeKualitasMap = [
+            'basah' => 'Veneer Basah',
+            'kering' => 'Veneer Kering',
+            'jadi' => 'Veneer Jadi',
+        ];
+        $jenisBarang = $tipeKualitasMap[strtolower($tipeKualitas)] ?? 'Veneer Jadi';
+
+        $hargaVeneer = \App\Models\ReferensiHargaProduksi::where('id_jenis_kayu', $jenisKayu->id)
+            ->where('jenis_barang', $jenisBarang)
+            ->whereIn('kw', $kwOptions)
+            ->first();
+
+        if (!$hargaVeneer) {
+            return 0;
+        }
+
+        return (int) $hargaVeneer->harga;
     }
 
     private function isKwAf(mixed $kw): bool
@@ -187,13 +246,26 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
     private function makeRow(string $namaAkun, string $noAkun, string $tgl, string $namaProduksi, string $keterangan, string $map, string $hitKbk, $banyak, $m3, $harga, $total): array
     {
         return [
-            $namaAkun, $tgl, '', $noAkun, '', '', $namaProduksi, $keterangan, $map, $hitKbk, $banyak, $m3, $harga, $total
+            $namaAkun,
+            $tgl,
+            '',
+            $noAkun,
+            '',
+            '',
+            $namaProduksi,
+            $keterangan,
+            $map,
+            $hitKbk,
+            $banyak,
+            $m3,
+            $harga,
+            $total
         ];
     }
 
     public function array(): array
     {
-        $rows = [];
+        $rows   = [];
         $rows[] = ['Nama Akun', 'tgl', 'jurnal', 'No Akun', 'No', 'mm', 'Nama', 'Keterangan', 'map', 'hit kbk', 'Banyak', 'M3', 'Harga', 'Total'];
 
         if (empty($this->dataKedi)) return $rows;
@@ -205,27 +277,43 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
 
         foreach ($this->dataKedi as $produksi) {
             $totalPegawai += $produksi['total_pekerja'] ?? 0;
+
+            // ✅ REVISI 2: Ambil tanggal dari tanggal_bongkar, fallback ke tanggal_masuk
+            // Prioritas: tanggal_actual_bongkar → tanggal_bongkar → tanggal_masuk
             if (empty($tglProduksi)) {
-                $rawTgl = str_replace('/', '-', $produksi['tanggal_masuk'] ?? '');
+                $rawTgl = str_replace(
+                    '/',
+                    '-',
+                    $produksi['tanggal_actual_bongkar']
+                        ?? $produksi['tanggal_keluar']
+                        ?? $produksi['tanggal_masuk']
+                        ?? ''
+                );
                 try {
-                    $tglProduksi = \Carbon\Carbon::parse($rawTgl)->format('d-m-Y');
+                    // Parse format d/m/Y yang dikirim dari controller
+                    $tglProduksi = \Carbon\Carbon::createFromFormat('d/m/Y', $rawTgl)->format('d-m-Y');
                 } catch (\Exception $e) {
                     $tglProduksi = $rawTgl;
                 }
             }
+
             foreach ($produksi['detail_bongkar'] ?? [] as $db) $allBongkars[] = $db;
-            foreach ($produksi['detail_masuk'] ?? [] as $dm) $allMasuks[] = $dm;
+            foreach ($produksi['detail_masuk']  ?? [] as $dm) $allMasuks[]   = $dm;
         }
 
-        $namaProduksi = 'kedi';
+        $namaProduksi = 'bongkar'; // ✅ REVISI 1: kedi → bongkar
 
         $bongkarsReguler = array_filter($allBongkars, fn($d) => !$this->isKwAf($d['kw'] ?? 0));
         $bongkarsAf      = array_filter($allBongkars, fn($d) =>  $this->isKwAf($d['kw'] ?? 0));
 
-        $makeKey = function($d) {
+
+        $makeKey = function ($d) {
             $dim = $this->parseDimensi($d['ukuran'] ?? '');
             $jenisAsli = trim($d['jenis_kayu'] ?? '');
-            return $this->expandJenis($jenisAsli) . '_' . $dim['t'];
+            return $this->expandJenis($jenisAsli)
+                . '_' . $dim['p']
+                . '_' . $dim['l']
+                . '_' . $dim['t'];
         };
 
         $groupedBongkarsReguler = collect($bongkarsReguler)->groupBy($makeKey);
@@ -298,7 +386,6 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
                     $hargaKelebihan = $this->getHargaPatok($jenisAsli, $tebal, 'kering', false);
                     $ketKelebihan   = "{$tipeLabel} {$jenisAsli} uk {$ukuranLengkap} (kelebihan {$kelebihan})";
                     $kelebihanDebitRow = $this->makeRow($akunKelebihan['nama'], $akunKelebihan['no'], $tglProduksi, $namaProduksi, $ketKelebihan, 'd', 'm', $kelebihan, round($m3Kelebihan, 4), $hargaKelebihan, round($m3Kelebihan * $hargaKelebihan, 2));
-
                 } elseif ($jadiOutputIsi >= $keringOutputIsi && $jadiOutputIsi >= $afOutputIsi) {
                     $regJadiIsi     = max(0, $jadiOutputIsi - $kelebihan);
                     $m3Jadi         = $jadiOutputIsi > 0 ? ($regJadiIsi / $jadiOutputIsi) * $m3JadiTotal : 0;
@@ -307,7 +394,6 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
                     $hargaKelebihan = $this->getHargaPatok($jenisAsli, $tebal, 'jadi', false);
                     $ketKelebihan   = "{$tipeLabel} {$jenisAsli} uk {$ukuranLengkap} (kelebihan {$kelebihan})";
                     $kelebihanDebitRow = $this->makeRow($akunKelebihan['nama'], $akunKelebihan['no'], $tglProduksi, $namaProduksi, $ketKelebihan, 'd', 'm', $kelebihan, round($m3Kelebihan, 4), $hargaKelebihan, round($m3Kelebihan * $hargaKelebihan, 2));
-
                 } else {
                     $regAfIsi       = max(0, $afOutputIsi - $kelebihan);
                     $m3Af           = $afOutputIsi > 0 ? ($regAfIsi / $afOutputIsi) * $m3AfTotal : 0;
@@ -386,13 +472,12 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
                     $totalKredit += $subtotal;
                 }
             }
-        } 
+        }
 
-        foreach ($debitRows as $r) $rows[] = $r;
+        foreach ($debitRows  as $r) $rows[] = $r;
         foreach ($creditRows as $r) $rows[] = $r;
 
         if ($totalPegawai > 0) {
-            // UPDATE: Menggunakan 2231.00 untuk Hutang Gaji
             $rows[] = $this->makeRow('Hutang Gaji', '2231.00', $tglProduksi, $namaProduksi, '', 'k', 'b', $totalPegawai, '', 150000, ($totalPegawai * 150000));
             $totalKredit += ($totalPegawai * 150000);
         }
@@ -402,10 +487,20 @@ class JurnalKediSheet implements FromArray, WithTitle, WithColumnWidths, WithSty
             $rows[] = $this->makeRow('hpp', '6111', $tglProduksi, $namaProduksi, '', 'k', '', '', '', round($hpp, 2), round($hpp, 2));
         }
 
-        foreach ($creditRows as $r) {
-           // Tidak melakukan push ke $rows lagi karena sudah ditambahkan di atas.
+        return $rows;
+    }
+
+    public function map($row): array
+    {
+        $this->rowIndex++;
+
+        if ($this->rowIndex === 1 || implode('', (array)$row) === '') {
+            return $row;
         }
 
-        return $rows;
+        $r = $this->rowIndex;
+        $row[13] = "=IF(J{$r}=\"m\", M{$r}*L{$r}, IF(J{$r}=\"b\", M{$r}*K{$r}, M{$r}))";
+
+        return $row;
     }
 }

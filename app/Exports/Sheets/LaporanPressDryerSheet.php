@@ -44,7 +44,7 @@ class LaporanPressDryerSheet implements FromCollection, WithHeadings, WithTitle,
             $allRows[] = ['MESIN: ' . strtoupper($mesinNama)];
             $allRows[] = ['TANGGAL: ' . $tanggal];
             $allRows[] = array_fill(0, 12, '');
-            
+
             $headerRow = count($allRows) + 1;
             $allRows[] = ['ID', 'Nama', 'Potongan Gaji', 'Keterangan', '', 'Target Harian', 'Jam Kerja', 'Target/Jam', 'Hasil', 'Selisih', 'Kendala', 'Keterangan'];
 
@@ -64,19 +64,30 @@ class LaporanPressDryerSheet implements FromCollection, WithHeadings, WithTitle,
                     }
                 } else {
                     $M = count($daftarKendala);
-                    $chunkSize = (int) ceil($N / $M);
 
-                    for ($i = 0; $i < $M; $i++) {
-                        $startIdx = $i * $chunkSize;
-                        $endIdx = min(($i + 1) * $chunkSize - 1, $N - 1);
+                    if ($N < $M) {
+                        // Jika jumlah pekerja lebih sedikit dari kendala, gabungkan semua kendala dengan newline
+                        $text = implode("\n", array_column($daftarKendala, 'text'));
+                        $kendalaCellValues[0] = $text;
+                        if ($N > 1) {
+                            $this->mergeRanges[] = "K{$workerStartRow}:K{$workerEndRow}";
+                        }
+                    } else {
+                        // Jika pekerja cukup, bagi rata secara chunk
+                        $chunkSize = (int) ceil($N / $M);
 
-                        if ($startIdx < $N) {
-                            $kendalaCellValues[$startIdx] = $daftarKendala[$i]['text'] ?? '';
-                            $chunkStartRow = $workerStartRow + $startIdx;
-                            $chunkEndRow = $workerStartRow + $endIdx;
+                        for ($i = 0; $i < $M; $i++) {
+                            $startIdx = $i * $chunkSize;
+                            $endIdx = min(($i + 1) * $chunkSize - 1, $N - 1);
 
-                            if ($chunkStartRow < $chunkEndRow) {
-                                $this->mergeRanges[] = "K{$chunkStartRow}:K{$chunkEndRow}";
+                            if ($startIdx < $N) {
+                                $kendalaCellValues[$startIdx] = $daftarKendala[$i]['text'] ?? '';
+                                $chunkStartRow = $workerStartRow + $startIdx;
+                                $chunkEndRow = $workerStartRow + $endIdx;
+
+                                if ($chunkStartRow < $chunkEndRow) {
+                                    $this->mergeRanges[] = "K{$chunkStartRow}:K{$chunkEndRow}";
+                                }
                             }
                         }
                     }
@@ -90,23 +101,23 @@ class LaporanPressDryerSheet implements FromCollection, WithHeadings, WithTitle,
 
             foreach ($pekerja as $idx => $p) {
                 $potTargetRaw = (float) str_replace('.', '', $p['pot_target'] ?? '0');
-                
+
                 // Column 12: Global Keterangan only for the first worker row
                 $globalKetVal = '';
                 if ($idx === 0) {
                     $globalKetVal = ($first['keterangan_global'] !== '-') ? $first['keterangan_global'] : '';
                 }
-                
+
                 $allRows[] = [
-                    $p['id'] ?? '-', 
-                    $p['nama'] ?? '-', 
-                    $potTargetRaw > 0 ? (int) $potTargetRaw : 0, 
-                    $p['keterangan'] ?? '-', 
-                    '', 
-                    (float) $target, 
-                    (int) $jamKerja, 
-                    round((float) $targetPerJam, 4), 
-                    (float) $hasil, 
+                    $p['id'] ?? '-',
+                    $p['nama'] ?? '-',
+                    $potTargetRaw > 0 ? (int) $potTargetRaw : 0,
+                    $p['keterangan'] ?? '-',
+                    '',
+                    (float) $target,
+                    (int) $jamKerja,
+                    round((float) $targetPerJam, 4),
+                    (float) $hasil,
                     (float) $selisih,
                     $kendalaCellValues[$idx],
                     $globalKetVal
@@ -114,16 +125,16 @@ class LaporanPressDryerSheet implements FromCollection, WithHeadings, WithTitle,
             }
 
             $allRows[] = [
-                'TOTAL', 
-                $N . ' pekerja', 
-                $N > 0 ? "=SUM(C{$workerStartRow}:C{$workerEndRow})" : 0, 
-                '', 
-                '', 
-                (float) $target, 
-                (int) $jamKerja, 
-                round((float) $targetPerJam, 4), 
-                (float) $hasil, 
-                (float) $selisih, 
+                'TOTAL',
+                $N . ' pekerja',
+                $N > 0 ? "=SUM(C{$workerStartRow}:C{$workerEndRow})" : 0,
+                '',
+                '',
+                (float) $target,
+                (int) $jamKerja,
+                round((float) $targetPerJam, 4),
+                (float) $hasil,
+                (float) $selisih,
                 $totalDowntimeMenit > 0 ? $totalDowntimeMenit . ' menit' : '',
                 ''
             ];
@@ -157,7 +168,7 @@ class LaporanPressDryerSheet implements FromCollection, WithHeadings, WithTitle,
         return [
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
-                
+
                 // Set explicit column widths
                 $sheet->getColumnDimension('A')->setWidth(10);
                 $sheet->getColumnDimension('B')->setWidth(25);
@@ -222,7 +233,7 @@ class LaporanPressDryerSheet implements FromCollection, WithHeadings, WithTitle,
                         $sheet->getStyle("B{$startRow}:B{$endRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
                         $sheet->getStyle("C{$startRow}:C{$endRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                         $sheet->getStyle("D{$startRow}:D{$endRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-                        
+
                         $sheet->getStyle("F{$startRow}:F{$endRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                         $sheet->getStyle("G{$startRow}:G{$endRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
                         $sheet->getStyle("H{$startRow}:H{$endRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
@@ -230,7 +241,7 @@ class LaporanPressDryerSheet implements FromCollection, WithHeadings, WithTitle,
                         $sheet->getStyle("J{$startRow}:J{$endRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                         $sheet->getStyle("K{$startRow}:K{$endRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
                         $sheet->getStyle("L{$startRow}:L{$endRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
-                        
+
                         // Number formats
                         $sheet->getStyle("C{$startRow}:C{$totalRow}")->getNumberFormat()->setFormatCode('#,##0;(#,##0);"-"');
                         // F, H, I, J formats

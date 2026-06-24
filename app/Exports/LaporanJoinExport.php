@@ -149,12 +149,16 @@ class LaporanJoinSummarySheet implements FromCollection, WithHeadings, WithTitle
 
     public function collection()
     {
-        $rows      = collect();
-        $allGroups = [];
+        $rows = collect();
+        $blocks = [];
+
+        $grandTotalTotal = 0;
+        $grandTotalByk = 0;
 
         foreach ($this->rawCollection as $produksi) {
-            $tanggal = Carbon::parse($produksi->tanggal_produksi)->format('d-m-yy');
+            $tanggal = Carbon::parse($produksi->tanggal_produksi)->format('d-m-Y');
 
+            // 1. Build bahan list
             $bahanRows = [];
             try {
                 foreach ($produksi->bahanProduksi ?? collect() as $bahan) {
@@ -165,9 +169,7 @@ class LaporanJoinSummarySheet implements FromCollection, WithHeadings, WithTitle
                         ?? 0
                     );
                     $jumlah = (float) ($bahan->jumlah ?? 0);
-
                     $namaBahanTerbaca = $bahan->nama_bahan_penolong ?? $bahan->nama_bahan ?? '-';
-
                     $bahanRows[] = [
                         'nama'   => strtoupper($namaBahanTerbaca),
                         'jumlah' => $jumlah > 0 ? $jumlah : '-',
@@ -185,33 +187,77 @@ class LaporanJoinSummarySheet implements FromCollection, WithHeadings, WithTitle
                 'harga'  => 0,
                 'total'  => 0,
             ];
-
+            // 2. Build hasil list
             $hasilGroups = $produksi->hasilJoint
                 ->groupBy(fn($h) => $h->id_ukuran . '|' . $h->kw);
 
+            $hasilRows = [];
             foreach ($hasilGroups as $groupKey => $hasilItems) {
                 $firstHasil  = $hasilItems->first();
                 $ukuranModel = $firstHasil->ukuran;
-
                 $byk = (int) $hasilItems->sum('jumlah');
-
-                $allGroups[] = [
-                    'tanggal' => $tanggal,
-                    'p'       => $ukuranModel->panjang ?? '',
-                    'l'       => $ukuranModel->lebar   ?? '',
-                    't'       => $ukuranModel->tebal   ?? '',
-                    'byk'     => $byk,
-                    'kw'      => $firstHasil->kw ?? '-',
-                    'bahan'   => $bahanRows,
+                $hasilRows[] = [
+                    'p'   => $ukuranModel->panjang ?? '',
+                    'l'   => $ukuranModel->lebar   ?? '',
+                    't'   => $ukuranModel->tebal   ?? '',
+                    'byk' => $byk,
+                    'kw'  => $firstHasil->kw ?? '-',
                 ];
             }
+
+            // 3. Align side-by-side
+            $maxRows = max(count($bahanRows), count($hasilRows));
+            $blockRows = [];
+            $totalBahanForBlock = 0;
+            $totalHasilForBlock = 0;
+
+            for ($i = 0; $i < $maxRows; $i++) {
+                $row = [
+                    'tanggal' => ($i === 0) ? $tanggal : '',
+                    'bahan_nama' => '',
+                    'bahan_jumlah' => '',
+                    'bahan_harga' => '',
+                    'bahan_total' => '',
+                    'p' => '',
+                    'l' => '',
+                    't' => '',
+                    'byk' => '',
+                    'kw' => '',
+                ];
+
+                if ($i < count($bahanRows)) {
+                    $b = $bahanRows[$i];
+                    $row['bahan_nama'] = $b['nama'];
+                    $row['bahan_jumlah'] = $b['jumlah'];
+                    $row['bahan_harga'] = $b['harga'] > 0 ? number_format($b['harga'], 3, '.', '') : '-';
+                    $row['bahan_total'] = $b['total'] > 0 ? number_format($b['total'], 3, '.', '') : 0;
+                    $totalBahanForBlock += $b['total'];
+                }
+
+                if ($i < count($hasilRows)) {
+                    $h = $hasilRows[$i];
+                    $row['p'] = $h['p'];
+                    $row['l'] = $h['l'];
+                    $row['t'] = $h['t'];
+                    $row['byk'] = $h['byk'];
+                    $row['kw'] = $h['kw'];
+                    $totalHasilForBlock += $h['byk'];
+                }
+
+                $blockRows[] = $row;
+            }
+
+            $blocks[] = [
+                'rows' => $blockRows,
+                'totalBahan' => $totalBahanForBlock,
+                'totalHasil' => $totalHasilForBlock,
+            ];
+
+            $grandTotalTotal += $totalBahanForBlock;
+            $grandTotalByk += $totalHasilForBlock;
         }
 
-        $grandTotalByk   = collect($allGroups)->sum('byk');
-        $grandTotalTotal = collect($allGroups)->sum(
-            fn($g) => collect($g['bahan'])->sum('total')
-        );
-
+        // Push grand total row at the top (Row 2)
         $rows->push([
             '',
             '',
@@ -226,45 +272,39 @@ class LaporanJoinSummarySheet implements FromCollection, WithHeadings, WithTitle
         ]);
 
         $currentExcelRow = 3;
-
-        foreach ($allGroups as $group) {
+        foreach ($blocks as $block) {
             $this->firstRowOfGroup[] = $currentExcelRow;
 
-            foreach ($group['bahan'] as $i => $bahan) {
-                $isFirst = ($i === 0);
-
+            foreach ($block['rows'] as $row) {
                 $rows->push([
-                    $isFirst ? $group['tanggal'] : '',
-                    $bahan['nama'],
-                    $bahan['jumlah'],
-                    $bahan['harga'] > 0 ? number_format($bahan['harga'], 3, '.', '') : '-',
-                    $bahan['total'] > 0 ? number_format($bahan['total'], 3, '.', '') : 0,
-                    $isFirst ? $group['p'] : '',
-                    $isFirst ? $group['l'] : '',
-                    $isFirst ? $group['t'] : '',
-                    $isFirst ? $group['byk'] : '',
-                    $isFirst ? $group['kw'] : '',
+                    $row['tanggal'],
+                    $row['bahan_nama'],
+                    $row['bahan_jumlah'],
+                    $row['bahan_harga'],
+                    $row['bahan_total'],
+                    $row['p'],
+                    $row['l'],
+                    $row['t'],
+                    $row['byk'],
+                    $row['kw'],
                 ]);
-
                 $currentExcelRow++;
             }
 
-            $groupTotal            = collect($group['bahan'])->sum('total');
-            $this->totalRows[]     = $currentExcelRow;
-
+            // Total row for this block
+            $this->totalRows[] = $currentExcelRow;
             $rows->push([
                 '',
                 'TOTAL :',
                 '',
                 '',
-                $groupTotal > 0 ? number_format($groupTotal, 3, '.', '') : 0,
+                $block['totalBahan'] > 0 ? number_format($block['totalBahan'], 3, '.', '') : 0,
                 '',
                 '',
                 '',
-                $group['byk'],
+                $block['totalHasil'],
                 '',
             ]);
-
             $currentExcelRow++;
         }
 
@@ -335,7 +375,7 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles,
 
     public function title(): string
     {
-        return 'Jurnal';
+        return 'jurnal produksi';
     }
 
     public function columnWidths(): array
@@ -383,6 +423,22 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles,
             $sheet->getStyle("A2:N{$lastRow}")->applyFromArray(['borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
             $sheet->getStyle("D2:D{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle("K2:N{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            // =========================================================================
+            // PENYESUAIAN RUMUS TOTAL (KOLOM N) SECARA DINAMIS
+            // =========================================================================
+            // Jika J="m", maka Total = Harga * M3 (M*L)
+            // Jika J="b", maka Total = Harga * Banyak (M*K)
+            // Jika tidak keduanya, maka langsung mengambil Harga (M)
+            // =========================================================================
+            for ($row = 2; $row <= $lastRow; $row++) {
+                $namaAkunVal = $sheet->getCell("A{$row}")->getValue();
+                // Formula hanya diisi pada baris yang memiliki data Akun (bukan baris kosong)
+                if ($namaAkunVal !== '' && $namaAkunVal !== null) {
+                    $sheet->getCell("N{$row}")->setValue(
+                        "=IF(J{$row}=\"m\",M{$row}*L{$row},IF(J{$row}=\"b\",M{$row}*K{$row},M{$row}))"
+                    );
+                }
+            }
         }
     }
 
@@ -394,6 +450,11 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles,
     private function getHargaPatok(string $jenis, float $tebal, bool $isAf = false): int
     {
         $jns = $this->normalizeJenis($jenis);
+
+        $dbHarga = $this->getHargaVeneerDb($jenis, $tebal, 'jadi', $isAf);
+        if ($dbHarga > 0) {
+            return $dbHarga;
+        }
         // Jika PCC (AF), gunakan harga khusus
         if ($isAf) {
             return ($jns === 'sengon') ? 1500000 : 1800000;
@@ -404,6 +465,47 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles,
             'meranti' => ['faceback' => 12500000, 'core' => 2800000],
         ];
         return $harga[$jns][$kelompok] ?? 0;
+    }
+
+    private function getHargaVeneerDb(string $jenis, float $tebal, string $tipeKualitas, bool $isAf = false): int
+    {
+        $jns = str_contains(strtolower(trim($jenis)), 'sengon') ? 'Sengon' : 'Meranti';
+        $jenisKayu = \App\Models\JenisKayu::where('nama_kayu', $jns)->first();
+        if (!$jenisKayu) {
+            return 0;
+        }
+
+        if ($isAf) {
+            $kelompok = ($tebal < 1) ? 'ppc_faceback' : 'ppc_core';
+        } else {
+            $kelompok = ($tebal < 1) ? 'faceback' : 'core';
+        }
+
+        $ukuranOptions = $kelompok === 'faceback'
+            ? ($jns === 'Sengon' ? ['faceback'] : ['face', 'back'])
+            : ($kelompok === 'ppc_faceback' ? ['ppc_faceback'] : [$kelompok]);
+
+        $kwOptions = array_map(function ($opt) {
+            return 'KW 1 - ' . ucfirst(str_replace('_', ' ', $opt));
+        }, $ukuranOptions);
+
+        $tipeKualitasMap = [
+            'basah' => 'Veneer Basah',
+            'kering' => 'Veneer Kering',
+            'jadi' => 'Veneer Jadi',
+        ];
+        $jenisBarang = $tipeKualitasMap[strtolower($tipeKualitas)] ?? 'Veneer Jadi';
+
+        $hargaVeneer = \App\Models\ReferensiHargaProduksi::where('id_jenis_kayu', $jenisKayu->id)
+            ->where('jenis_barang', $jenisBarang)
+            ->whereIn('kw', $kwOptions)
+            ->first();
+
+        if (!$hargaVeneer) {
+            return 0;
+        }
+
+        return (int) $hargaVeneer->harga;
     }
 
     private function makeRow($namaAkun, $tgl, $noAkun, $keterangan, $map, $banyak, $m3, $harga, $total, $hitKbk = 'm'): array
@@ -486,15 +588,15 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles,
 
                     // 2. Logika Penentuan Prefix dan Harga
                     if (str_contains($nama, 'aruki')) {
-                        $hargaH = 152900;
+                        $hargaH = 6900;
                         $akun = '1507.63';
                         $prefix = 'Lem '; // Diberi prefix
                     } elseif (str_contains($nama, 'dover')) {
-                        $hargaH = 152900;
+                        $hargaH = 6950;
                         $akun = '1507.64';
                         $prefix = 'Lem '; // Diberi prefix
                     } elseif (str_contains($nama, 'tepung')) {
-                        $hargaH = 18000;
+                        $hargaH = 4500;
                         $akun = '1507.62';
                         $prefix = ''; // Tetap tanpa prefix
                     }

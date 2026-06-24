@@ -53,7 +53,7 @@ class DempulWorkerMap
                         'hasil' => $labelHasil,
                         'ijin' => $rp->ijin ?? '-',
                         'potongan_targ' => 0,
-                        'keterangan' => $rp->keterangan ??  '',
+                        'keterangan' => $rp->keterangan ?? '',
                     ];
                 }
             }

@@ -39,39 +39,103 @@ class LaporanJurnalKayuMasukSheet2 extends DefaultValueBinder implements FromCol
 
     public function getAccountDetails(string $jenisKayuNama, $panjang): array
     {
-        $isSengon = (stripos($jenisKayuNama, 'sengon') !== false);
-        $is130 = ((int) $panjang === 130);
+        $jenis = strtolower(trim($jenisKayuNama));
+        $panjang = (int) $panjang;
 
-        if ($isSengon) {
-            if (!$is130) {
-                return [
-                    'no_akun' => '1411.01',
-                    'nama_akun' => 'Kayu Lunak 260 WJY',
-                ];
-            } else {
-                return [
-                    'no_akun' => '1411.03',
-                    'nama_akun' => 'Kayu Lunak 130 WJY',
-                ];
+        $isWHN = false;
+        if (request()) {
+            $host = request()->getHost();
+            if ($host === 'wahana.wijayaplywoods.com' || env('APP_COMPANY') === 'WHN') {
+                $isWHN = true;
             }
+        }
+
+        $isLunak = (str_contains($jenis, 'sengon') || str_contains($jenis, 'lunak'));
+        $isMeranti = str_contains($jenis, 'meranti');
+        $isRijek = str_contains($jenis, 'rijek');
+        $isLogCore = str_contains($jenis, 'log core') || str_contains($jenis, 'core');
+        $isBaloan = str_contains($jenis, 'baloan') || str_contains($jenis, 'balo,an');
+
+        if ($isWHN) {
+            if ($isMeranti) {
+                return ['no_akun' => '1413.09', 'nama_akun' => 'Kayu Meranti WHN'];
+            }
+            if ($isRijek) {
+                return ['no_akun' => '1413.10', 'nama_akun' => 'Kayu Rijek WHN'];
+            }
+            if ($isLogCore) {
+                if ($panjang === 130) {
+                    return ['no_akun' => '1414.00', 'nama_akun' => 'log core 130 WHN'];
+                }
+                return ['no_akun' => '1413.13', 'nama_akun' => 'log core 260 WHN'];
+            }
+            if ($isBaloan) {
+                return ['no_akun' => '1413.05', 'nama_akun' => 'kayu balo,an'];
+            }
+
+            // Lunak
+            if ($isLunak) {
+                if ($panjang === 130) {
+                    return ['no_akun' => '1413.07', 'nama_akun' => 'Kayu Lunak 130 WHN'];
+                }
+                if ($panjang === 230) {
+                    return ['no_akun' => '1413.11', 'nama_akun' => 'kayu Lunak 230 WHN'];
+                }
+                if ($panjang === 100) {
+                    return ['no_akun' => '1413.12', 'nama_akun' => 'kayu Lunak 100 WHN'];
+                }
+                return ['no_akun' => '1413.01', 'nama_akun' => 'kayu Lunak 260 WHN'];
+            }
+
+            // Keras (default)
+            if ($panjang === 130) {
+                return ['no_akun' => '1413.08', 'nama_akun' => 'Kayu Keras 130 WHN'];
+            }
+            return ['no_akun' => '1413.06', 'nama_akun' => 'Kayu Keras 260 WHN'];
         } else {
-            if (!$is130) {
-                return [
-                    'no_akun' => '1411.02',
-                    'nama_akun' => 'Kayu Keras 260 WJY',
-                ];
-            } else {
-                return [
-                    'no_akun' => '1411.04',
-                    'nama_akun' => 'Kayu Keras 130 WJY',
-                ];
+            // WJY
+            if ($isMeranti) {
+                return ['no_akun' => '1411.05', 'nama_akun' => 'Kayu Meranti WJY'];
             }
+            if ($isRijek) {
+                return ['no_akun' => '1411.06', 'nama_akun' => 'Kayu Rijek WJY'];
+            }
+            if ($isLogCore) {
+                if ($panjang === 130) {
+                    return ['no_akun' => '1413.04', 'nama_akun' => 'log core 130 WJY'];
+                }
+                return ['no_akun' => '1413.03', 'nama_akun' => 'log core 260 WJY'];
+            }
+            if ($isBaloan) {
+                return ['no_akun' => '1413.05', 'nama_akun' => 'kayu balo,an'];
+            }
+
+            // Lunak
+            if ($isLunak) {
+                if ($panjang === 130) {
+                    return ['no_akun' => '1411.03', 'nama_akun' => 'Kayu Lunak 130 WJY'];
+                }
+                if ($panjang === 230) {
+                    return ['no_akun' => '1411.07', 'nama_akun' => 'kayu Lunak 230 WJY'];
+                }
+                if ($panjang === 100) {
+                    return ['no_akun' => '1411.08', 'nama_akun' => 'kayu Lunak 100 WJY'];
+                }
+                return ['no_akun' => '1411.01', 'nama_akun' => 'kayu Lunak 260 WJY'];
+            }
+
+            // Keras (default)
+            if ($panjang === 130) {
+                return ['no_akun' => '1411.04', 'nama_akun' => 'Kayu Keras 130 WJY'];
+            }
+            return ['no_akun' => '1411.02', 'nama_akun' => 'Kayu Keras 260 WJY'];
         }
     }
 
     public function collection()
     {
         $flatRows = [];
+        $currentRow = 1;
 
         foreach ($this->jurnalTables as $table) {
             $noJurnal = "MASUK/" . \Carbon\Carbon::parse($table['tgl_kayu_masuk'])->format('Ymd') . "/" . $table['no_nota'];
@@ -79,7 +143,8 @@ class LaporanJurnalKayuMasukSheet2 extends DefaultValueBinder implements FromCol
 
             // Table Header Block
             $flatRows[] = ['No. Jurnal: ' . $noJurnal, '', '', '', '', '', '', '', '', '', '', '', '', ''];
-            
+            $currentRow++;
+
             // Column Headers
             $flatRows[] = [
                 'Nama Akun',
@@ -97,6 +162,7 @@ class LaporanJurnalKayuMasukSheet2 extends DefaultValueBinder implements FromCol
                 'Harga',
                 'Total'
             ];
+            $currentRow++;
 
             // 1. Add Debit entries from groups
             foreach ($table['groups'] as $group) {
@@ -107,11 +173,11 @@ class LaporanJurnalKayuMasukSheet2 extends DefaultValueBinder implements FromCol
                 // Graceful fallback parsing in case of old serialized Livewire component state
                 if (empty($jenisKayuNama) && !empty($group['header'])) {
                     $header = $group['header'];
-                    
+
                     if (preg_match('/(\d+)\s*cm/', $header, $matches)) {
                         $panjang = (int) $matches[1];
                     }
-                    
+
                     if (preg_match('/cm\s+(.+?)\s+\(/', $header, $matches)) {
                         $jenisKayuNama = trim($matches[1]);
                     } elseif (preg_match('/cm\s+(.+)$/', $header, $matches)) {
@@ -127,6 +193,8 @@ class LaporanJurnalKayuMasukSheet2 extends DefaultValueBinder implements FromCol
                 }
 
                 $acc = $this->getAccountDetails($jenisKayuNama, $panjang);
+                $hargaVal = $group['total_harga'];
+                $totalVal = "=IF(J{$currentRow}=\"m\",M{$currentRow}*L{$currentRow},IF(J{$currentRow}=\"b\",M{$currentRow}*K{$currentRow},M{$currentRow}))";
 
                 $flatRows[] = [
                     $acc['nama_akun'],
@@ -138,15 +206,17 @@ class LaporanJurnalKayuMasukSheet2 extends DefaultValueBinder implements FromCol
                     $table['nama_supplier'],
                     $kodeLahan,
                     'd',
-                    'm',
+                    null,
                     $group['total_batang'],
                     $group['total_kubikasi'],
-                    $group['total_harga'],
-                    $group['total_harga']
+                    $hargaVal,
+                    $totalVal
                 ];
+                $currentRow++;
             }
 
             // 2. Add Credit Row 1: hutang ongkos turun kayu
+            $totalValRow1 = "=IF(J{$currentRow}=\"m\",M{$currentRow}*L{$currentRow},IF(J{$currentRow}=\"b\",M{$currentRow}*K{$currentRow},M{$currentRow}))";
             $flatRows[] = [
                 'hutang ongkos turun kayu',
                 $tglVal,
@@ -161,9 +231,9 @@ class LaporanJurnalKayuMasukSheet2 extends DefaultValueBinder implements FromCol
                 '',
                 '',
                 $table['selisih'],
-                $table['selisih']
+                $totalValRow1
             ];
-
+            $currentRow++;
             // 3. Add Credit Row 2: pendapatan
             $flatRows[] = [
                 'pendapatan',
@@ -181,8 +251,10 @@ class LaporanJurnalKayuMasukSheet2 extends DefaultValueBinder implements FromCol
                 '',
                 ''
             ];
+            $currentRow++;
 
             // 4. Add Credit Row 3: Kas Mut
+            $totalValKasMut = "=IF(J{$currentRow}=\"m\",M{$currentRow}*L{$currentRow},IF(J{$currentRow}=\"b\",M{$currentRow}*K{$currentRow},M{$currentRow}))";
             $flatRows[] = [
                 'Kas Mut',
                 $tglVal,
@@ -197,12 +269,15 @@ class LaporanJurnalKayuMasukSheet2 extends DefaultValueBinder implements FromCol
                 $table['totalBatang'],
                 $table['totalKubikasi'],
                 $table['hargaFinal'],
-                $table['hargaFinal']
+                $totalValKasMut
             ];
+            $currentRow++;
 
             // Spacer Rows between multiple tables
             $flatRows[] = ['', '', '', '', '', '', '', '', '', '', '', '', '', ''];
+            $currentRow++;
             $flatRows[] = ['', '', '', '', '', '', '', '', '', '', '', '', '', ''];
+            $currentRow++;
         }
 
         return collect($flatRows);

@@ -37,6 +37,61 @@
 
         <hr class="border-gray-100 dark:border-gray-800">
 
+        {{-- ================= TARGET PROGRESS (SANDING) ================= --}}
+        @php
+        $target = (float) ($summary['target'] ?? 250);
+        $totalAll = (float) ($summary['totalAll'] ?? 0);
+        $globalProgressVal = (float) ($summary['globalProgress'] ?? 0);
+        $globalProgressPercent = min(100, max(0, $globalProgressVal));
+        $potonganPerOrang = (float) ($summary['potonganPerOrang'] ?? 0);
+        @endphp
+
+        <div class="space-y-4">
+            <div class="font-semibold text-lg text-gray-900 dark:text-gray-100">
+                Progress Target Sanding
+                <span class="text-sm font-normal text-gray-500 dark:text-gray-400">
+                    ( Target {{ number_format($target, 4) }} )
+                </span>
+            </div>
+
+            <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:bg-gray-800 dark:border-gray-700 space-y-2">
+                {{-- Nama & Nilai --}}
+                <div class="flex justify-between text-sm">
+                    <span class="font-medium text-gray-700 dark:text-gray-300">
+                        Mesin {{ $record->mesin?->nama_mesin ?? 'SANDING' }}
+                    </span>
+                    <span class="text-gray-600 dark:text-gray-400 font-bold">
+                        {{ number_format($totalAll) }} / {{ (float) $target }}
+                    </span>
+                </div>
+
+                {{-- Progress Bar --}}
+                <div class="w-full h-3 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                    <div
+                        class="h-full rounded-full transition-all duration-500"
+                        style="
+                            width: {{ $globalProgressPercent }}%;
+                            background-color:
+                                {{ $globalProgressPercent >= 100
+                                    ? '#16a34a'   /* green-600 */
+                                    : ($globalProgressPercent >= 75
+                                        ? '#2563eb' /* blue-600 */
+                                        : '#f59e0b' /* amber-500 */) }};
+                        ">
+                    </div>
+                </div>
+
+                {{-- Persentase --}}
+                <div class="text-xs text-right text-gray-500 dark:text-gray-400 font-bold">
+                    {{ number_format($globalProgressVal, 1) }}%
+                </div>
+
+
+            </div>
+        </div>
+
+        <hr class="border-gray-100 dark:border-gray-800">
+
         {{-- [SECTION 2] GLOBAL UKURAN + KW (DETAIL) --}}
         <div class="space-y-4">
             <div class="flex items-center gap-2 font-bold text-lg text-gray-800 dark:text-gray-100">
@@ -83,27 +138,27 @@
                 </div>
                 @endforeach
             </div>
-        {{-- [SECTION 4] RINGKASAN JENIS KAYU & UKURAN --}}
-        @if (!empty($summary['globalJenisKayuUkuran']) && count($summary['globalJenisKayuUkuran']) > 0)
-        <div class="space-y-4 pt-6 border-t border-gray-100 dark:border-gray-800">
-            <div class="flex items-center gap-2 font-bold text-lg text-gray-800 dark:text-gray-100">
-                <x-heroicon-m-table-cells class="w-5 h-5 text-gray-400 dark:text-gray-500" />
-                Ringkasan Penggunaan Kayu & Ukuran Hasil
-            </div>
+            {{-- [SECTION 4] RINGKASAN JENIS KAYU & UKURAN --}}
+            @if (!empty($summary['globalJenisKayuUkuran']) && count($summary['globalJenisKayuUkuran']) > 0)
+            <div class="space-y-4 pt-6 border-t border-gray-100 dark:border-gray-800">
+                <div class="flex items-center gap-2 font-bold text-lg text-gray-800 dark:text-gray-100">
+                    <x-heroicon-m-table-cells class="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                    Ringkasan Penggunaan Kayu & Ukuran Hasil
+                </div>
 
-            <div class="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
-                <table class="w-full text-left text-sm text-gray-600 dark:text-gray-300">
-                    <thead class="bg-gray-50 dark:bg-gray-900/50 text-gray-900 dark:text-white">
-                        <tr>
-                            <th class="px-4 py-3 font-semibold">Jenis Kayu</th>
-                            <th class="px-4 py-3 font-semibold">Ukuran</th>
-                            <th class="px-4 py-3 font-semibold">kw</th>
-                            <th class="px-4 py-3 font-semibold text-right">Hasil (Pcs)</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                        @php $grandTotal = 0; @endphp
-                        @foreach (($summary['globalJenisKayuUkuran'] ?? []) as $row)
+                <div class="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
+                    <table class="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+                        <thead class="bg-gray-50 dark:bg-gray-900/50 text-gray-900 dark:text-white">
+                            <tr>
+                                <th class="px-4 py-3 font-semibold">Jenis Kayu</th>
+                                <th class="px-4 py-3 font-semibold">Ukuran</th>
+                                <th class="px-4 py-3 font-semibold">kw</th>
+                                <th class="px-4 py-3 font-semibold text-right">Hasil (Pcs)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                            @php $grandTotal = 0; @endphp
+                            @foreach (($summary['globalJenisKayuUkuran'] ?? []) as $row)
                             @php $grandTotal += $row->total; @endphp
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                                 <td class="px-4 py-3">{{ $row->jenis_kayu }}</td>
@@ -111,18 +166,18 @@
                                 <td class="px-4 py-3">{{ $row->kw }}</td>
                                 <td class="px-4 py-3 text-right font-medium">{{ number_format($row->total) }}</td>
                             </tr>
-                        @endforeach
-                    </tbody>
-                    <tfoot class="bg-gray-50 dark:bg-gray-900/50 text-gray-900 dark:text-white font-bold">
-                        <tr>
-                            <td colspan="3" class="px-4 py-3 text-right border-t dark:border-gray-700">Total Keseluruhan</td>
-                            <td class="px-4 py-3 text-right border-t dark:border-gray-700">{{ number_format($grandTotal) }}</td>
-                        </tr>
-                    </tfoot>
-                </table>
+                            @endforeach
+                        </tbody>
+                        <tfoot class="bg-gray-50 dark:bg-gray-900/50 text-gray-900 dark:text-white font-bold">
+                            <tr>
+                                <td colspan="3" class="px-4 py-3 text-right border-t dark:border-gray-700">Total Keseluruhan</td>
+                                <td class="px-4 py-3 text-right border-t dark:border-gray-700">{{ number_format($grandTotal) }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
             </div>
-        </div>
-        @endif
+            @endif
 
     </x-filament::card>
 </x-filament::widget>
