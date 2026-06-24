@@ -51,12 +51,15 @@ class ReferensiHargaProduksisTable
                 TextColumn::make('jenis_barang')
                     ->label('Jenis Barang')
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'Veneer Jadi' => 'success',
+                    ->color(fn(string $state): string => match ($state) {
+                        'Veneer Jadi', 'Veneer' => 'success',
                         'Veneer Kering' => 'info',
-                        'Veneer Basah' => 'primary',
-                        'Platform' => 'warning',
+                        'Veneer Basah' => 'info',
+                        'Platform' => 'primary',
                         'Afalan' => 'danger',
+                        'Plywood' => 'warning',
+                        'Barang' => 'info',
+                        'Lain-Lain' => 'gray',
                         default => 'gray',
                     })
                     ->searchable()

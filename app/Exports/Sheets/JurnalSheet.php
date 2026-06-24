@@ -6,12 +6,14 @@ use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithMapping;
 use Carbon\Carbon;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
+class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles, WithMapping
 {
     protected array $dataProduksi;
+    protected int $rowIndex = 0;
 
     public function __construct($dataProduksi)
     {
@@ -20,15 +22,26 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
 
     public function title(): string
     {
-        return 'Jurnal';
+        return 'jurnal produksi';
     }
 
     public function columnWidths(): array
     {
         return [
-            'A' => 45, 'B' => 20, 'C' => 15, 'D' => 12, 'E' => 8, 
-            'F' => 18, 'G' => 20, 'H' => 45, 'I' => 6,  'J' => 10, 
-            'K' => 10, 'L' => 15, 'M' => 15, 'N' => 15,
+            'A' => 45,
+            'B' => 20,
+            'C' => 15,
+            'D' => 12,
+            'E' => 8,
+            'F' => 18,
+            'G' => 20,
+            'H' => 45,
+            'I' => 6,
+            'J' => 10,
+            'K' => 10,
+            'L' => 15,
+            'M' => 15,
+            'N' => 15,
         ];
     }
 
@@ -47,14 +60,8 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
         $sheet->getStyle("A1:N{$lastRow}")->applyFromArray($borderStyle);
 
         $sheet->getStyle('A1:N1')->applyFromArray([
-            'font' => [
-                'bold'  => true,
-                'color' => ['rgb' => 'FFFFFF'],
-            ],
-            'fill' => [
-                'fillType'   => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                'startColor' => ['rgb' => '1F4E79'],
-            ],
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '1F4E79']],
             'alignment' => [
                 'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
                 'vertical'   => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
@@ -72,11 +79,11 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
     private function expandJenis(string $jenis): string
     {
         $map = [
-            's'  => 'sengon',
-            'j'  => 'jabon',
-            'm'  => 'meranti',
-            'p'  => 'pinus',
-            'k'  => 'keruing',
+            's' => 'sengon',
+            'j' => 'jabon',
+            'm' => 'meranti',
+            'p' => 'pinus',
+            'k' => 'keruing',
             'mh' => 'mahoni',
             'wr' => 'waru',
         ];
@@ -95,10 +102,13 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
         $kelompok = ($tebal < 1) ? 'faceback' : 'core';
         $jns      = $this->normalizeJenis($jenis);
 
+        $dbHarga = $this->getHargaVeneerDb($jenis, $tebal, $tipeKualitas, $isPpc);
+        if ($dbHarga > 0) return $dbHarga;
+
         $hargaReguler = [
             'sengon' => [
-                'faceback' => ['basah' => 2700000, 'kering' => 2800000, 'jadi' => 4000000],
-                'core'     => ['basah' => 1700000, 'kering' => 1900000, 'jadi' => 2250000],
+                'faceback' => ['basah' => 2700000, 'kering' => 3050000, 'jadi' => 4000000],
+                'core'     => ['basah' => 1700000, 'kering' => 2000000, 'jadi' => 2250000],
             ],
             'meranti' => [
                 'faceback' => ['basah' => 8000000, 'kering' => 8500000, 'jadi' => 12500000],
@@ -119,6 +129,29 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
 
         $tabel = $isPpc ? $hargaPpc : $hargaReguler;
         return $tabel[$jns][$kelompok][$tipeKualitas] ?? 0;
+    }
+
+    private function getHargaVeneerDb(string $jenis, float $tebal, string $tipeKualitas, bool $isPpc = false): int
+    {
+        $jns = str_contains(strtolower(trim($jenis)), 'sengon') ? 'Sengon' : 'Meranti';
+        $jenisKayu = \App\Models\JenisKayu::where('nama_kayu', $jns)->first();
+        if (!$jenisKayu) return 0;
+
+        $kelompok = ($isPpc) ? (($tebal < 1) ? 'ppc_faceback' : 'ppc_core') : (($tebal < 1) ? 'faceback' : 'core');
+
+        $ukuranOptions = $kelompok === 'faceback'
+            ? ($jns === 'Sengon' ? ['faceback'] : ['face', 'back'])
+            : ($kelompok === 'ppc_faceback' ? ['ppc_faceback'] : [$kelompok]);
+
+        $hargaVeneer = \App\Models\HargaVeneer::where('id_jenis_kayu', $jenisKayu->id)
+            ->whereIn('ukuran', $ukuranOptions)
+            ->first();
+
+        if (!$hargaVeneer) return 0;
+
+        if ($tipeKualitas === 'basah') return (int) $hargaVeneer->harga_basah;
+        elseif ($tipeKualitas === 'kering') return (int) $hargaVeneer->harga_kering;
+        else return (int) $hargaVeneer->harga_jadi;
     }
 
     private function isKwAf(mixed $kw): bool
@@ -183,9 +216,7 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
 
     private function makeRow(string $namaAkun, string $noAkun, string $tgl, string $namaProduksi, string $keterangan, string $map, string $hitKbk, $banyak, $m3, $harga, $total): array
     {
-        return [
-            $namaAkun, $tgl, '', $noAkun, '', '', $namaProduksi, $keterangan, $map, $hitKbk, $banyak, $m3, $harga, $total
-        ];
+        return [$namaAkun, $tgl, '', $noAkun, '', '', $namaProduksi, $keterangan, $map, $hitKbk, $banyak, $m3, $harga, $total];
     }
 
     public function array(): array
@@ -210,7 +241,7 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
                 $totalPegawai += $produksi['jumlah_pekerja'] ?? 0;
                 foreach ($produksi['detail_hasils'] ?? [] as $dh) $allHasils[] = $dh;
                 foreach ($produksi['detail_masuks'] ?? [] as $dm) $allMasuks[] = $dm;
-                
+
                 if (empty($tglProduksi)) {
                     $rawTgl = $produksi['tanggal_produksi'] ?? $produksi['tanggal'] ?? $produksi['tgl_produksi'] ?? $produksi['date'] ?? '';
                     if (!empty($rawTgl)) {
@@ -227,7 +258,10 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
             $hasilsReguler = array_filter($allHasils, fn($d) => !$this->isKwAf($d['kw'] ?? 0));
             $hasilsAf      = array_filter($allHasils, fn($d) =>  $this->isKwAf($d['kw'] ?? 0));
 
-            $makeKey = fn($d) => $this->expandJenis(trim($d['jenis_kayu'] ?? '')) . '_' . (float)($d['ukuran']['t'] ?? 0);
+            $makeKey = fn($d) => $this->expandJenis(trim($d['jenis_kayu'] ?? ''))
+                . '_' . (float)($d['ukuran']['p'] ?? $d['ukuran']['panjang'] ?? 0)
+                . '_' . (float)($d['ukuran']['l'] ?? $d['ukuran']['lebar']   ?? 0)
+                . '_' . (float)($d['ukuran']['t'] ?? $d['ukuran']['tebal']   ?? 0);
 
             $groupedHasilsReguler = collect($hasilsReguler)->groupBy($makeKey);
             $groupedHasilsAf      = collect($hasilsAf)->groupBy($makeKey);
@@ -298,8 +332,10 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
                         $akunKelebihan  = $this->getAkun('kering', $jenisAsli, $tebal, false);
                         $hargaKelebihan = $this->getHargaPatok($jenisAsli, $tebal, 'kering', false);
                         $ketKelebihan   = "{$tipeLabel} {$jenisAsli} uk {$ukuranLengkap} (kelebihan {$kelebihan})";
-                        $kelebihanDebitRow = $this->makeRow($akunKelebihan['nama'], $akunKelebihan['no'], $tglProduksi, $namaProduksi, $ketKelebihan, 'd', 'm', $kelebihan, round($m3Kelebihan, 4), $hargaKelebihan, round($m3Kelebihan * $hargaKelebihan, 2));
 
+                        $m3KelebihanRnd = round($m3Kelebihan, 4);
+                        $subtotalKel    = round($m3KelebihanRnd * $hargaKelebihan, 0); // Dibulatkan 0 desimal
+                        $kelebihanDebitRow = $this->makeRow($akunKelebihan['nama'], $akunKelebihan['no'], $tglProduksi, $namaProduksi, $ketKelebihan, 'd', 'm', $kelebihan, $m3KelebihanRnd, $hargaKelebihan, $subtotalKel);
                     } elseif ($jadiOutputIsi >= $keringOutputIsi && $jadiOutputIsi >= $afOutputIsi) {
                         $regJadiIsi     = max(0, $jadiOutputIsi - $kelebihan);
                         $m3Jadi         = $jadiOutputIsi > 0 ? ($regJadiIsi / $jadiOutputIsi) * $m3JadiTotal : 0;
@@ -307,8 +343,10 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
                         $akunKelebihan  = $this->getAkun('jadi', $jenisAsli, $tebal, false);
                         $hargaKelebihan = $this->getHargaPatok($jenisAsli, $tebal, 'jadi', false);
                         $ketKelebihan   = "{$tipeLabel} {$jenisAsli} uk {$ukuranLengkap} (kelebihan {$kelebihan})";
-                        $kelebihanDebitRow = $this->makeRow($akunKelebihan['nama'], $akunKelebihan['no'], $tglProduksi, $namaProduksi, $ketKelebihan, 'd', 'm', $kelebihan, round($m3Kelebihan, 4), $hargaKelebihan, round($m3Kelebihan * $hargaKelebihan, 2));
 
+                        $m3KelebihanRnd = round($m3Kelebihan, 4);
+                        $subtotalKel    = round($m3KelebihanRnd * $hargaKelebihan, 0); // Dibulatkan 0 desimal
+                        $kelebihanDebitRow = $this->makeRow($akunKelebihan['nama'], $akunKelebihan['no'], $tglProduksi, $namaProduksi, $ketKelebihan, 'd', 'm', $kelebihan, $m3KelebihanRnd, $hargaKelebihan, $subtotalKel);
                     } else {
                         $regAfIsi       = max(0, $afOutputIsi - $kelebihan);
                         $m3Af           = $afOutputIsi > 0 ? ($regAfIsi / $afOutputIsi) * $m3AfTotal : 0;
@@ -316,35 +354,41 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
                         $akunKelebihan  = $this->getAkun('kering', $jenisAsli, $tebal, true);
                         $hargaKelebihan = $this->getHargaPatok($jenisAsli, $tebal, 'kering', true);
                         $ketKelebihan   = "{$tipeLabel} {$jenisAsli} uk {$ukuranLengkap} af (kelebihan {$kelebihan})";
-                        $kelebihanDebitRow = $this->makeRow($akunKelebihan['nama'], $akunKelebihan['no'], $tglProduksi, $namaProduksi, $ketKelebihan, 'd', 'm', $kelebihan, round($m3Kelebihan, 4), $hargaKelebihan, round($m3Kelebihan * $hargaKelebihan, 2));
+
+                        $m3KelebihanRnd = round($m3Kelebihan, 4);
+                        $subtotalKel    = round($m3KelebihanRnd * $hargaKelebihan, 0); // Dibulatkan 0 desimal
+                        $kelebihanDebitRow = $this->makeRow($akunKelebihan['nama'], $akunKelebihan['no'], $tglProduksi, $namaProduksi, $ketKelebihan, 'd', 'm', $kelebihan, $m3KelebihanRnd, $hargaKelebihan, $subtotalKel);
                     }
                 }
 
                 // --- DEBIT ---
                 if ($regJadiIsi > 0) {
                     $harga       = $this->getHargaPatok($jenisAsli, $tebal, 'jadi', false);
-                    $subtotal    = round($m3Jadi * $harga, 2);
+                    $m3JadiRnd   = round($m3Jadi, 4);
+                    $subtotal    = round($m3JadiRnd * $harga, 0); // Dibulatkan 0 desimal
                     $akun        = $this->getAkun('jadi', $jenisAsli, $tebal, false);
                     $ketDesc     = "{$tipeLabel} {$jenisAsli} uk {$ukuranLengkap}";
-                    $debitRows[] = $this->makeRow($akun['nama'], $akun['no'], $tglProduksi, $namaProduksi, $ketDesc, 'd', 'm', $regJadiIsi, round($m3Jadi, 4), $harga, $subtotal);
+                    $debitRows[] = $this->makeRow($akun['nama'], $akun['no'], $tglProduksi, $namaProduksi, $ketDesc, 'd', 'm', $regJadiIsi, $m3JadiRnd, $harga, $subtotal);
                     $totalDebit += $subtotal;
                 }
 
                 if ($regKeringIsi > 0) {
                     $harga       = $this->getHargaPatok($jenisAsli, $tebal, 'kering', false);
-                    $subtotal    = round($m3Kering * $harga, 2);
+                    $m3KeringRnd = round($m3Kering, 4);
+                    $subtotal    = round($m3KeringRnd * $harga, 0); // Dibulatkan 0 desimal
                     $akun        = $this->getAkun('kering', $jenisAsli, $tebal, false);
                     $ketDesc     = "{$tipeLabel} {$jenisAsli} uk {$ukuranLengkap}";
-                    $debitRows[] = $this->makeRow($akun['nama'], $akun['no'], $tglProduksi, $namaProduksi, $ketDesc, 'd', 'm', $regKeringIsi, round($m3Kering, 4), $harga, $subtotal);
+                    $debitRows[] = $this->makeRow($akun['nama'], $akun['no'], $tglProduksi, $namaProduksi, $ketDesc, 'd', 'm', $regKeringIsi, $m3KeringRnd, $harga, $subtotal);
                     $totalDebit += $subtotal;
                 }
 
                 if ($regAfIsi > 0) {
                     $harga       = $this->getHargaPatok($jenisAsli, $tebal, 'kering', true);
-                    $subtotal    = round($m3Af * $harga, 2);
+                    $m3AfRnd     = round($m3Af, 4);
+                    $subtotal    = round($m3AfRnd * $harga, 0); // Dibulatkan 0 desimal
                     $akun        = $this->getAkun('kering', $jenisAsli, $tebal, true);
                     $ketDesc     = "{$tipeLabel} {$jenisAsli} uk {$ukuranLengkap} af";
-                    $debitRows[] = $this->makeRow($akun['nama'], $akun['no'], $tglProduksi, $namaProduksi, $ketDesc, 'd', 'm', $regAfIsi, round($m3Af, 4), $harga, $subtotal);
+                    $debitRows[] = $this->makeRow($akun['nama'], $akun['no'], $tglProduksi, $namaProduksi, $ketDesc, 'd', 'm', $regAfIsi, $m3AfRnd, $harga, $subtotal);
                     $totalDebit += $subtotal;
                 }
 
@@ -358,7 +402,7 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
                     if ($jadiOutputIsi > 0 || $keringOutputIsi > 0) {
                         $akun         = $this->getAkun('basah', $jenisAsli, $tebal, false);
                         $m3Reguler    = round($m3JadiTotal + $m3KeringTotal, 4);
-                        $subtotal     = round($m3Reguler * $hargaBasah, 2);
+                        $subtotal     = round($m3Reguler * $hargaBasah, 0); // Dibulatkan 0 desimal
                         $creditRows[] = $this->makeRow($akun['nama'], $akun['no'], $tglProduksi, $namaProduksi, '', 'k', 'm', ($jadiOutputIsi + $keringOutputIsi), $m3Reguler, $hargaBasah, $subtotal);
                         $totalKredit += $subtotal;
                     }
@@ -366,7 +410,7 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
                     if ($afOutputIsi > 0) {
                         $akunAf       = $this->getAkun('basah', $jenisAsli, $tebal, true);
                         $m3AfRound    = round($m3AfTotal, 4);
-                        $subtotal     = round($m3AfRound * $hargaBasahPpc, 2);
+                        $subtotal     = round($m3AfRound * $hargaBasahPpc, 0); // Dibulatkan 0 desimal
                         $creditRows[] = $this->makeRow($akunAf['nama'], $akunAf['no'], $tglProduksi, $namaProduksi, 'af', 'k', 'm', $afOutputIsi, $m3AfRound, $hargaBasahPpc, $subtotal);
                         $totalKredit += $subtotal;
                     }
@@ -375,37 +419,62 @@ class JurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles
                         $akun           = $this->getAkun('basah', $jenisAsli, $tebal, false);
                         $m3Hilang       = round($totalMasukM3 - ($m3JadiTotal + $m3KeringTotal + $m3AfTotal), 4);
                         if ($m3Hilang < 0) $m3Hilang = 0;
-                        $subtotalHilang = round($m3Hilang * $hargaBasah, 2);
+                        $subtotalHilang = round($m3Hilang * $hargaBasah, 0); // Dibulatkan 0 desimal
                         $creditRows[]   = $this->makeRow($akun['nama'], $akun['no'], $tglProduksi, $namaProduksi, 'kehilangan ' . $hilang, 'k', 'm', $hilang, $m3Hilang, $hargaBasah, $subtotalHilang);
                         $totalKredit   += $subtotalHilang;
                     }
                 } else {
                     if ($totalMasukIsi > 0) {
                         $akun         = $this->getAkun('basah', $jenisAsli, $tebal, false);
-                        $subtotal     = round($totalMasukM3 * $hargaBasah, 2);
-                        $creditRows[] = $this->makeRow($akun['nama'], $akun['no'], $tglProduksi, $namaProduksi, '', 'k', 'm', $totalMasukIsi, round($totalMasukM3, 4), $hargaBasah, $subtotal);
+                        $m3MasukRnd   = round($totalMasukM3, 4);
+                        $subtotal     = round($m3MasukRnd * $hargaBasah, 0); // Dibulatkan 0 desimal
+                        $creditRows[] = $this->makeRow($akun['nama'], $akun['no'], $tglProduksi, $namaProduksi, '', 'k', 'm', $totalMasukIsi, $m3MasukRnd, $hargaBasah, $subtotal);
                         $totalKredit += $subtotal;
                     }
                 }
-            } 
+            }
 
             foreach ($debitRows as $r) $rows[] = $r;
             foreach ($creditRows as $r) $rows[] = $r;
 
             if ($totalPegawai > 0) {
-                // UPDATE: Menggunakan 2231.00 untuk Hutang Gaji
                 $rows[] = $this->makeRow('Hutang Gaji', '2231.00', $tglProduksi, $namaProduksi, '', 'k', 'b', $totalPegawai, '', 150000, ($totalPegawai * 150000));
                 $totalKredit += ($totalPegawai * 150000);
             }
 
-            $hpp = abs($totalKredit - $totalDebit);
-            if (round($hpp, 2) != 0) {
-                $rows[] = $this->makeRow('hpp', '6111', $tglProduksi, $namaProduksi, '', 'k', '', '', '', round($hpp, 2), round($hpp, 2));
+            // =========================================================
+            // HPP PENYEIMBANG OTOMATIS BULAT
+            // =========================================================
+            $nilaiHpp = $totalKredit - $totalDebit;
+
+            if (round(abs($nilaiHpp), 0) != 0) {
+                $mapHpp     = $nilaiHpp > 0 ? 'd' : 'k';
+                $nominalHpp = round(abs($nilaiHpp), 0);
+
+                $rows[] = $this->makeRow('hpp', '6111', $tglProduksi, $namaProduksi, '', $mapHpp, '', '', '', $nominalHpp, $nominalHpp);
             }
 
-            $rows[] = array_fill(0, 14, ''); 
+            $rows[] = array_fill(0, 14, '');
         }
 
         return $rows;
+    }
+
+    /**
+     * Penambahan fungsi ROUND() agar Formula Excel juga ikut membulatkan hasil
+     * tanpa menyimpan koma-koma tersembunyi yang menyebabkan selisih 1 rupiah.
+     */
+    public function map($row): array
+    {
+        $this->rowIndex++;
+
+        if ($this->rowIndex === 1 || implode('', (array)$row) === '') {
+            return $row;
+        }
+
+        $r = $this->rowIndex;
+        $row[13] = "=ROUND(IF(J{$r}=\"m\", M{$r}*L{$r}, IF(J{$r}=\"b\", M{$r}*K{$r}, M{$r})), 0)";
+
+        return $row;
     }
 }

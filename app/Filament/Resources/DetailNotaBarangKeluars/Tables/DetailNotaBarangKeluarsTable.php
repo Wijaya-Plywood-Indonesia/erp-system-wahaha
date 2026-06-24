@@ -94,24 +94,13 @@ class DetailNotaBarangKeluarsTable
                                         })
                                         ->filter()
                                         ->unique();
+                                    return \App\Models\Ukuran::whereIn('id', $availableUkuranIds)
+                                        ->get()
+                                        ->pluck('nama_ukuran', 'id');
                                 } else {
-                                    $availableUkuranIds = [];
-                                    $ukurans = \App\Models\Ukuran::all();
-                                    foreach ($ukurans as $ukuran) {
-                                        $latest = \App\Models\StokVeneerKering::where('id_ukuran', $ukuran->id)
-                                            ->orderBy('tanggal_transaksi', 'desc')
-                                            ->orderBy('id', 'desc')
-                                            ->first();
-
-                                        if ($latest && $latest->stok_lembar_sesudah > 0) {
-                                            $availableUkuranIds[] = $ukuran->id;
-                                        }
-                                    }
+                                    // TEMPORARY: show all sizes for dry veneer
+                                    return \App\Models\Ukuran::all()->pluck('nama_ukuran', 'id');
                                 }
-
-                                return \App\Models\Ukuran::whereIn('id', $availableUkuranIds)
-                                    ->get()
-                                    ->pluck('nama_ukuran', 'id');
                             })
                             ->searchable()
                             ->required()
@@ -137,29 +126,15 @@ class DetailNotaBarangKeluarsTable
                                         'lebar'   => $ukuran->lebar,
                                         'tebal'   => $ukuran->tebal,
                                     ])
-                                    ->where('stok_lembar', '>', 0)
-                                    ->pluck('id_jenis_kayu')
-                                    ->unique();
+                                        ->where('stok_lembar', '>', 0)
+                                        ->pluck('id_jenis_kayu')
+                                        ->unique();
+                                    return \App\Models\JenisKayu::whereIn('id', $availableJenisKayuIds)
+                                        ->pluck('nama_kayu', 'id');
                                 } else {
-                                    $availableJenisKayuIds = [];
-                                    $jenisKayus = \App\Models\JenisKayu::all();
-                                    foreach ($jenisKayus as $jenisKayu) {
-                                        $latest = \App\Models\StokVeneerKering::where([
-                                            'id_ukuran'     => $idUkuran,
-                                            'id_jenis_kayu' => $jenisKayu->id,
-                                        ])
-                                        ->orderBy('tanggal_transaksi', 'desc')
-                                        ->orderBy('id', 'desc')
-                                        ->first();
-
-                                        if ($latest && $latest->stok_lembar_sesudah > 0) {
-                                            $availableJenisKayuIds[] = $jenisKayu->id;
-                                        }
-                                    }
+                                    // TEMPORARY: show all jenis kayu for dry veneer
+                                    return \App\Models\JenisKayu::pluck('nama_kayu', 'id');
                                 }
-
-                                return \App\Models\JenisKayu::whereIn('id', $availableJenisKayuIds)
-                                    ->pluck('nama_kayu', 'id');
                             })
                             ->searchable()
                             ->required()
@@ -186,33 +161,23 @@ class DetailNotaBarangKeluarsTable
                                         'lebar'         => $ukuran->lebar,
                                         'tebal'         => $ukuran->tebal,
                                     ])
-                                    ->where('stok_lembar', '>', 0)
-                                    ->pluck('kw')
-                                    ->unique();
-                                } else {
-                                    $availableKws = [];
-                                    $kws = ['1', '2', '3', '4'];
-                                    foreach ($kws as $kw) {
-                                        $latest = \App\Models\StokVeneerKering::where([
-                                            'id_ukuran'     => $idUkuran,
-                                            'id_jenis_kayu' => $idJenisKayu,
-                                            'kw'            => $kw,
-                                        ])
-                                        ->orderBy('tanggal_transaksi', 'desc')
-                                        ->orderBy('id', 'desc')
-                                        ->first();
-
-                                        if ($latest && $latest->stok_lembar_sesudah > 0) {
-                                            $availableKws[] = $kw;
-                                        }
+                                        ->where('stok_lembar', '>', 0)
+                                        ->pluck('kw')
+                                        ->unique();
+                                    $options = [];
+                                    foreach ($availableKws as $kw) {
+                                        $options[$kw] = 'KW ' . $kw;
                                     }
+                                    return $options;
+                                } else {
+                                    // TEMPORARY: show all kw for dry veneer
+                                    return [
+                                        '1' => 'KW 1',
+                                        '2' => 'KW 2',
+                                        '3' => 'KW 3',
+                                        '4' => 'KW 4',
+                                    ];
                                 }
-
-                                $options = [];
-                                foreach ($availableKws as $kw) {
-                                    $options[$kw] = 'KW ' . $kw;
-                                }
-                                return $options;
                             })
                             ->required()
                             ->live(),
@@ -250,9 +215,9 @@ class DetailNotaBarangKeluarsTable
                                         'id_jenis_kayu' => $idJenisKayu,
                                         'kw'            => $kw,
                                     ])
-                                    ->orderBy('tanggal_transaksi', 'desc')
-                                    ->orderBy('id', 'desc')
-                                    ->first();
+                                        ->orderBy('tanggal_transaksi', 'desc')
+                                        ->orderBy('id', 'desc')
+                                        ->first();
 
                                     $stok = $latest ? (int) $latest->stok_lembar_sesudah : 0;
                                 }
@@ -440,24 +405,13 @@ class DetailNotaBarangKeluarsTable
                                                 })
                                                 ->filter()
                                                 ->unique();
+                                            return \App\Models\Ukuran::whereIn('id', $availableUkuranIds)
+                                                ->get()
+                                                ->pluck('nama_ukuran', 'id');
                                         } else {
-                                            $availableUkuranIds = [];
-                                            $ukurans = \App\Models\Ukuran::all();
-                                            foreach ($ukurans as $ukuran) {
-                                                $latest = \App\Models\StokVeneerKering::where('id_ukuran', $ukuran->id)
-                                                    ->orderBy('tanggal_transaksi', 'desc')
-                                                    ->orderBy('id', 'desc')
-                                                    ->first();
-
-                                                if ($latest && $latest->stok_lembar_sesudah > 0) {
-                                                    $availableUkuranIds[] = $ukuran->id;
-                                                }
-                                            }
+                                            // TEMPORARY: show all sizes for dry veneer
+                                            return \App\Models\Ukuran::all()->pluck('nama_ukuran', 'id');
                                         }
-
-                                        return \App\Models\Ukuran::whereIn('id', $availableUkuranIds)
-                                            ->get()
-                                            ->pluck('nama_ukuran', 'id');
                                     })
                                     ->searchable()
                                     ->required()
@@ -483,29 +437,15 @@ class DetailNotaBarangKeluarsTable
                                                 'lebar'   => $ukuran->lebar,
                                                 'tebal'   => $ukuran->tebal,
                                             ])
-                                            ->where('stok_lembar', '>', 0)
-                                            ->pluck('id_jenis_kayu')
-                                            ->unique();
+                                                ->where('stok_lembar', '>', 0)
+                                                ->pluck('id_jenis_kayu')
+                                                ->unique();
+                                            return \App\Models\JenisKayu::whereIn('id', $availableJenisKayuIds)
+                                                ->pluck('nama_kayu', 'id');
                                         } else {
-                                            $availableJenisKayuIds = [];
-                                            $jenisKayus = \App\Models\JenisKayu::all();
-                                            foreach ($jenisKayus as $jenisKayu) {
-                                                $latest = \App\Models\StokVeneerKering::where([
-                                                    'id_ukuran'     => $idUkuran,
-                                                    'id_jenis_kayu' => $jenisKayu->id,
-                                                ])
-                                                ->orderBy('tanggal_transaksi', 'desc')
-                                                ->orderBy('id', 'desc')
-                                                ->first();
-
-                                                if ($latest && $latest->stok_lembar_sesudah > 0) {
-                                                    $availableJenisKayuIds[] = $jenisKayu->id;
-                                                }
-                                            }
+                                            // TEMPORARY: show all jenis kayu for dry veneer
+                                            return \App\Models\JenisKayu::pluck('nama_kayu', 'id');
                                         }
-
-                                        return \App\Models\JenisKayu::whereIn('id', $availableJenisKayuIds)
-                                            ->pluck('nama_kayu', 'id');
                                     })
                                     ->searchable()
                                     ->required()
@@ -532,33 +472,23 @@ class DetailNotaBarangKeluarsTable
                                                 'lebar'         => $ukuran->lebar,
                                                 'tebal'         => $ukuran->tebal,
                                             ])
-                                            ->where('stok_lembar', '>', 0)
-                                            ->pluck('kw')
-                                            ->unique();
-                                        } else {
-                                            $availableKws = [];
-                                            $kws = ['1', '2', '3', '4'];
-                                            foreach ($kws as $kw) {
-                                                $latest = \App\Models\StokVeneerKering::where([
-                                                    'id_ukuran'     => $idUkuran,
-                                                    'id_jenis_kayu' => $idJenisKayu,
-                                                    'kw'            => $kw,
-                                                ])
-                                                ->orderBy('tanggal_transaksi', 'desc')
-                                                ->orderBy('id', 'desc')
-                                                ->first();
-
-                                                if ($latest && $latest->stok_lembar_sesudah > 0) {
-                                                    $availableKws[] = $kw;
-                                                }
+                                                ->where('stok_lembar', '>', 0)
+                                                ->pluck('kw')
+                                                ->unique();
+                                            $options = [];
+                                            foreach ($availableKws as $kw) {
+                                                $options[$kw] = 'KW ' . $kw;
                                             }
+                                            return $options;
+                                        } else {
+                                            // TEMPORARY: show all kw for dry veneer
+                                            return [
+                                                '1' => 'KW 1',
+                                                '2' => 'KW 2',
+                                                '3' => 'KW 3',
+                                                '4' => 'KW 4',
+                                            ];
                                         }
-
-                                        $options = [];
-                                        foreach ($availableKws as $kw) {
-                                            $options[$kw] = 'KW ' . $kw;
-                                        }
-                                        return $options;
                                     })
                                     ->required()
                                     ->live(),
@@ -596,9 +526,9 @@ class DetailNotaBarangKeluarsTable
                                                 'id_jenis_kayu' => $idJenisKayu,
                                                 'kw'            => $kw,
                                             ])
-                                            ->orderBy('tanggal_transaksi', 'desc')
-                                            ->orderBy('id', 'desc')
-                                            ->first();
+                                                ->orderBy('tanggal_transaksi', 'desc')
+                                                ->orderBy('id', 'desc')
+                                                ->first();
 
                                             $stok = $latest ? (int) $latest->stok_lembar_sesudah : 0;
                                         }
@@ -784,8 +714,6 @@ class DetailNotaBarangKeluarsTable
                         }
                     }),
             ])
-            ->toolbarActions([
-
-            ]);
+            ->toolbarActions([]);
     }
 }

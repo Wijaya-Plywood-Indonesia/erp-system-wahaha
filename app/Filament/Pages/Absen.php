@@ -172,7 +172,7 @@ class Absen extends Page implements HasForms
             $listGrajiTriplek = GrajiTriplekWorkerMap::make(ProduksiGrajitriplek::with(['pegawaiGrajiTriplek.pegawaiGrajiTriplek'])->whereDate('tanggal_produksi', $tgl)->get());
             $listNyusup = NyusupWorkerMap::make(ProduksiNyusup::with(['pegawaiNyusup.pegawai'])->whereDate('tanggal_produksi', $tgl)->get());
             $listSanding = SandingWorkerMap::make(ProduksiSanding::with(['pegawaiSandings.pegawai'])->whereDate('tanggal', $tgl)->get());
-            $listPilihPlywood = PilihPlywoodWorkerMap::make(ProduksiPilihPlywood::with(['pegawaiPilihPlywood.pegawai'])->whereDate('tanggal_produksi', $tgl)->get());
+            $listPilihPlywood = PilihPlywoodWorkerMap::make(ProduksiPilihPlywood::with(['pegawaiPilihPlywood.pegawai', 'hasilPilihPlywood.barangSetengahJadiHp.ukuran', 'hasilPilihPlywood.barangSetengahJadiHp.jenisBarang', 'hasilPilihPlywood.barangSetengahJadiHp.grade.kategoriBarang'])->whereDate('tanggal_produksi', $tgl)->get());
             $listHotpress = HotpressWorkerMap::make(ProduksiHp::with(['detailPegawaiHp.pegawaiHp'])->whereDate('tanggal_produksi', $tgl)->get());
             $listPotSiku = PotSikuWorkerMap::make(ProduksiPotSiku::with(['pegawaiPotSiku.pegawai'])->whereDate('tanggal_produksi', $tgl)->get());
             $listPotJelek = PotJelekWorkerMap::make(ProduksiPotJelek::with(['pegawaiPotJelek.pegawai'])->whereDate('tanggal_produksi', $tgl)->get());
@@ -215,16 +215,23 @@ class Absen extends Page implements HasForms
                 ->map(function ($group) use ($listFinger) {
                     $first = $group->first();
                     $kodep = ltrim($first['kodep'] ?? '-', '0');
-                    $allDivisi = $group->pluck('hasil')->unique()->filter()->values()->all();
+
+                    $allDivisi = $group->pluck('hasil')
+                        ->filter()
+                        ->unique()
+                        ->implode(' || ');
+
+                    // Jika setelah di-implode ternyata kosong, berikan fallback '-'
+                    if (empty($allDivisi)) {
+                        $allDivisi = '-';
+                    }
 
                     $finger = $listFinger->get($kodep);
 
                     $isMalam = false;
-                    foreach ($allDivisi as $divisi) {
-                        if (str_contains(strtoupper($divisi), 'MALAM')) {
-                            $isMalam = true;
-                            break;
-                        }
+                    // Pengecekan str_contains sekarang menggunakan variabel string $allDivisi
+                    if (str_contains(strtoupper($allDivisi), 'MALAM')) {
+                        $isMalam = true;
                     }
 
                     $rawMasuk = $finger?->jam_masuk ?? '-';
@@ -267,7 +274,7 @@ class Absen extends Page implements HasForms
                     'pulang'     => '-',
                     'f_masuk'    => $fingerLibur?->jam_masuk ?? '-',
                     'f_pulang'   => $fingerLibur?->jam_pulang ?? '-',
-                    'hasil'      => ['-'],
+                    'hasil'      => '-',
                     'ijin'       => '-',
                     'keterangan' => '-',
                 ];

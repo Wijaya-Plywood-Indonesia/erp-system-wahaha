@@ -107,14 +107,4 @@ class Pegawai extends Model
             ->withPivot('status')
             ->withTimestamps();
     }
-
-    public function hasilTembeltriplek()
-    {
-        return $this->belongsToMany(
-            HasilTembeltriplek::class,
-            'hasil_tembel_triplek_pegawai',
-            'id_pegawai',
-            'id_hasil_tembel_triplek'
-        );
-    }
 }

@@ -105,6 +105,9 @@ class ProduksiGrajiSummaryWidget extends Widget
             ->orderBy('jenis_barang.nama_jenis_barang')
             ->orderBy('ukuran')
             ->get();
+        $target = $totalPegawai * 750;
+        $globalProgress = $target > 0 ? ($totalAll / $target) * 100 : 0;
+        $globalProgress = round($globalProgress, 1);
 
         $this->summary = [
             'totalAll'              => $totalAll,
@@ -112,6 +115,8 @@ class ProduksiGrajiSummaryWidget extends Widget
             'globalUkuranKw'        => $globalUkuranKw,
             'globalUkuran'          => $globalUkuran,
             'globalJenisKayuUkuran' => $globalJenisKayuUkuran,
+            'target'                => $target,
+            'globalProgress'        => $globalProgress,
         ];
     }
 }
