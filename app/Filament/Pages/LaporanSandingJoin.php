@@ -3,41 +3,73 @@
 namespace App\Filament\Pages;
 
 use Filament\Pages\Page;
-use Filament\Actions\Action;
-use Filament\Notifications\Notification;
-use Filament\Forms\Concerns\InteractsWithForms;
-use Filament\Forms\Contracts\HasForms;
+use Filament\Forms;
+use Filament\Schemas\Schema;
 use Filament\Forms\Components\DatePicker;
-use App\Exports\LaporanSandingExport;
-use Maatwebsite\Excel\Facades\Excel;
-use App\Models\ProduksiSanding;
+use Filament\Notifications\Notification;
+use Filament\Actions\Action;
 use Carbon\Carbon;
+
 use BackedEnum;
-use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use UnitEnum;
 
-class LaporanSanding extends Page implements HasForms
-{
-    use InteractsWithForms;
-    use HasPageShield;
-    protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-document-chart-bar';
-    protected string $view = 'filament.pages.laporan-sanding';
-    protected static UnitEnum|string|null $navigationGroup = 'Laporan';
-    protected static ?string $title = 'Laporan Produksi Sanding';
-    protected static ?string $navigationLabel = 'Laporan Produksi Sanding';
-    protected static ?int $navigationSort = 18;
+use Exception;
+use Illuminate\Support\Facades\Log;
 
-    public $reportData = [
-        'detail' => [],
-        'summary' => []
+// Mengarah ke namespace Sanding Joint yang baru
+use App\Filament\Pages\LaporanSandingJoin\Queries\LoadLaporanSandingJoin;
+use App\Filament\Pages\LaporanSandingJoin\Transformers\SandingJoinDataMap;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\LaporanSandingJoinExport;
+use BezhanSalleh\FilamentShield\Traits\HasPageShield;
+
+class LaporanSandingJoin extends Page
+{
+    use HasPageShield;
+
+    protected static UnitEnum|string|null $navigationGroup = 'Laporan';
+    protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-document-chart-bar';
+    protected static ?string $title = 'Laporan Produksi Sanding Join';
+    protected static ?string $navigationLabel = 'Laporan Produksi Sanding Join';
+    protected string $view = 'filament.pages.laporan-sanding-join';
+    protected static ?int $navigationSort = 8; // Disesuaikan agar di bawah Joint
+
+    public array $data = [
+        'tanggal' => null,
     ];
-    public $tanggal = null;
+
+    public array $laporan = [];
+    public array $dataProduksi = [];
+    public bool $isLoading = false;
 
     public function mount(): void
     {
-        $this->form->fill(['tanggal' => $this->tanggal]);
-        $this->tanggal = now()->format('Y-m-d');
-        $this->loadAllData();
+        $this->form->fill($this->data);
+        $this->data['tanggal'] = now()->format('Y-m-d');
+        $this->loadData();
+    }
+
+    public function form(Schema $schema): Schema
+    {
+        return $schema
+            ->schema([
+                DatePicker::make('tanggal')
+                    ->label('Pilih Tanggal Laporan Sanding Joint')
+                    ->native(false)
+                    ->format('Y-m-d')
+                    ->displayFormat('d/m/Y')
+                    ->live()
+                    ->closeOnDateSelection()
+                    ->afterStateUpdated(fn($state) => $this->onTanggalUpdated($state))
+                    ->required()
+                    ->maxDate(now())
+                    ->default(now())
+                    ->suffixIcon('heroicon-o-calendar')
+                    ->suffixIconColor('primary')
+                    ->helperText('Pilih tanggal untuk melihat laporan hasil produksi sanding joint'),
+            ])
+            ->statePath('data')
+            ->columns(1);
     }
 
     protected function getHeaderActions(): array
@@ -47,31 +79,108 @@ class LaporanSanding extends Page implements HasForms
                 ->label('Refresh Data')
                 ->icon('heroicon-o-arrow-path')
                 ->color('gray')
-                ->action(fn() => $this->loadAllData()),
+                ->action(fn() => $this->refresh()),
 
             Action::make('exportExcel')
                 ->label('Download Excel')
                 ->icon('heroicon-o-arrow-down-tray')
                 ->color('success')
                 ->action(fn() => $this->exportExcel())
-                ->visible(fn() => !empty($this->reportData['detail'])),
+                ->visible(fn() => !empty($this->laporan)),
         ];
+    }
+
+    public function onTanggalUpdated($state): void
+    {
+        try {
+            if ($state instanceof Carbon) {
+                $tanggal = $state->format('Y-m-d');
+            } elseif (is_string($state)) {
+                if (str_contains($state, '/')) {
+                    $tanggal = Carbon::createFromFormat('d/m/Y', $state)->format('Y-m-d');
+                } else {
+                    $tanggal = Carbon::parse($state)->format('Y-m-d');
+                }
+            } else {
+                $tanggal = now()->format('Y-m-d');
+            }
+
+            $this->data['tanggal'] = $tanggal;
+            $this->loadData();
+        } catch (Exception $e) {
+            Log::error('Error parsing date Sanding Joint: ' . $e->getMessage());
+
+            Notification::make()
+                ->danger()
+                ->title('Format Tanggal Tidak Valid')
+                ->send();
+
+            $this->data['tanggal'] = now()->format('Y-m-d');
+            $this->form->fill($this->data);
+        }
+    }
+
+    public function loadData(): void
+    {
+        try {
+            $this->isLoading = true;
+            $tanggal = $this->data['tanggal'] ?? now()->format('Y-m-d');
+
+            $this->dataProduksi = [];
+            $this->laporan = [];
+
+            // Memanggil Query Class Sanding Joint
+            $raw = LoadLaporanSandingJoin::run($tanggal);
+
+            Log::info('Sanding Join Query executed', [
+                'records_found' => $raw->count(),
+                'tanggal' => $tanggal
+            ]);
+
+            if ($raw->isNotEmpty()) {
+                // Memanggil Transformer SandingJoinDataMap
+                $this->dataProduksi = SandingJoinDataMap::make($raw);
+                $this->laporan = $this->dataProduksi;
+            } else {
+                Notification::make()
+                    ->warning()
+                    ->title('Tidak Ada Data Sanding Joint')
+                    ->body('Tidak ditemukan data produksi sanding joint untuk tanggal ' . Carbon::parse($tanggal)->format('d/m/Y'))
+                    ->send();
+            }
+        } catch (Exception $e) {
+            Log::error('Error loading sanding joint data: ' . $e->getMessage());
+
+            Notification::make()
+                ->danger()
+                ->title('Error Memuat Data Sanding Joint')
+                ->body('Terjadi kesalahan: ' . $e->getMessage())
+                ->send();
+        } finally {
+            $this->isLoading = false;
+        }
+    }
+
+    public function refresh(): void
+    {
+        $this->loadData();
+        Notification::make()->success()->title('Data Diperbarui')->send();
     }
 
     public function exportExcel()
     {
         try {
-            if (empty($this->reportData['detail'])) {
-                throw new \Exception('Tidak ada data untuk diunduh.');
-            }
-
-            $tglFile = Carbon::parse($this->tanggal)->format('d-m-Y');
+            $tanggalQuery = Carbon::parse($this->data['tanggal'])->format('Y-m-d');
+            $tanggalFile  = Carbon::parse($this->data['tanggal'])->format('d-m-Y');
 
             return Excel::download(
-                new LaporanSandingExport($this->reportData, $this->tanggal),
-                "laporan-produksi-sanding-{$tglFile}.xlsx"
+                new LaporanSandingJoinExport(
+                    $this->laporan, // ← argument 1: detail data
+                    $tanggalQuery   // ← argument 2: tanggal untuk query Sheet 2
+                ),
+                "laporan-sanding-joint-{$tanggalFile}.xlsx"
             );
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Notification::make()
                 ->danger()
                 ->title('Gagal Export Excel')
@@ -80,75 +189,44 @@ class LaporanSanding extends Page implements HasForms
         }
     }
 
-    protected function getFormSchema(): array
+    public function getViewData(): array
     {
         return [
-            DatePicker::make('tanggal')
-                ->label('Pilih Tanggal')
-                ->reactive()
-                ->format('Y-m-d')
-                ->displayFormat('d/m/Y')
-                ->live()
-                ->afterStateUpdated(function ($state) {
-                    $this->tanggal = $state;
-                    $this->loadAllData();
-                }),
+            'laporan' => $this->laporan,
+            'dataProduksi' => $this->dataProduksi,
+            'isLoading' => $this->isLoading,
+            'summary' => $this->calculateSummary(),
         ];
     }
 
-    public function loadAllData()
+    private function calculateSummary(): array
     {
-        $tanggal = $this->tanggal ?? now()->format('Y-m-d');
+        $totalAll = 0;
+        $uniquePegawai = [];
+        $globalUkuranKw = [];
 
-        $produksiList = ProduksiSanding::with([
-            'hasilSandings.barangSetengahJadi.grade.kategoriBarang', // Pastikan relasi ini dimuat
-            'pegawaiSandings',
-            'mesin'
-        ])
-            ->whereDate('tanggal', $tanggal)
-            ->get();
+        foreach ($this->laporan as $row) {
+            $totalAll += $row['hasil'];
 
-        $detail = [];
-        $summary = [];
-
-        foreach ($produksiList as $prod) {
-            $mesinLabel = ($prod->mesin->nama_mesin ?? 'Mesin') . ' ' . ucfirst($prod->shift ?? '');
-
-            foreach ($prod->hasilSandings as $item) {
-                $b = $item->barangSetengahJadi;
-                $u = $b->ukuran ?? null;
-                $p = $u->panjang ?? 0;
-                $l = $u->lebar ?? 0;
-                $t = $u->tebal ?? 0;
-                $byk = $item->kuantitas ?? 0;
-
-                // Mengambil kategori dari Grade -> KategoriBarang
-                $namaKategori = $b->grade->kategoriBarang->nama_kategori ?? 'BARANG';
-                $namaGrade = $b->grade->nama_grade ?? '-';
-
-                $detail[] = [
-                    'tanggal' => Carbon::parse($prod->tanggal)->format('d-M-y'),
-                    'mesin' => $mesinLabel,
-                    'p' => $p,
-                    'l' => $l,
-                    't' => $t,
-                    // Hasil: PLATFORM - BETTER
-                    'jenis' => strtoupper($namaKategori . ' - ' . $namaGrade),
-                    'banyak' => $byk,
-                    'm3' => '',
-                ];
+            foreach ($row['pekerja'] as $p) {
+                $uniquePegawai[$p['nama']] = true;
             }
 
-            $summary[] = [
-                'tanggal' => Carbon::parse($prod->tanggal)->format('d-M-y'),
-                'mesin' => $mesinLabel,
-                'jml_pkj' => $prod->pegawaiSandings->count(),
-            ];
+            $key = $row['ukuran'] . '|' . $row['kw'];
+            if (!isset($globalUkuranKw[$key])) {
+                $globalUkuranKw[$key] = (object)[
+                    'ukuran' => $row['ukuran'],
+                    'kw' => $row['kw'],
+                    'total' => 0
+                ];
+            }
+            $globalUkuranKw[$key]->total += $row['hasil'];
         }
 
-        $this->reportData = [
-            'detail' => $detail,
-            'summary' => $summary
+        return [
+            'totalAll' => $totalAll,
+            'totalPegawai' => count($uniquePegawai),
+            'globalUkuranKw' => array_values($globalUkuranKw),
         ];
     }
 }

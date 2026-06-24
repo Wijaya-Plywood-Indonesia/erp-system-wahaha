@@ -242,15 +242,12 @@
                                     </span>
                                 </div>
                             </td>
-                            <<<<<<< HEAD
 
-                                <td class="px-4 py-3 text-right border-l border-gray-50 dark:border-gray-800 bg-amber-50/20 dark:bg-amber-900/5 whitespace-nowrap">
+                            <td class="px-4 py-3 text-right border-l border-gray-50 dark:border-gray-800 bg-amber-50/20 dark:bg-amber-900/5 whitespace-nowrap">
                                 <span class="font-black text-xs text-amber-700 dark:text-amber-400 tabular-nums">
                                     {{ number_format($log->hpp_average, 0, ',', '.') }}
                                 </span>
-                                </td>
-                                =======
-                                >>>>>>> main-erp/main
+                            </td>
                         </tr>
                         @endforeach
                     </tbody>
