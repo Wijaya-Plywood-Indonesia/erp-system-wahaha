@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Pages\Absen\Transformers;
+namespace App\Filament\Pages\LaporanHarian\Transformers;
 
 use Carbon\Carbon;
 
@@ -11,8 +11,6 @@ class GrajiTriplekWorkerMap
         $results = [];
 
         foreach ($collection as $produksi) {
-            $shift = (strtoupper($produksi->shift ?? '') === 'MALAM') ? 'MALAM' : 'PAGI';
-
             // 1. Kumpulkan detail barang dari relasi hasilGrajiTriplek
             $detailProduksi = [];
             if ($produksi->hasilGrajiTriplek) {
@@ -35,8 +33,7 @@ class GrajiTriplekWorkerMap
                 }
             }
 
-            $teksDetail = empty($detailProduksi) ? '-' : implode('; ', $detailProduksi);
-            $labelHasil = "GRAJI TRIPLEK {$shift}: " . $teksDetail;
+            $labelHasil = "GRAJI TRIPLEK: " . (empty($detailProduksi) ? '-' : implode('; ', $detailProduksi));
 
             // Calculate actual production (sum of isi from hasilGrajiTriplek)
             $totalActual = 0;
@@ -97,7 +94,7 @@ class GrajiTriplekWorkerMap
                         'hasil' => $labelHasil,
                         'ijin' => $pg->ijin ?? '-',
                         'potongan_targ' => (int) $potonganPerOrang,
-                        'keterangan' => $pg->ket  ?? '',
+                        'keterangan' => $pg->ket ?? $produksi->kendala ?? '',
                     ];
                 }
             }

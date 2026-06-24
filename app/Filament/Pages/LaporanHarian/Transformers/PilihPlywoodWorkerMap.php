@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Pages\Absen\Transformers;
+namespace App\Filament\Pages\LaporanHarian\Transformers;
 
 use Carbon\Carbon;
 
@@ -121,7 +121,7 @@ class PilihPlywoodWorkerMap
                         'hasil' => $labelHasil,
                         'ijin' => $pp->ijin ?? '-',
                         'potongan_targ' => (int) $potonganPerOrang,
-                        'keterangan' => $pp->ket  ?? '',
+                        'keterangan' => $pp->ket ?? $produksi->kendala ?? '',
                     ];
                 }
             }

@@ -1,70 +1,99 @@
 <?php
 
-namespace App\Filament\Pages\Absen\Transformers;
+namespace App\Filament\Pages\LaporanHarian\Transformers;
 
 use Carbon\Carbon;
 
-class GrajiTriplekWorkerMap
+class HotpressWorkerMap
 {
     public static function make($collection): array
     {
         $results = [];
 
+        $hotpressMachineIds = \App\Models\Mesin::join('kategori_mesins', 'mesins.kategori_mesin_id', '=', 'kategori_mesins.id')
+            ->where('kategori_mesins.nama_kategori_mesin', 'HOTPRESS')
+            ->pluck('mesins.id')
+            ->toArray();
+
+        if (empty($hotpressMachineIds)) {
+            $hotpressMachineIds = [13, 26, 27, 28];
+        }
+
+        $targets = \App\Models\Target::whereIn('id_mesin', $hotpressMachineIds)->get();
+
         foreach ($collection as $produksi) {
+            $produksiId = $produksi->id;
             $shift = (strtoupper($produksi->shift ?? '') === 'MALAM') ? 'MALAM' : 'PAGI';
+            $labelHasil = "HOT PRESS {$shift}";
 
-            // 1. Kumpulkan detail barang dari relasi hasilGrajiTriplek
-            $detailProduksi = [];
-            if ($produksi->hasilGrajiTriplek) {
-                foreach ($produksi->hasilGrajiTriplek as $detail) {
-                    $b = $detail->barangSetengahJadiHp;
+            // 1. Calculate actual production by id_ukuran
+            $platformActuals = \App\Models\PlatformHasilHp::where('id_produksi_hp', $produksiId)
+                ->join('barang_setengah_jadi_hp', 'barang_setengah_jadi_hp.id', '=', 'platform_hasil_hp.id_barang_setengah_jadi')
+                ->selectRaw('barang_setengah_jadi_hp.id_ukuran, SUM(platform_hasil_hp.isi) as total_actual')
+                ->groupBy('barang_setengah_jadi_hp.id_ukuran')
+                ->get();
 
-                    if ($b) {
-                        // Format: Kategori | Ukuran | Grade | Jenis
-                        $namaLengkapBarang =
-                            ($b->grade?->kategoriBarang?->nama_kategori ?? '-') . ' | ' .
-                            ($b->ukuran?->nama_ukuran ?? '-') . ' | ' .
-                            ($b->grade?->nama_grade ?? '-') . ' | ' .
-                            ($b->jenisBarang?->nama_jenis_barang ?? '-');
-                    } else {
-                        $namaLengkapBarang = 'Barang Tidak Diketahui';
+            $triplekActuals = \App\Models\TriplekHasilHp::where('id_produksi_hp', $produksiId)
+                ->join('barang_setengah_jadi_hp', 'barang_setengah_jadi_hp.id', '=', 'triplek_hasil_hp.id_barang_setengah_jadi')
+                ->selectRaw('barang_setengah_jadi_hp.id_ukuran, SUM(triplek_hasil_hp.isi) as total_actual')
+                ->groupBy('barang_setengah_jadi_hp.id_ukuran')
+                ->get();
+
+            $combinedActuals = [];
+            foreach ($platformActuals as $act) {
+                $combinedActuals[$act->id_ukuran] = (int) $act->total_actual;
+            }
+            foreach ($triplekActuals as $act) {
+                if (isset($combinedActuals[$act->id_ukuran])) {
+                    $combinedActuals[$act->id_ukuran] += (int) $act->total_actual;
+                } else {
+                    $combinedActuals[$act->id_ukuran] = (int) $act->total_actual;
+                }
+            }
+
+            // 2. Calculate target achievement ratio, total target, total actual, etc.
+            $targetHotpress = 0;
+            $gaji = 115000;
+            $stdJam = 10;
+
+            foreach ($combinedActuals as $id_ukuran => $actual) {
+                $tgt = $targets->first(function ($t) use ($id_ukuran) {
+                    return $t->id_ukuran == $id_ukuran;
+                });
+
+                // FALLBACK TO WILDCARD (size 33 / '0x0x0') IF NOT FOUND
+                if (!$tgt) {
+                    $tgt = $targets->first(function ($t) {
+                        return $t->id_ukuran == 33;
+                    });
+                }
+
+                if ($tgt) {
+                    $targetVal = (float) $tgt->target;
+                    if ($targetVal > 0) {
+                        $targetHotpress += $actual / $targetVal;
                     }
 
-                    $jumlah = $detail->isi ?? 0;
-                    $detailProduksi[] = "{$namaLengkapBarang} ({$jumlah} Pcs)";
-                }
-            }
-
-            $teksDetail = empty($detailProduksi) ? '-' : implode('; ', $detailProduksi);
-            $labelHasil = "GRAJI TRIPLEK {$shift}: " . $teksDetail;
-
-            // Calculate actual production (sum of isi from hasilGrajiTriplek)
-            $totalActual = 0;
-            if ($produksi->hasilGrajiTriplek) {
-                foreach ($produksi->hasilGrajiTriplek as $detail) {
-                    $totalActual += $detail->isi ?? 0;
-                }
-            }
-
-            // Calculate worker salary deduction using the old formula
-            // Target is dynamic based on worker count: N * 750
-            $pekerjaList = [];
-            if ($produksi->pegawaiGrajiTriplek) {
-                foreach ($produksi->pegawaiGrajiTriplek as $pg) {
-                    if ($pg->pegawaiGrajiTriplek) {
-                        $pekerjaList[] = $pg;
+                    if (isset($tgt->gaji) && $tgt->gaji > 0) {
+                        $gaji = (float) $tgt->gaji;
+                    }
+                    if (isset($tgt->jam) && $tgt->jam > 0) {
+                        $stdJam = (int) $tgt->jam;
                     }
                 }
             }
-            $N = count($pekerjaList);
+
+            // 3. Share deduction among workers in this session
             $potonganPerOrang = 0;
-
-            if ($N > 0) {
-                $target = $N * 750;
-                $deficit = $target - $totalActual;
-                if ($deficit > 0) {
-                    // Rumus lama: (deficit * (Gaji / Target)) / N
-                    $potonganRaw = ($deficit * 115000) / ($target * $N);
+            $jumlahPekerja = $produksi->detailPegawaiHp ? $produksi->detailPegawaiHp->count() : 0;
+            if ($jumlahPekerja > 0) {
+                if ($targetHotpress >= 1.0) {
+                    $potonganPerOrang = 0;
+                } else {
+                    $potonganRaw = (($gaji - ($targetHotpress * $gaji)) * (0.1 * $stdJam)) / ($jumlahPekerja * 0.1);
+                    if ($potonganRaw < 0) {
+                        $potonganRaw = 0;
+                    }
 
                     // --- RUMUS PEMBULATAN KHUSUS (0, 500, 1000) ---
                     $ribuan = floor($potonganRaw / 1000);
@@ -80,24 +109,23 @@ class GrajiTriplekWorkerMap
                 }
             }
 
-            // 2. Looping Pegawai Graji Triplek
-            if ($produksi->pegawaiGrajiTriplek) {
-                foreach ($produksi->pegawaiGrajiTriplek as $pg) {
-                    // DISESUAIKAN: Nama relasi di model Anda adalah pegawaiGrajiTriplek
-                    if (!$pg->pegawaiGrajiTriplek) continue;
+            // 4. Mapping Pegawai
+            if ($produksi->detailPegawaiHp) {
+                foreach ($produksi->detailPegawaiHp as $dp) {
+                    if (!$dp->pegawaiHp) continue;
 
-                    $jamMasuk = $pg->masuk ? Carbon::parse($pg->masuk)->format('H:i:s') : '-';
-                    $jamPulang = $pg->pulang ? Carbon::parse($pg->pulang)->format('H:i:s') : '-';
+                    $jamMasuk = $dp->masuk ? Carbon::parse($dp->masuk)->format('H:i:s') : '-';
+                    $jamPulang = $dp->pulang ? Carbon::parse($dp->pulang)->format('H:i:s') : '-';
 
                     $results[] = [
-                        'kodep' => $pg->pegawaiGrajiTriplek->kode_pegawai ?? '-',
-                        'nama' => $pg->pegawaiGrajiTriplek->nama_pegawai ?? 'TANPA NAMA',
+                        'kodep' => $dp->pegawaiHp->kode_pegawai ?? '-',
+                        'nama' => $dp->pegawaiHp->nama_pegawai ?? 'TANPA NAMA',
                         'masuk' => $jamMasuk,
                         'pulang' => $jamPulang,
                         'hasil' => $labelHasil,
-                        'ijin' => $pg->ijin ?? '-',
+                        'ijin' => $dp->ijin ?? '-',
                         'potongan_targ' => (int) $potonganPerOrang,
-                        'keterangan' => $pg->ket  ?? '',
+                        'keterangan' => $dp->ket ?? $produksi->kendala ?? '',
                     ];
                 }
             }

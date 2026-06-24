@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Pages\Absen\Transformers;
+namespace App\Filament\Pages\LaporanHarian\Transformers;
 
 use Carbon\Carbon;
 
@@ -112,7 +112,7 @@ class SandingWorkerMap
                         'hasil' => $labelHasil,
                         'ijin' => $ps->ijin ?? '-',
                         'potongan_targ' => (int) $potonganPerOrang,
-                        'keterangan' => $ps->ket  ?? '',
+                        'keterangan' => $ps->ket ?? $produksi->kendala ?? '',
                     ];
                 }
             }
