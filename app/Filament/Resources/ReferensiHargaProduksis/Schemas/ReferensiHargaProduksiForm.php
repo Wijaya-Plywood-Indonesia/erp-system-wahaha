@@ -23,7 +23,11 @@ class ReferensiHargaProduksiForm
                     ->label('Ukuran')
                     ->relationship('ukuran', 'panjang')
                     ->getOptionLabelFromRecordUsing(fn($record) => "{$record->panjang}mm x {$record->lebar}mm x {$record->tebal}mm")
-                    ->searchable()
+                    ->searchable([
+                        'panjang',
+                        'lebar',
+                        'tebal',
+                    ])
                     ->preload()
                     ->native(false)
                     ->placeholder('Pilih Ukuran'),
@@ -48,71 +52,41 @@ class ReferensiHargaProduksiForm
 
                 TextInput::make('jenis_barang')
                     ->label('Jenis Barang')
-                    ->options(function ($state) {
-                        $defaults = [
-                            'Afalan' => 'Afalan',
-                            'Veneer Basah' => 'Veneer Basah',
-                            'Veneer Kering' => 'Veneer Kering',
-                            'Veneer Jadi' => 'Veneer Jadi',
-                            'Platform' => 'Platform',
-                            'Lain-Lain' => 'Lain-Lain',
-                        ];
-                        $dbValues = \App\Models\ReferensiHargaProduksi::whereNotNull('jenis_barang')
-                            ->where('jenis_barang', '!=', '')
-                            ->distinct()
-                            ->pluck('jenis_barang', 'jenis_barang')
-                            ->toArray();
-
-                        $options = array_merge($defaults, $dbValues);
-
-                        if ($state && !array_key_exists($state, $options)) {
-                            $options[$state] = $state;
-                        }
-
-                        return $options;
-                    })
-                    ->searchable()
-                    ->native(false)
-                    ->placeholder('Pilih atau buat baru')
-                    ->createOptionForm([
-                        TextInput::make('jenis_barang')
-                            ->label('Jenis Barang Baru')
-                            ->required()
-                            ->maxLength(100)
-                            ->placeholder('Contoh: Veneer Basah'),
-                    ])
-                    ->createOptionUsing(function (array $data): string {
-                        return $data['jenis_barang'];
-                    }),
+                    ->datalist(
+                        collect([
+                            'Afalan',
+                            'Veneer Basah',
+                            'Veneer Kering',
+                            'Veneer Jadi',
+                            'Platform',
+                            'Lain-Lain',
+                        ])
+                            ->merge(
+                                ReferensiHargaProduksi::query()
+                                    ->whereNotNull('jenis_barang')
+                                    ->where('jenis_barang', '!=', '')
+                                    ->distinct()
+                                    ->pluck('jenis_barang')
+                            )
+                            ->unique()
+                            ->values()
+                            ->toArray()
+                    )
+                    ->maxLength(100)
+                    ->placeholder('Pilih atau ketik jenis barang baru'),
 
                 TextInput::make('kw')
                     ->label('KW')
-                    ->options(function ($state) {
-                        $options = \App\Models\ReferensiHargaProduksi::whereNotNull('kw')
+                    ->datalist(
+                        ReferensiHargaProduksi::query()
+                            ->whereNotNull('kw')
                             ->where('kw', '!=', '')
                             ->distinct()
-                            ->pluck('kw', 'kw')
-                            ->toArray();
-
-                        if ($state && !array_key_exists($state, $options)) {
-                            $options[$state] = $state;
-                        }
-
-                        return $options;
-                    })
-                    ->searchable()
-                    ->native(false)
-                    ->placeholder('Pilih atau buat baru')
-                    ->createOptionForm([
-                        TextInput::make('kw')
-                            ->label('KW Baru')
-                            ->required()
-                            ->maxLength(50)
-                            ->placeholder('Contoh: KW 1'),
-                    ])
-                    ->createOptionUsing(function (array $data): string {
-                        return $data['kw'];
-                    }),
+                            ->pluck('kw')
+                            ->toArray()
+                    )
+                    ->maxLength(50)
+                    ->placeholder('Pilih atau ketik KW baru'),
 
                 TextInput::make('harga')
                     ->label('Harga Produksi')
