@@ -67,7 +67,7 @@ class AdminPanelProvider extends PanelProvider
                 LaporanKayuKeluar::class,
                 LaporanJurnalKayuMasuk::class,
             ])
-            ->brandName('Wijaya')
+            ->brandName('Wahana')
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
                 // AccountWidget::class,

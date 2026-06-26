@@ -15,7 +15,6 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
 
 class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithColumnWidths, WithStyles, WithMapping
 {
@@ -145,7 +144,7 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
     }
 
     // =========================================================================
-    // MAPPING AKUN VENEER
+    // MAPPING AKUN VENEER (DENGAN LOGIKA AF)
     // =========================================================================
     private function getAkunVeneer(float $tebal, string $jenisKayu, string $grade = ''): array
     {
@@ -154,9 +153,14 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
         $ext  = $this->isWhn() ? '01'  : '00';
 
         $gradeStr = strtolower(trim($grade));
-        $isPpc    = ($tebal < 1)
+        
+        $isAf = str_contains($gradeStr, 'af');
+
+        $isPpc    = $isAf || (
+            ($tebal < 1)
             && ($kayu === 'sengon')
-            && !in_array($gradeStr, ['1', '2', '3', '4', 'grade 1', 'grade 2', 'grade 3', 'grade 4']);
+            && !in_array($gradeStr, ['1', '2', '3', '4', 'grade 1', 'grade 2', 'grade 3', 'grade 4'])
+        );
 
         if ($isPpc) {
             return [
@@ -250,9 +254,7 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
             'hutang' => ['nama' => 'Hutang Gaji',        'no' => '2231.00'],
         ];
     }
-// =========================================================================
-    // HARGA HPP PRODUK (Pencarian Database Multi-Lapis)
-    // =========================================================================
+
     // =========================================================================
     // HARGA HPP PRODUK (Pencarian Database Cerdas Berbasis Nama)
     // =========================================================================
@@ -262,36 +264,27 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
         $kayuSingkat = $jns === 'sengon' ? 's' : 'm';
         $tipeLower = strtolower(trim($tipe)); 
 
-        // Bersihkan grade (ubah kata local jadi lokal agar seragam) dan pastikan ketebalan utuh
         $gradeClean = trim(str_replace(['local', 'LOCAL', 'Local'], 'lokal', strtolower(trim($grade))));
         $tebalBulat = fmod($tebal, 1) == 0 ? (int)$tebal : $tebal;
 
-        // 1. KITA RAKIT KATA KUNCI PENCARIAN (Sesuai dengan gaya ketik di database)
         if ($tipeLower === 'platform') {
-            // Akan menjadi: "platform 15 better lokal"
             $kataKunci1 = "platform {$tebalBulat} {$gradeClean}"; 
-            // Akan menjadi: "platform 15 better local" (Berjaga-jaga jika di DB tertulis 'local')
             $kataKunci2 = "platform {$tebalBulat} " . strtolower(trim($grade)); 
         } else {
-            // Akan menjadi: "5s uty lokal" atau "18m better"
             $kataKunci1 = "{$tebalBulat}{$kayuSingkat} {$gradeClean}"; 
-            // Akan menjadi: "triplek 5 uty lokal" (Alternatif jika nama di DB memakai kata 'triplek')
             $kataKunci2 = "{$tipeLower} {$tebalBulat} {$gradeClean}"; 
         }
 
-        // 2. EKSEKUSI PENCARIAN KE DATABASE (Fokus pada kolom 'nama')
         $refNama = \App\Models\ReferensiHargaProduksi::where(function($query) use ($kataKunci1, $kataKunci2) {
             $query->whereRaw('LOWER(nama) LIKE ?', ['%' . $kataKunci1 . '%'])
                   ->orWhereRaw('LOWER(nama) LIKE ?', ['%' . $kataKunci2 . '%']);
         })->first();
 
-        // JIKA KETEMU DI DATABASE, LANGSUNG KEMBALIKAN HARGANYA!
         if ($refNama && $refNama->harga > 0) {
             return (float) $refNama->harga;
         }
 
-        // 3. PENCARIAN ALTERNATIF (Mencari di kolom jenis_barang & kw jika kolom nama beda format)
-        $kwCari = "{$tebalBulat} {$gradeClean}"; // ex: "15 better lokal"
+        $kwCari = "{$tebalBulat} {$gradeClean}"; 
         
         $refKolom = \App\Models\ReferensiHargaProduksi::whereRaw('LOWER(jenis_barang) LIKE ?', ['%' . $tipeLower . '%'])
             ->where(function($query) use ($kwCari, $gradeClean) {
@@ -303,9 +296,6 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
             return (float) $refKolom->harga;
         }
 
-        // =====================================================================
-        // FALLBACK HARDCODE (Hanya tersentuh jika database BENAR-BENAR kosong)
-        // =====================================================================
         if ($tipeLower === 'platform') {
             return 2000000;
         }
@@ -322,9 +312,8 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
                 $p = ['9' => 156843, '12' => 207903, '15' => 258963, '18' => 291708];
                 return $p[(string) round($tebal)] ?? 207903;
             } else {
-                // Di sinilah "5s uty local" nyangkut sebelumnya!
                 $p = ['4.7' => 47000, '7.7' => 66400, '9.1' => 47000, '12.1' => 107100, '12.4' => 106400, '15.1' => 122900, '15.5' => 125400, '18.5' => 135900];
-                return $p[$tbl] ?? 47000; 
+                return $p[$tbl] ?? 47000;
             }
         } else {
             if (str_contains($gr, 'better')) {
@@ -341,46 +330,30 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
     }
 
     // =========================================================================
-    // HARGA VENEER
+    // HARGA VENEER (PENCARIAN DB & FALLBACK AF)
     // =========================================================================
-    private function getHargaVeneer(float $tebal, string $jenisKayu, bool $isPpc = false): float
+    private function getHargaVeneer(float $tebal, string $jenisKayu, string $grade, ?int $idUkuran = null): float
     {
         $jns = str_contains(strtolower(trim($jenisKayu)), 'sengon') ? 'Sengon' : 'Meranti';
         $jenisKayuObj = \App\Models\JenisKayu::where('nama_kayu', $jns)->first();
-        if (!$jenisKayuObj) {
-            return 0.0;
+        
+        if ($idUkuran) {
+            $hargaDb = \App\Models\ReferensiHargaProduksi::where('id_jenis_kayu', $jenisKayuObj->id ?? 0)
+                ->where('id_ukuran', $idUkuran)
+                ->where(function($q) use ($grade) {
+                    $q->whereRaw('LOWER(kw) LIKE ?', ['%' . strtolower($grade) . '%'])
+                      ->orWhere('jenis_barang', 'Veneer Jadi');
+                })->first();
+
+            if ($hargaDb && $hargaDb->harga > 0) {
+                return (float) $hargaDb->harga;
+            }
         }
 
-        if ($isPpc) {
-            $kelompok = ($tebal < 1) ? 'ppc_faceback' : 'ppc_core';
-        } else {
-            $kelompok = ($tebal < 1) ? 'faceback' : 'core';
-        }
-
-        $ukuranOptions = $kelompok === 'faceback'
-            ? ($jns === 'Sengon' ? ['faceback'] : ['face', 'back'])
-            : ($kelompok === 'ppc_faceback' ? ['ppc_faceback'] : [$kelompok]);
-
-        $kwOptions = array_map(function($opt) {
-            return 'KW 1 - ' . ucfirst(str_replace('_', ' ', $opt));
-        }, $ukuranOptions);
-
-        $hargaVeneer = \App\Models\ReferensiHargaProduksi::where('id_jenis_kayu', $jenisKayuObj->id)
-            ->where('jenis_barang', 'Veneer Jadi')
-            ->whereIn('kw', $kwOptions)
-            ->first();
-
-        if ($hargaVeneer) {
-            return (float) $hargaVeneer->harga;
-        }
-
-        // Fallback legacy hardcoded
-        if ($isPpc) return 1700000;
-        if ($tebal >= 1) {
-            return ($jns === 'Sengon') ? 2250000 : 2800000;
-        } else {
-            return ($jns === 'Sengon') ? 4000000 : 10000000;
-        }
+        $isAf = str_contains(strtolower($grade), 'af');
+        if ($isAf) return 1500000; 
+        
+        return ($tebal >= 1) ? 2250000 : 4000000;
     }
 
     // =========================================================================
@@ -420,8 +393,9 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
         if ($produksis->isEmpty()) return $rows;
 
         $tglStr             = Carbon::parse($this->tanggal)->format('d-m-Y');
-        $defaultGaji        = $this->isWhn() ? 150000 : 115000;
-        $hargaPegawaiMaster = HargaPegawai::first()->harga ?? $defaultGaji;
+        
+        // MENGUNCI HARGA PEKERJA SELALU 150.000
+        $hargaPegawaiMaster = 150000;
 
         foreach ($produksis as $prod) {
             $shiftStr     = $prod->shift ?? 'pagi';
@@ -433,6 +407,16 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
             foreach ($prod->platformHasilHp as $p) {
                 $hasilByMesin[$p->id_mesin][] = ['tipe' => 'platform', 'data' => $p];
             }
+
+            // ====================================================================
+            // SORTING MESIN
+            // Mengurutkan array agar selalu tampil HP 1, lalu HP 2, dan HP 3
+            // ====================================================================
+            uasort($hasilByMesin, function ($a, $b) {
+                $namaA = strtolower($a[0]['data']->mesin->nama_mesin ?? '');
+                $namaB = strtolower($b[0]['data']->mesin->nama_mesin ?? '');
+                return strcmp($namaA, $namaB);
+            });
 
             $jumlahMesin = count($hasilByMesin);
             $hp3Id = null;
@@ -454,7 +438,7 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
 
                 $totalHargaProdukHp3   = 0;
                 $totalHargaBahanGlobal = 0;
-                $totalProdHp1Hp2       = 0; // Akumulator HPP Global untuk Mesin 1 & 2
+                $totalProdHp1Hp2       = 0; 
 
                 // 1. JURNAL HASIL PRODUKSI
                 foreach ($items as $item) {
@@ -481,7 +465,7 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
                         $banyak, $m3Round, $hargaHpp
                     );
 
-                    $totalProdValue = round($banyak * $hargaHpp, 0); // Dibulatkan agar sinkron dengan excel
+                    $totalProdValue = round($banyak * $hargaHpp, 0); 
 
                     if ($mId != $hp3Id) {
                         $totalProdHp1Hp2 += $totalProdValue;
@@ -506,21 +490,30 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
                     $veneerMap = [];
 
                     foreach ($prod->bahanHotpress as $bahan) {
-                        $u      = $bahan->barangSetengahJadi->ukuran ?? null;
-                        $jkAsli = $bahan->barangSetengahJadi->jenisBarang->nama_jenis_barang ?? 'sengon';
-                        $grAsli = $bahan->barangSetengahJadi->grade->nama_grade ?? '';
-                        $tebal  = $u->tebal ?? 0;
-                        $banyak = $bahan->isi ?? 0;
-                        $m3     = ($u->panjang * $u->lebar * $tebal * $banyak) / 10_000_000;
+                        $u        = $bahan->barangSetengahJadi->ukuran ?? null;
+                        $idUkuran = $u->id ?? null;
+                        $p        = $u->panjang ?? 0;
+                        $l        = $u->lebar ?? 0;
+                        $jkAsli   = $bahan->barangSetengahJadi->jenisBarang->nama_jenis_barang ?? 'sengon';
+                        $grAsli   = $bahan->barangSetengahJadi->grade->nama_grade ?? '';
+                        $tebal    = $u->tebal ?? 0;
+                        $banyak   = $bahan->isi ?? 0;
+                        $m3       = ($p * $l * $tebal * $banyak) / 10_000_000;
 
                         $akunVeneer  = $this->getAkunVeneer($tebal, $jkAsli, $grAsli);
-                        $isPpc       = str_contains($akunVeneer['nama'], 'ppc');
-                        $hargaVeneer = $this->getHargaVeneer($tebal, $jkAsli, $isPpc);
+                        $hargaVeneer = $this->getHargaVeneer($tebal, $jkAsli, $grAsli, $idUkuran);
 
-                        $tipeVeneer = ($tebal < 1) ? '260 F/B' : '130 Core';
+                        $isAf = str_contains(strtolower(trim($grAsli)), 'af');
+
+                        if ($isAf) {
+                            $tipeVeneer = 'AF';
+                        } else {
+                            $tipeVeneer = ($tebal < 1) ? '260 F/B' : '130 Core';
+                        }
+
                         $ketVeneer  = "{$tipeVeneer} {$jkAsli} uk {$tebal}";
 
-                        $groupKey = $akunVeneer['no'] . '_' . $tebal;
+                        $groupKey = $akunVeneer['no'] . '_' . $tebal . '_' . $p . 'x' . $l;
 
                         if (!isset($veneerMap[$groupKey])) {
                             $veneerMap[$groupKey] = [
@@ -537,7 +530,7 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
 
                     foreach ($veneerMap as $v) {
                         $m3Round = round($v['m3'], 4);
-                        $totalHargaBahanGlobal += round($m3Round * $v['harga'], 0); // Dibulatkan
+                        $totalHargaBahanGlobal += round($m3Round * $v['harga'], 0); 
 
                         $rows[] = $this->makeRow(
                             $v['akun']['nama'], $v['akun']['no'],
@@ -549,13 +542,24 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
 
                     // Bahan Penolong (Kredit)
                     foreach ($prod->bahanPenolongHp as $penolong) {
+                        $namaBahanLower = strtolower(trim($penolong->nama_bahan));
+
+                        // ==============================================================
+                        // PENGECUALIAN BAHAN: Abaikan kalsium, semen, dan pvac
+                        // ==============================================================
+                        if (str_contains($namaBahanLower, 'kalsium') || 
+                            str_contains($namaBahanLower, 'semen') || 
+                            str_contains($namaBahanLower, 'pvac')) {
+                            continue; // Langsung lewati, jangan dimasukkan ke jurnal
+                        }
+
                         $akunPenolong = $this->getAkunPenolong($penolong->nama_bahan);
                         $banyak       = $penolong->jumlah;
 
                         $masterPenolong = BahanPenolongProduksi::where('nama_bahan_penolong', $penolong->nama_bahan)->first();
                         $hargaPenolong  = $masterPenolong ? $masterPenolong->harga : 50000;
 
-                        $totalHargaBahanGlobal += round($banyak * $hargaPenolong, 0); // Dibulatkan
+                        $totalHargaBahanGlobal += round($banyak * $hargaPenolong, 0); 
 
                         $rows[] = $this->makeRow(
                             $akunPenolong['nama'], $akunPenolong['no'],
@@ -613,7 +617,6 @@ class LaporanProduksiHotPressJurnalSheet implements FromArray, WithTitle, WithCo
         }
 
         $r        = $this->rowIndex;
-        // Formula Excel ikut dibulatkan penuh (0 desimal) untuk menjaga presisi akuntansi
         $row[13]  = "=ROUND(IF(J{$r}=\"m\", M{$r}*L{$r}, IF(J{$r}=\"b\", M{$r}*K{$r}, M{$r})), 0)";
 
         return $row;
